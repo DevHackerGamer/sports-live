@@ -4,7 +4,7 @@ import './App.css';
 function App() {
   return (
     <div>
-      <p>Welcome to the React App!</p>
+      <h1>Welcome to the React App!</h1>
     </div>
   );
 }
