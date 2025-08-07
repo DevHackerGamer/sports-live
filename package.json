@@ -38,8 +38,8 @@
       "last 1 safari version"
     ]
   },
-
   "devDependencies": {
-    "gh-pages": "^6.3.0"
+    "gh-pages": "^6.3.0",
+    "node-mocks-http": "^1.17.2"
   }
 }

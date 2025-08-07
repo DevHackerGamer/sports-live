@@ -28,6 +28,60 @@
   padding: 0 2rem;
 }
 
+.api-test {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 3rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.api-test h2 {
+  color: #333;
+  margin: 0 0 1.5rem 0;
+}
+
+.joke-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  margin-bottom: 1rem;
+}
+
+.joke-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.joke-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.joke-display {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 1rem;
+  border-left: 4px solid #667eea;
+}
+
+.joke-display p {
+  margin: 0 0 0.5rem 0;
+  font-style: italic;
+  color: #555;
+  line-height: 1.6;
+}
+
+.joke-display small {
+  color: #888;
+  font-size: 0.85rem;
+}
+
 .features {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
