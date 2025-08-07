@@ -9,7 +9,7 @@ function App() {
     fetch('/api/status')
       .then(res => res.json())
       .then(data => setStatus(`ok at ${new Date(data.time).toLocaleTimeString()}`))
-      .catch(() => setStatus('error'));
+      .catch(() => setStatus('local dev mode (no API)'));
   }, []);
 
   return (
