@@ -1,20 +1,36 @@
 import './App.css';
-import { useState, useEffect } from 'react';
 
 function App() {
-  const [status, setStatus] = useState('loading');
-
-  useEffect(() => {
-    fetch('/api/status')
-      .then(res => res.json())
-      .then(data => setStatus(`ok at ${new Date(data.time).toLocaleTimeString()}`))
-      .catch(() => setStatus('local dev mode (no API)'));
-  }, []);
-
   return (
-    <div>
-      <h1>Welcome to the React App!</h1>
-      <p>API status: {status}</p>
+    <div className="App">
+      <header className="hero">
+        <h1>🏆 Sports Live</h1>
+        <p>Real-time sports feeds and updates</p>
+      </header>
+      
+      <main className="main-content">
+        <section className="features">
+          <div className="feature-card">
+            <h3>⚽ Live Scores</h3>
+            <p>Get real-time scores from your favorite sports</p>
+          </div>
+          
+          <div className="feature-card">
+            <h3>📊 Statistics</h3>
+            <p>Detailed player and team statistics</p>
+          </div>
+          
+          <div className="feature-card">
+            <h3>🔔 Alerts</h3>
+            <p>Never miss important game moments</p>
+          </div>
+        </section>
+        
+        <section className="coming-soon">
+          <h2>Coming Soon</h2>
+          <p>We're working on bringing you the best sports experience. Stay tuned!</p>
+        </section>
+      </main>
     </div>
   );
 }
