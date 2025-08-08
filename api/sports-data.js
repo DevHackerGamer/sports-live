@@ -17,6 +17,12 @@ export default async function handler(req, res) {
   try {
     console.log('Production API: Fetching real football data...');
     
+    // Check if API token is available
+    if (!process.env.FOOTBALL_API_TOKEN) {
+      console.error('FOOTBALL_API_TOKEN environment variable is not set');
+      throw new Error('API token not configured');
+    }
+    
     const footballResponse = await fetch('https://api.football-data.org/v4/matches', {
       headers: {
         'X-Auth-Token': process.env.FOOTBALL_API_TOKEN,
