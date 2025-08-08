@@ -20,6 +20,6 @@ Before you begin, make sure you have:
 ## Clone the Repository
 
 ```bash
-git clone https://github.com/your-org/LiveSportUpdates.git
-cd LiveSportUpdates
+git clone https://github.com/DevHackerGamer/sports-live.git
+cd sports-live
 ```
