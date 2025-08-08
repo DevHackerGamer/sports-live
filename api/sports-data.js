@@ -19,7 +19,7 @@ export default async function handler(req, res) {
     
     const footballResponse = await fetch('https://api.football-data.org/v4/matches', {
       headers: {
-        'X-Auth-Token': process.env.FOOTBALL_API_TOKEN || '6790d9c4818341a5b88d4493ca8b3a8c',
+        'X-Auth-Token': process.env.FOOTBALL_API_TOKEN,
         'User-Agent': 'Sports Live App v1.0'
       }
     });
