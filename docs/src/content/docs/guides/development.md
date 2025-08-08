@@ -1,11 +1,11 @@
 ---
 title: Development Guide
-description: Development workflow and best practices for Sports Feed.
+description: Development workflow and best practices for Sports Live.
 ---
 
 ## Development Workflow
 
-This guide covers the development process for the Sports Feed application.
+This guide covers the development process for the Sports Live application.
 
 ### Development Modes
 

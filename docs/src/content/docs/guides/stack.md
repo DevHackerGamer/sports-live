@@ -1,6 +1,6 @@
 ---
 title: Technology Stack
-description: Overview of the tools and technologies used in Sports Feed.
+description: Overview of the tools and technologies used in Sports Live.
 ---
 
 This project is built using modern web technologies optimized for real-time responsiveness, scalability, and developer productivity. The stack was selected to support low-latency updates, serverless architecture, and rapid development.

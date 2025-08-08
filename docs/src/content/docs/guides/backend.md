@@ -5,7 +5,7 @@ description: Vercel serverless functions and API architecture.
 
 ## Backend Architecture
 
-The Sports Feed application uses **Vercel serverless functions** for the backend, providing:
+The Sports Live application uses **Vercel serverless functions** for the backend, providing:
 
 - Auto-scaling API endpoints that handle traffic spikes automatically
 - Built-in HTTPS and global CDN distribution

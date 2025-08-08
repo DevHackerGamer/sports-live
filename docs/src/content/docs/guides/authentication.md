@@ -5,7 +5,7 @@ description: User authentication with Clerk integration.
 
 ## Authentication Setup
 
-Sports Feed uses **Clerk** for user authentication, providing secure login/signup flows and session management.
+Sports Live uses **Clerk** for user authentication, providing secure login/signup flows and session management.
 
 ## Environment Setup
 

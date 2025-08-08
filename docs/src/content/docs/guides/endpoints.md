@@ -1,11 +1,11 @@
 ---
 title: API Endpoints
-description: Documentation for Sports Feed API endpoints.
+description: Documentation for Sports Live API endpoints.
 ---
 
 ## API Endpoints
 
-The Sports Feed application provides several API endpoints for accessing sports data and system information.
+The Sports Live application provides several API endpoints for accessing sports data and system information.
 
 ### Sports Data
 

@@ -1,11 +1,11 @@
 ---
 title: Welcome
-description: Introduction to the Sports Feed real-time broadcasting platform.
+description: Introduction to the Sports Live real-time broadcasting platform.
 ---
 
 #  Welcome to Sports Live
 
-Sports Feed is a real-time broadcasting tool designed to deliver lightning-fast sports scores and updates to users. Currently built with React and Vercel serverless functions, with plans to migrate to Firebase for enhanced real-time capabilities.
+Sports Live is a real-time broadcasting tool designed to deliver lightning-fast sports scores and updates to users. Currently built with React and Vercel serverless functions.
 
 This documentation will guide you through the making of the app and its structure.
 
