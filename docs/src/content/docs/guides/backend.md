@@ -1,16 +1,34 @@
 ---
 title: Backend Guide
-description: Current serverless API setup and planned Firebase migration.
+description: Vercel serverless functions and API architecture.
 ---
 
-## Current Backend Setup
+## Backend Architecture
 
-The Sports Feed application currently uses **Vercel serverless functions** for the backend API endpoints located in the `/api` folder:
+The Sports Feed application uses **Vercel serverless functions** for the backend, providing:
+
+- Auto-scaling API endpoints that handle traffic spikes automatically
+- Built-in HTTPS and global CDN distribution
+- Zero server management - focus on code, not infrastructure  
+- Cost-effective pay-per-request pricing
+- Excellent performance with edge computing
+
+## Current API Setup
+
+The backend API endpoints are located in the `/api` folder:
 
 - `api/sports-data.js` - Main endpoint for fetching live sports data from Football-Data.org
 - `api/status.js` - Health check endpoint for monitoring
 - `api/uptime.js` - System uptime monitoring
 - `api/joke.js` - Example/demo endpoint
+
+### Real-time Capabilities
+
+Vercel supports real-time updates through:
+- **Polling**: Frontend regularly fetches fresh data from API endpoints
+- **Webhooks**: External services can trigger immediate updates
+- **Edge Functions**: Ultra-fast response times globally
+- **Built-in caching**: Intelligent caching for optimal performance
 
 ### Running the Backend
 
@@ -24,16 +42,15 @@ For mock data development:
 npm start
 ```
 
-## Planned Firebase Migration
+## Why Vercel Works Great
 
-We plan to migrate to Firebase for enhanced real-time capabilities:
+- **Serverless Scaling**: Automatically handles any amount of traffic
+- **Global Distribution**: Fast responses worldwide via edge network
+- **Real-time Ready**: Supports polling, webhooks, and live data fetching
+- **Developer Experience**: Excellent local development and deployment tools
+- **Cost Effective**: Only pay for actual usage, not idle server time
 
-- **Firebase Functions** for serverless backend logic
-- **Firestore** for real-time database with live synchronization
-- **Firebase Authentication** for user management
-- **Real-time listeners** for instant score updates
-
-This will provide better real-time performance and scalability for live sports data.
+The current Vercel setup already provides excellent real-time performance and scalability for sports data delivery.
 
 ## Further reading
 
