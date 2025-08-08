@@ -36,9 +36,10 @@ export default defineConfig({
           label: "Development",
           items: [
             // Each item here is one entry in the navigation menu.
+            { label: "Development Guide", slug: "guides/development" },
             { label: "Technology Stack", slug: "guides/stack" },
             { label: "Testing and Linting", slug: "guides/testing" },
-            //{ label: "API Documentation", slug: "guides/endpoints" },
+            { label: "API Documentation", slug: "guides/endpoints" },
           ],
         },
         {
