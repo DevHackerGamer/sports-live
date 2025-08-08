@@ -1,25 +1,33 @@
 ---
-title: Frontend Setup
-description: Instructions for running and developing the frontend application.
+title: Frontend Guide
+description: React frontend setup and component structure.
 ---
 
 ## Frontend Setup
 
-The frontend is built with React and. It handles the user interface for displaying real-time sports updates.
+The frontend is built with **React** and Create React App. It handles the user interface for displaying real-time sports updates and user authentication with Clerk.
 
-## Setup Instructions
+## Key Components
 
-Navigate to the frontend directory and install dependencies:
+- `src/components/auth/LoginPage.js` - Authentication interface with Clerk
+- `src/components/dashboard/Dashboard.js` - Main application dashboard
+- `src/components/sports/LiveSports.js` - Live sports data display
+- `src/hooks/useLiveSports.js` - Custom hook for sports data management
+
+## Development
+
+To start the development server with mock data:
 
 ```bash
-cd frontend
-npm install
+npm start
 ```
 
-To start the development server:
+To run with live API data:
 
 ```bash
-npm run dev
+npx vercel dev
 ```
+
+The app uses Clerk for authentication and displays live sports data fetched from the backend APIs.
 
 

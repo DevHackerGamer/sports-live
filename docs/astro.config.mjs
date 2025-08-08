@@ -6,12 +6,12 @@ import starlight from "@astrojs/starlight";
 export default defineConfig({
   integrations: [
     starlight({
-      title: "Live Sport Stats Documentation",
+      title: "Sports Feed Documentation",
       social: [
         {
           icon: "github",
           label: "GitHub",
-          href: "https://github.com/mohauMakunyane22/LiveSportUpdates",
+          href: "https://github.com/DevHackerGamer/sports-live",
         },
       ],
       sidebar: [
@@ -28,8 +28,8 @@ export default defineConfig({
           items: [
             // Each item here is one entry in the navigation menu.
             { label: "Frontend ", slug: "guides/frontend" },
-            // { label: "Backend", slug: "guides/backend" },
-            // { label: "Authentication", slug: "guides/authentication" },
+            { label: "Backend", slug: "guides/backend" },
+            { label: "Authentication", slug: "guides/authentication" },
           ],
         },
         {
