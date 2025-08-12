@@ -2,9 +2,7 @@ import './styles/Dashboard.css';
 import LoginPage from './components/auth/LoginPage';
 import Dashboard from './components/dashboard/Dashboard';
 import { ClerkProvider, useAuth, useUser } from '@clerk/clerk-react';
-
-// You'll need to get this from your Clerk dashboard
-const PUBLISHABLE_KEY = process.env.REACT_APP_CLERK_PUBLISHABLE_KEY;
+import { CLERK_PUBLISHABLE_KEY as PUBLISHABLE_KEY } from './config';
 
 function AppContent() {
   const { isSignedIn, isLoaded } = useAuth();

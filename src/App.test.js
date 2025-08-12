@@ -1,67 +1,72 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import { render, screen } from '@testing-library/react';
+
+// Ensure env is set BEFORE importing App (App reads env at module load)
+process.env.REACT_APP_CLERK_PUBLISHABLE_KEY = 'test_publishable_key';
+
+// Mock Clerk SDK used by App
+const mockUseAuth = jest.fn();
+const mockUseUser = jest.fn();
+jest.mock('@clerk/clerk-react', () => ({
+  ClerkProvider: ({ children }) => <div>{children}</div>,
+  useAuth: () => mockUseAuth(),
+  useUser: () => mockUseUser(),
+}));
+
+// Mock child pages to keep App test focused on routing logic
+jest.mock('./components/auth/LoginPage', () => () => <div>LoginPage Component</div>);
+jest.mock('./components/dashboard/Dashboard', () => () => <div>Dashboard Component</div>);
+
+// Now import App
 import App from './App';
 
-// Mock fetch
-global.fetch = jest.fn();
-
-describe('App Component', () => {
+describe('App Component (auth gating)', () => {
   beforeEach(() => {
-    fetch.mockClear();
+    jest.clearAllMocks();
   });
 
-  test('renders sports live heading', () => {
+  test('shows LoginPage when not signed in', () => {
+    mockUseAuth.mockReturnValue({ isSignedIn: false, isLoaded: true });
+    mockUseUser.mockReturnValue({ user: null, isLoaded: true });
+
     render(<App />);
-    const heading = screen.getByText(/Sports Live/i);
-    expect(heading).toBeInTheDocument();
+    expect(screen.getByText('LoginPage Component')).toBeInTheDocument();
   });
 
-  test('renders all feature cards', () => {
+  test('shows Dashboard when signed in', () => {
+    mockUseAuth.mockReturnValue({ isSignedIn: true, isLoaded: true });
+    mockUseUser.mockReturnValue({ user: { id: 'user_1' }, isLoaded: true });
+
     render(<App />);
-    
-    expect(screen.getByText(/Live Scores/i)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /Statistics/i })).toBeInTheDocument();
-    expect(screen.getByText(/Alerts/i)).toBeInTheDocument();
+    expect(screen.getByText('Dashboard Component')).toBeInTheDocument();
   });
 
-  test('renders joke button', () => {
-    render(<App />);
-    const jokeButton = screen.getByText(/Get Dad Joke/i);
-    expect(jokeButton).toBeInTheDocument();
+  test('throws when publishable key is missing', () => {
+    const prev = process.env.REACT_APP_CLERK_PUBLISHABLE_KEY;
+    // Temporarily unset key and re-require App fresh
+    process.env.REACT_APP_CLERK_PUBLISHABLE_KEY = '';
+    jest.resetModules();
+
+    // Re-mock Clerk and children for fresh module load
+    jest.doMock('@clerk/clerk-react', () => ({
+      ClerkProvider: ({ children }) => <div>{children}</div>,
+      useAuth: () => ({ isSignedIn: false, isLoaded: true }),
+      useUser: () => ({ user: null, isLoaded: true }),
+    }));
+
+    const FreshApp = require('./App').default;
+    expect(() => render(<FreshApp />)).toThrow('Missing Publishable Key');
+
+    // Restore env and module state
+    process.env.REACT_APP_CLERK_PUBLISHABLE_KEY = prev;
+    jest.resetModules();
   });
 
-  test('fetches and displays joke when button is clicked', async () => {
-    const mockJoke = { joke: 'Why did the chicken cross the road?', timestamp: '2025-01-01' };
-    fetch.mockResolvedValueOnce({
-      json: async () => mockJoke,
-    });
+  test('shows Loading while Clerk is not yet loaded', () => {
+    mockUseAuth.mockReturnValue({ isSignedIn: false, isLoaded: false });
+    mockUseUser.mockReturnValue({ user: null, isLoaded: false });
 
     render(<App />);
-    const jokeButton = screen.getByText(/Get Dad Joke/i);
-    
-    fireEvent.click(jokeButton);
-    
-    // Check loading state
     expect(screen.getByText(/Loading.../i)).toBeInTheDocument();
-    
-    // Wait for joke to appear
-    await waitFor(() => {
-      expect(screen.getByText(/Why did the chicken cross the road\?/i)).toBeInTheDocument();
-    });
-    
-    // Verify fetch was called
-    expect(fetch).toHaveBeenCalledWith('/api/joke');
-  });
-
-  test('handles API error gracefully', async () => {
-    fetch.mockRejectedValueOnce(new Error('API Error'));
-
-    render(<App />);
-    const jokeButton = screen.getByText(/Get Dad Joke/i);
-    
-    fireEvent.click(jokeButton);
-    
-    await waitFor(() => {
-      expect(screen.getByText(/Failed to fetch joke/i)).toBeInTheDocument();
-    });
   });
 });
