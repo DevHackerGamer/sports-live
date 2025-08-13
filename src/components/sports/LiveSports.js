@@ -26,6 +26,12 @@ const LiveSports = () => {
     });
   };
 
+  const formatShortDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  };
+
   const getStatusBadge = (status) => {
     const statusConfig = {
       live: { text: 'LIVE', className: 'status-live' },
@@ -92,12 +98,34 @@ const LiveSports = () => {
         </div>
       </div>
 
+      {/* Optional context about the fetched window across competitions */}
+      {(sportsData.dateFrom || sportsData.dateTo || sportsData.totalMatches) && (
+        <div className="fetch-context" style={{ display: 'flex', gap: 12, alignItems: 'center', margin: '8px 0' }}>
+          {sportsData.dateFrom && (
+            <span className="date-range">Range: {formatShortDate(sportsData.dateFrom)} → {formatShortDate(sportsData.dateTo)}</span>
+          )}
+          {typeof sportsData.totalMatches === 'number' && (
+            <span className="count">Matches: {sportsData.totalMatches}</span>
+          )}
+          {sportsData.environment && (
+            <span className="env">Env: {sportsData.environment}</span>
+          )}
+        </div>
+      )}
+
       <div className="matches-grid">
         {sportsData.games && sportsData.games.length > 0 ? (
           sportsData.games.map((game) => (
             <div key={game.id} className="match-card">
               <div className="match-header">
-                <span className="competition">{game.competition}</span>
+                <span className="competition">
+                  {game.competition}
+                  {game.competitionCode && (
+                    <span className="competition-code" style={{ marginLeft: 8, fontSize: 12, opacity: 0.8 }}>
+                      [{game.competitionCode}]
+                    </span>
+                  )}
+                </span>
                 {getStatusBadge(game.status)}
               </div>
               
@@ -118,6 +146,9 @@ const LiveSports = () => {
               <div className="match-details">
                 {game.minute && game.status === 'live' && (
                   <span className="match-time">{game.minute}'</span>
+                )}
+                {game.matchday && (
+                  <span className="matchday" style={{ marginLeft: 8 }}>MD {game.matchday}</span>
                 )}
                 {game.venue && game.venue !== 'TBD' && (
                   <span className="venue">{game.venue}</span>

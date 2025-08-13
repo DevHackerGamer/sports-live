@@ -1,6 +1,7 @@
 import React from 'react';
 import { useUser, UserButton } from '@clerk/clerk-react';
 import LiveSports from '../sports/LiveSports';
+import FavoritesPanel from './FavoritesPanel';
 import '../../styles/Dashboard.css';
 
 const Dashboard = () => {
@@ -32,6 +33,7 @@ const Dashboard = () => {
       </header>
       
       <main className="dashboard-main">
+  <FavoritesPanel />
         <LiveSports />
       </main>
     </div>
