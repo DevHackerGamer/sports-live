@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+async function handler(req, res) {
   try {
     // Fetch a random dad joke from the API
     const response = await fetch('https://icanhazdadjoke.com/', {
@@ -46,3 +46,5 @@ export default async function handler(req, res) {
     });
   }
 }
+
+module.exports = handler;

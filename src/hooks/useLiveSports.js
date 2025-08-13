@@ -12,84 +12,8 @@ export const useLiveSports = (updateInterval = 60000) => {
   const fetchSportsData = useCallback(async () => {
     try {
       setError(null);
-      console.log('Fetching real sports data...');
-      
-      // Try to use a CORS proxy in development, or fall back to production endpoint
-      const isDevelopment = process.env.NODE_ENV === 'development';
-      
-      if (isDevelopment) {
-        // First check if running with Vercel dev server
-        try {
-          const response = await fetch('/api/sports-data');
-          if (response.ok) {
-            const data = await response.json();
-            if (isActiveRef.current) {
-              setSportsData(data);
-              setLastUpdated(new Date());
-              setIsConnected(true);
-              console.log('Development API data updated successfully');
-            }
-            return;
-          }
-        } catch (devError) {
-          console.log('Development Mode: Vercel dev server not detected');
-          console.log('To use real API data in development, run: npx vercel dev');
-          console.log('Using demo data for development...');
-        }
-        
-        // If Vercel dev is not running, use demo data for development
-        const developmentData = {
-          games: [
-            {
-              id: 'dev-1',
-              homeTeam: 'Manchester United',
-              awayTeam: 'Liverpool',
-              homeScore: 2,
-              awayScore: 1,
-              status: 'live',
-              competition: 'Premier League',
-              venue: 'Old Trafford',
-              minute: 78,
-              utcDate: new Date().toISOString()
-            },
-            {
-              id: 'dev-2',
-              homeTeam: 'Arsenal',
-              awayTeam: 'Chelsea',
-              homeScore: 1,
-              awayScore: 1,
-              status: 'final',
-              competition: 'Premier League',
-              venue: 'Emirates Stadium',
-              utcDate: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
-            },
-            {
-              id: 'dev-3',
-              homeTeam: 'Barcelona',
-              awayTeam: 'Real Madrid',
-              homeScore: 0,
-              awayScore: 0,
-              status: 'scheduled',
-              competition: 'La Liga',
-              venue: 'Camp Nou',
-              utcDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-            }
-          ],
-          source: 'Development demo data',
-          totalMatches: 3,
-          timestamp: new Date().toISOString()
-        };
-        
-        if (isActiveRef.current) {
-          setSportsData(developmentData);
-          setLastUpdated(new Date());
-          setIsConnected(false);
-          console.log('Development demo data loaded');
-        }
-        return;
-      }
-      
-      // Try production endpoint or use sample data if everything fails
+      console.log('Fetching sports data from API...');
+      // Always call API; use a minimal fallback if it fails
       try {
         const response = await fetch('/api/sports-data');
         
@@ -103,11 +27,11 @@ export const useLiveSports = (updateInterval = 60000) => {
           setSportsData(data);
           setLastUpdated(new Date());
           setIsConnected(true);
-          console.log('Production API data updated successfully');
+          console.log('API data updated successfully');
         }
         
       } catch (apiError) {
-        console.warn('Production API failed:', apiError.message);
+        console.warn('API request failed:', apiError.message);
         
         // Final fallback to ensure app doesn't break
         const fallbackData = {
