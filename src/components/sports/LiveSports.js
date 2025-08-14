@@ -2,7 +2,17 @@ import React from 'react';
 import { useLiveSports } from '../../hooks/useLiveSports';
 import '../../styles/LiveSports.css';
 
+
+
 const LiveSports = () => {
+  // Update time every 10ms
+  const [currentTime, setCurrentTime] = React.useState(new Date());
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 10);
+    return () => clearInterval(timer);
+  }, []);
   const { 
     sportsData, 
     isConnected, 
@@ -81,14 +91,10 @@ const LiveSports = () => {
             </span>
           </div>
         </div>
-        
+
         <div className="header-right">
           <div className="current-time">
-            {new Date().toLocaleTimeString([], { 
-              hour: '2-digit', 
-              minute: '2-digit',
-              second: '2-digit'
-            })}
+            {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
           </div>
           {lastUpdated && (
             <div className="last-updated">
