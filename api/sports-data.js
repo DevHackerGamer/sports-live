@@ -1,4 +1,10 @@
 // Sports data API endpoint using football-data.org only
+
+// for caching beacause of some error 429 for req limit on free tier causes some internal server error 500 :(
+let teamsCache = null;
+let teamsCacheTime = 0;
+const TEAMS_CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour cache for teams
+
 async function handler(req, res) {
   // Security headers for production
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -11,6 +17,67 @@ async function handler(req, res) {
   }
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // getting all teams available to validate team name and get upcoming matchs from all competitions(league)
+  if (req.query?.endpoint === 'teams') {
+    try {
+      const now = Date.now();
+
+      // Serve cached teams if valid -> cached beacause of some error 429 for req limit on free tier causes some internal server error 500 :(
+      if (teamsCache && (now - teamsCacheTime) < TEAMS_CACHE_DURATION_MS) {
+        return res.status(200).json({ teams: teamsCache, total: teamsCache.length });
+      }
+
+      const token = process.env.FOOTBALL_API_TOKEN;
+      if (!token) throw new Error('API token not configured');
+
+      // Fetch all available competitions(leagues)
+      const compRes = await fetch('https://api.football-data.org/v4/competitions', {
+        headers: { 'X-Auth-Token': token, 'User-Agent': 'Sports Live App v1.0' }
+      });
+      if (!compRes.ok) throw new Error(`Failed to fetch competitions: ${compRes.status}`);
+      const compData = await compRes.json();
+      const competitions = Array.isArray(compData?.competitions) ? compData.competitions.map(c => c.code) : [];
+
+      // Fetch teams from each competition(league)
+      const allTeams = [];
+      await Promise.all(
+        competitions.map(async (code) => {
+          try {
+            const url = `https://api.football-data.org/v4/competitions/${code}/teams`;
+            const resComp = await fetch(url, { headers: { 'X-Auth-Token': token, 'User-Agent': 'Sports Live App v1.0' } });
+            if (!resComp.ok) return;
+            const data = await resComp.json();
+            if (Array.isArray(data?.teams)) {
+              allTeams.push(...data.teams.map(t => ({
+                id: t.id,
+                name: t.name,
+                shortName: t.shortName,
+                tla: t.tla,
+                area: t.area?.name,
+                competition: code
+              })));
+            }
+          } catch {}
+        })
+      );
+
+      // Remove duplicates by team ID
+      const uniqueTeams = Object.values(allTeams.reduce((acc, t) => {
+        acc[t.id] = t;
+        return acc;
+      }, {}));
+
+      // Save to cache
+      teamsCache = uniqueTeams;
+      teamsCacheTime = now;
+
+      return res.status(200).json({ teams: uniqueTeams, total: uniqueTeams.length });
+    } catch (err) {
+      console.error('Error fetching teams:', err.message);
+      return res.status(500).json({ error: 'Failed to fetch teams', message: err.message, teams: [] });
+    }
   }
 
   try {

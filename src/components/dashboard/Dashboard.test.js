@@ -1,5 +1,7 @@
 // src/components/dashboard/Dashboard.test.js
 import React from 'react';
+import { useUser } from '@clerk/clerk-react';
+
 import { render, screen } from '@testing-library/react';
 import Dashboard from './Dashboard';
 
@@ -12,7 +14,6 @@ jest.mock('@clerk/clerk-react', () => ({
 // Mock LiveSports component
 jest.mock('../sports/LiveSports', () => () => <div>LiveSports Component</div>);
 
-import { useUser } from '@clerk/clerk-react';
 
 describe('Dashboard Component', () => {
   afterEach(() => {
