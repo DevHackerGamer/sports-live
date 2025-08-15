@@ -1,65 +1,205 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { useUserPreferences } from '../../hooks/useUserPreferences';
+import { db } from '../../lib/firebase';
+import { ref, get, set } from 'firebase/database';
 
-function normalizeTeam(name) {
-  return (name || '').trim();
-}
-
-export default function FavoritesPanel() {
+const FavoritesPanel = () => {
   const { user } = useUser();
-  const userId = user?.id;
-  const { prefs, loading, error, savePreferences } = useUserPreferences(userId);
-  const [input, setInput] = useState('');
+  const [favorites, setFavorites] = useState([]); // store team names
+  const [matches, setMatches] = useState([]);
+  const [allTeams, setAllTeams] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [newTeam, setNewTeam] = useState('');
 
-  const favorites = useMemo(() => {
-    const list = Array.isArray(prefs?.favorites) ? prefs.favorites : [];
-    const seen = new Set();
-    const uniq = [];
-    for (const item of list) {
-      const n = normalizeTeam(item);
-      if (n && !seen.has(n.toLowerCase())) {
-        seen.add(n.toLowerCase());
-        uniq.push(n);
-      }
+  // Fetchs upcoming matchs and limited to 200 due to some error 429 of request limit by free tier that leads to internal server error 500
+  const fetchMatches = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const res = await fetch('/api/sports-data?limit=200&range=30');
+      if (!res.ok) throw new Error('Failed to fetch matches');
+      const data = await res.json();
+      setMatches(data.games || []);
+    } catch (err) {
+      console.error('Error fetching matches:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-    return uniq;
-  }, [prefs]);
-
-  const addFavorite = async () => {
-    const name = normalizeTeam(input);
-    if (!name) return;
-    const next = favorites.includes(name) ? favorites : [...favorites, name];
-    await savePreferences({ favorites: next });
-    setInput('');
   };
 
-  if (!userId) return null;
-  if (loading) return <div data-testid="favorites-loading">Loading favorites…</div>;
-  if (error) return <div data-testid="favorites-error">Failed to load favorites</div>;
+  // This one instead fetchs all teams to be able to validate team name and for dropdown for valid team selection 
+  const fetchAllTeams = async () => {
+    try {
+      const res = await fetch('/api/sports-data?endpoint=teams');
+      if (!res.ok) throw new Error('Failed to fetch teams');
+      const data = await res.json();
+      setAllTeams(data.teams || []);
+    } catch (err) {
+      console.error('Error fetching all teams:', err);
+    }
+  };
+
+  // load autorized user fav from firebase rdb
+  const loadFavorites = async () => {
+    if (!user) return;
+    try {
+      const favRef = ref(db, `users/${user.id}/favorites`);
+      const snapshot = await get(favRef);
+      if (snapshot.exists()) {
+        setFavorites(snapshot.val());
+      } else {
+        setFavorites([]);
+      }
+    } catch (err) {
+      console.error('Error loading favorites:', err);
+      setError(err.message);
+    }
+  };
+
+  // Ensuures whatever user has entered is a valid team before updating db
+  const validateTeam = (teamName) => {
+    const team = allTeams.find(t => t.name.toLowerCase() === teamName.toLowerCase());
+    if (!team) throw new Error('Team not found');
+    return team;
+  };
+
+  // Validate team and adds to firebase rdb
+  const addFavorite = async (teamName) => {
+    if (!user || !teamName) return;
+    try {
+      const team = validateTeam(teamName);
+      const favRef = ref(db, `users/${user.id}/favorites`);
+      const updated = Array.from(new Set([...favorites, team.name]));
+      await set(favRef, updated);
+      setFavorites(updated);
+      setNewTeam('');
+    } catch (err) {
+      console.error('Error adding favorite:', err);
+      setError(err.message);
+    }
+  };
+
+  // Remove team from fav and updates firebase rdb
+  const removeFavorite = async (teamName) => {
+    if (!user || !teamName) return;
+    try {
+      const favRef = ref(db, `users/${user.id}/favorites`);
+      const updated = favorites.filter(f => f !== teamName);
+      await set(favRef, updated);
+      setFavorites(updated);
+    } catch (err) {
+      console.error('Error removing favorite:', err);
+      setError(err.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchMatches();
+    fetchAllTeams();
+  }, []);
+
+  useEffect(() => {
+    loadFavorites();
+  }, [user]);
+
+  // Display for upcoming matchs for user fav team -> FrontEnd its all you now :)
+  const formatMatch = (match) => {
+    const date = new Date(match.utcDate);
+    const day = date.getDate();
+    const month = date.toLocaleString('default', { month: 'short' });
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const status = match.status.charAt(0).toUpperCase() + match.status.slice(1);
+    return `${match.homeTeam} vs ${match.awayTeam} | ${day} ${month} ${year} | ${hours}:${minutes} -> ${status}`;
+  };
+
+  // While we get data from firebase rdb we display this in the meantime 
+  if (!user) return <p data-testid="loading-user">Loading user...</p>;
 
   return (
-    <section className="favorites-panel" style={{ marginBottom: 24 }}>
-      <h3 style={{ marginBottom: 8 }}>Favorites</h3>
-      <div className="favorites-add" style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+    <div className="favorites-panel" style={{ marginBottom: '24px' }} data-testid="favorites-panel">
+      <h2>Favorites</h2>
+
+      {error && <p className="error" data-testid="error">{error}</p>}
+      {loading && <p data-testid="loading-matches">Loading matches...</p>}
+
+      <ul data-testid="favorites-list">
+        {favorites.length === 0 ? (
+          <li style={{ fontStyle: 'italic', color: '#666' }} data-testid="no-favorites">
+            No favorite teams chosen
+          </li>
+        ) : (
+          favorites.map((teamName) => {
+            const upcoming = matches
+              .filter(m => m.homeTeam === teamName || m.awayTeam === teamName)
+              .sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate));
+
+            return (
+              <li key={teamName} style={{ marginBottom: '12px' }} data-testid="favorite-item">
+                <strong data-testid="favorite-name">{teamName}</strong> — Upcoming Matches: {upcoming.length}
+                <button
+                  style={{ marginLeft: '12px', padding: '4px 8px', cursor: 'pointer' }}
+                  onClick={() => removeFavorite(teamName)}
+                  data-testid="remove-favorite"
+                >
+                  Remove
+                </button>
+                <ul style={{ marginTop: '4px', marginLeft: '16px' }} data-testid="upcoming-list">
+                  {upcoming.map(match => (
+                    <li key={match.id} data-testid="upcoming-match">{formatMatch(match)}</li>
+                  ))}
+                </ul>
+              </li>
+            );
+          })
+        )}
+      </ul>
+
+      <div style={{ marginTop: '16px' }} data-testid="add-favorite-section">
         <input
-          aria-label="Favorite team"
-          placeholder="Add favorite team"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          style={{ padding: '8px 10px', flex: '0 0 260px' }}
+          type="text"
+          value={newTeam}
+          onChange={(e) => setNewTeam(e.target.value)}
+          onKeyDown={async (e) => {
+            if (e.key === 'Enter' && newTeam.trim()) {
+              await addFavorite(newTeam.trim());
+            }
+          }}
+          data-testid="add-input"
         />
-        <button onClick={addFavorite} style={{ padding: '8px 12px' }}>Add</button>
+        <select
+          value=""
+          onChange={async (e) => {
+            if (e.target.value) {
+              await addFavorite(e.target.value);
+            }
+          }}
+          data-testid="add-dropdown"
+        >
+          <option value="" disabled selected>Select a team...</option>
+          {allTeams
+            .filter(t => !favorites.includes(t.name))
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map(t => (
+              <option key={t.id} value={t.name} data-testid="dropdown-option">{t.name}</option>
+            ))}
+        </select>
+        <button
+          onClick={async () => {
+            if (newTeam.trim()) {
+              await addFavorite(newTeam.trim());
+            }
+          }}
+          data-testid="add-button"
+        >
+          Add
+        </button>
       </div>
-      {favorites.length === 0 ? (
-        <p data-testid="favorites-empty">No favorite teams yet.</p>
-      ) : (
-        <ul data-testid="favorites-list" style={{ paddingLeft: 16 }}>
-          {favorites.map((t) => (
-            <li key={t}>{t}</li>
-          ))}
-        </ul>
-      )}
-    </section>
+    </div>
   );
-}
+};
+
+export default FavoritesPanel;

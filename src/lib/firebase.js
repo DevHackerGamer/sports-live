@@ -3,6 +3,9 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAnalytics } from 'firebase/analytics';
 import { getDatabase } from 'firebase/database';
 
+
+
+
 // Firebase web config (public by design)
 const firebaseConfig = {
   apiKey: 'AIzaSyDzZ0CAodwCYHgQJahsgcxJrmWiIIbVhGM',
