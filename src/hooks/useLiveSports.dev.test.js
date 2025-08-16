@@ -34,8 +34,8 @@ describe('useLiveSports (development mode)', () => {
     });
   });
 
-  test('falls back to development demo data when dev server not available', async () => {
-    fetch.mockRejectedValueOnce(new Error('No dev server'));
+  test('falls back to minimal placeholder data when API is unavailable', async () => {
+    fetch.mockRejectedValueOnce(new Error('Network error'));
 
     const { result } = renderHook(() => useLiveSports(10000));
 
@@ -44,8 +44,8 @@ describe('useLiveSports (development mode)', () => {
     });
 
     expect(result.current.isConnected).toBe(false);
-    expect(result.current.sportsData.source).toBe('Development demo data');
-    expect(result.current.sportsData.totalMatches).toBe(3);
+    expect(result.current.sportsData.source).toContain('Fallback');
+    expect(result.current.sportsData.totalMatches).toBe(1);
 
     act(() => {
       result.current.stopUpdates();
