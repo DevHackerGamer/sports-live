@@ -7,6 +7,17 @@ description: How we use Git for version control, collaboration, and code deploym
 
 Our Git workflow is designed to support **asynchronous development** by allowing each team member to work independently on their own branch and merge once their work is complete. This approach supports flexibility while keeping the `main` branch stable for deployment.
 
+**Benefits of using Git:**
+
+- Tracks all changes to the codebase  
+- Enables collaboration across multiple developers  
+- Provides the ability to revert or rollback changes  
+- Supports integration with deployment tools and CI/CD pipelines  
+
+> Git ensures transparency, accountability, and quality control in team development.
+
+---
+
 ## Branching Strategy
 
 We follow a **"one developer, one branch"** model:
@@ -20,6 +31,43 @@ We follow a **"one developer, one branch"** model:
 
 There is currently **no pull request (PR) review process** in place — developers merge directly when their work is finished.
 
+## Pull Request (PR) Review Process (Planned / Implemented)
+
+To improve code quality and team collaboration, we plan to implement a **Pull Request (PR) review process**. This process ensures that every change merged into `main` is reviewed and approved by at least one other developer.
+
+### Workflow:
+
+1. **Feature Development**
+   - Each developer works on their own feature branch (e.g., `feature/live-search`).
+   - Commits follow the semantic commit conventions: `feat:`, `fix:`, `docs:`, etc.
+
+2. **Create Pull Request**
+   - Once the feature is complete and tested locally, the developer creates a **pull request** targeting `main` (or `develop`, if used).
+   - The PR includes:
+     - A clear title describing the feature or fix
+     - A description of what was done
+     - References to related issues (if any)
+
+3. **Code Review**
+   - Another team member reviews the PR, checking:
+     - Correct functionality
+     - Code readability and consistency
+     - Documentation and comments
+     - Compliance with project standards
+   - Reviewers can request changes or approve the PR
+
+4. **Merge PR**
+   - Once approved, the PR is merged into `main`.
+   - Conflicts are resolved before merging.
+   - Optionally, the branch is deleted after merging to keep the repository clean.
+
+**Benefits of PR Review Process:**
+
+- Ensures **code quality and consistency** across the project  
+- Provides **peer feedback** and knowledge sharing  
+- Reduces the risk of **breaking features in `main`**  
+- Creates a clear history of **who approved what**  
+
 ## Merging to Main
 
 Before merging into `main`, developers should:
@@ -29,6 +77,22 @@ Before merging into `main`, developers should:
 - Pull the latest changes from `main` and resolve any conflicts
 
 > ⚠️ Tip: To prevent overwriting someone else’s work, always `git pull origin main` before merging.
+```bash
+  git pull origin main
+  ```
+
+
+## Commit Strategy
+
+We follow **semantic and descriptive commit messages** to make the project history clear and trackable:
+
+| Prefix     | Meaning                                   |
+|-----------|------------------------------------------|
+| feat:     | New feature added                         |
+| fix:      | Bug fix                                   |
+| docs:     | Documentation updates                     |
+| style:    | Formatting or styling changes             |
+| refactor: | Code restructuring without functional changes |
 
 ## Versioning and GitHub Releases (Planned)
 
@@ -51,3 +115,10 @@ Copy
 Edit
 
 More details will be added here once GitHub Releases are introduced into the team's workflow.
+## References & Resources
+
+- Git Documentation: [https://git-scm.com/doc](https://git-scm.com/doc)  
+- GitHub Guides: [https://guides.github.com/](https://guides.github.com/)  
+- Atlassian Git Workflow Tutorial: [https://www.atlassian.com/git/tutorials/comparing-workflows](https://www.atlassian.com/git/tutorials/comparing-workflows)  
+
+---
