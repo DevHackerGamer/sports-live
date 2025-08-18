@@ -1,20 +1,23 @@
-# Project Development Methodology
-
-## **Chosen Methodology: Agile (Scrum Framework)**
-
-We use the **Agile methodology**, following the **Scrum framework**, to ensure flexibility, collaboration, and continuous delivery of working softwares.
+---
+title: Project Management Methodology
+description: Our chosen project management methology for our Sports Live Tracker
 
 ---
 
-## **Why Agile for Sport Live Feeds?**
+## Chosen Methodology: Agile (Scrum Framework)
+
+We use the **Agile methodology**, following the **Scrum framework**, to ensure flexibility, collaboration, and continuous delivery of working software.
+
+---
+
+## Why Agile for Sport Live Feeds?
 
 - Requirements may evolve after stakeholder feedback.
 - Frequent delivery allows us to adapt quickly.
 - Encourages transparency, communication, and accountability.
 - Short iterations keep progress measurable and visible.
 
-We work in **two-week sprints**, providing enough time for meaningful progress while maintaining rapid feedback loops.
-
+We work in **two-week sprints**, providing enough time for meaningful progress while maintaining rapid feedback loops
 ---
 
 ## **Scrum Process**
