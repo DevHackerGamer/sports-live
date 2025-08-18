@@ -13,14 +13,14 @@ import {
 
 // Firebase web config (public by design)
 const firebaseConfig = {
-  apiKey: 'AIzaSyDzZ0CAodwCYHgQJahsgcxJrmWiIIbVGM',
-  authDomain: 'sports-live-c25ca.firebaseapp.com',
-  databaseURL: 'https://sports-live-c25ca-default-rtdb.firebaseio.com',
-  projectId: 'sports-live-c25ca',
-  storageBucket: 'sports-live-c25ca.firebasestorage.app',
-  messagingSenderId: '532399482994',
-  appId: '1:532399482994:web:3d1353393886b64dc1baeb',
-  measurementId: 'G-8JT6X5DF6B',
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  databaseURL: process.env.REACT_APP_FIREBASE_DATABASE_URL,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
 };
 
 // Singleton app instance across HMR/dev reloads
