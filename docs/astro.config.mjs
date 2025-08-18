@@ -36,6 +36,7 @@ export default defineConfig({
           label: "Development",
           items: [
             // Each item here is one entry in the navigation menu.
+            { label: "Design & Development Plan", slug: "guides/designplan" },
             { label: "Development Guide", slug: "guides/development" },
             { label: "Technology Stack", slug: "guides/stack" },
             { label: "Testing and Linting", slug: "guides/testing" },

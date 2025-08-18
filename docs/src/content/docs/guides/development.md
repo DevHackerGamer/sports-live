@@ -1,211 +1,146 @@
 ---
-title: Development Guide
-description: Development workflow and best practices for Sports Live.
----
-# Initial Design & Development Plan
-
-## 🎯 Goal
-Provide a clear, structured roadmap of development milestones, including timeline, design artifacts, and responsibilities.
-
----
-
-## ✅ Roadmap with Milestones (4 Weeks)
-
-| Week | Focus Area      | Tasks / Deliverables                                                                 |
-|------|-----------------|--------------------------------------------------------------------------------------|
-| 1    | Setup & Design  | - Set up GitHub repo & CI/CD <br> - Project scaffolding (React + Node + DB) <br> - UI wireframes (Figma) <br> - Architecture diagram |
-| 2    | Authentication  | - Implement sign-up/login/logout <br> - Role-based access (admin, user) <br> - Connect to DB for user storage |
-| 3    | Core Features   | - Live score input (admin) <br> - Real-time updates (WebSocket) <br> - Dashboard for viewers |
-| 4    | Testing & Feedback | - Unit & integration tests <br> - Usability testing session <br> - Sprint Review demo <br> - Collect & apply feedback |
-
-**Tools**: GitHub, Notion, Figma, Draw.io, Clerk/Auth0, Firebase, Express.js, React, Jest  
-
----
-
-# 📊 Visual Timeline
-
-Week 1: ██████████ (Setup & Design)
-
-Week 2:   ██████████ (Authentication)
-
-Week 3:     ██████████ (Core Features)
-
-Week 4:       ██████████ (Testing & Feedback)
-
-
----
-
-# 🎨 Design Artifacts
-- **Wireframes (Figma/Excalidraw)** → Login Page, Dashboard, Match Input Form, Live Viewer Page  
-- **Architecture Diagram** → Frontend (React) ↔ Backend (Express) ↔ Database (Postgres/MongoDB) ↔ WebSocket  
-
----
-
-## 🏗️ System Architecture Overview
-
-# a) Frontend (React)
-- Displays live match data, timelines, and match setup forms  
-- Pages: Login, Dashboard, Preferences  
-- Talks to backend via REST APIs and WebSockets  
-
-# b) Backend (Node.js + Express)
-- Handles API requests from frontend  
-- Manages authentication, CRUD for matches, events  
-- Pushes live updates via WebSockets  
-
-# c) Database (Firebase)
-- Stores matches, events, players, teams, and user preferences  
-
----
-
-## 🔗 Backend API Endpoints
-
-# Auth
-- `POST /auth/login` → User login  
-- `POST /auth/signup` → Create new user  
-- `POST /auth/logout` → End session  
-
-# Matches
-- `POST /matches` → Create new match  
-- `GET /matches` → Get all matches  
-- `GET /matches/:id` → Get single match  
-- `PUT /matches/:id` → Update match info  
-- `DELETE /matches/:id` → Delete match  
-
-# Events
-- `POST /matches/:id/events` → Add event (goal, foul, substitution, etc.)  
-- `PUT /matches/:id/events/:eventId` → Edit event  
-- `DELETE /matches/:id/events/:eventId` → Remove event  
-
-# Feed
-- `GET /matches/:id/feed` → Get current match state  
-- `GET /matches/:id/timeline` → Get chronological list of events  
-
-# Preferences
-- `GET /users/:id/preferences` → Get user preferences  
-- `PUT /users/:id/preferences` → Update preferences  
-
----
-
-#🗄️ Database Schema
-
-**Users**  
-- user_id (PK)  
-- email  
-- password_hash  
-- favorite_teams  
-
-**Teams**  
-- team_id (PK)  
-- name  
-- logo_url  
-
-**Players**  
-- player_id (PK)  
-- name  
-- team_id (FK)  
-
-**Matches**  
-- match_id (PK)  
-- home_team_id (FK)  
-- away_team_id (FK)  
-- start_time  
-- venue  
-- status (scheduled, live, paused, ended)  
-
-**Events**  
-- event_id (PK)  
-- match_id (FK)  
-- timestamp  
-- event_type (goal, foul, substitution, etc.)  
-- description  
-- team_id (FK, optional)  
-- player_id (FK, optional)  
-
----
-
-## 🎨 Frontend Components (React)
-
-### Pages
-1. **LoginPage**  
-   - Inputs: Email, Password  
-   - Buttons: Sign In, Forgot Password, Sign Up  
-
-2. **Dashboard**  
-   - TopNav: Logo, User Profile, Logout button  
-   - Sidebar: Links to Live Matches, Match Setup, Event Timeline, Preferences  
-   - Main Area:  
-     - **LiveScoreboard**: Teams, logos, score, timer, possession  
-     - **EventTimeline**: Vertical list of events  
-     - **MatchControlPanel**: Pause/Resume, Add Event form  
-
-3. **PreferencesPage**  
-   - Select favorite teams  
-   - Choose default layout  
-   - Toggle notifications  
-
-### Reusable Components
-- MatchCard  
-- EventItem  
-- TeamSelector  
-- TimeDisplay  
-- FormModal (add/edit matches/events)  
-
----
-
-## 🔄 Integration Flow
-
-1. Admin/Operator creates a match via `/matches`  
-2. Operator adds live events manually via `/matches/:id/events`  
-3. Backend stores the event in **Events** table  
-4. Backend updates **Matches** table with new score/time  
-5. Frontend fetches state via `/matches/:id/feed`  
-6. WebSocket pushes live updates instantly  
-7. Preferences API customizes what each user sees  
-
+title: "Development Guide"
 ---
 
 
-## Development Workflow
+This guide explains how to set up and run the **Sports Live** project locally for development.  
+Follow these steps to ensure your environment is consistent with the rest of the team.
 
-This guide covers the development process for the Sports Live application.
+--- 
 
-### Development Modes
+## A. Prerequisites
 
-**Mock Data Mode (Recommended for Development)**
+Before starting, make sure you have these tools installed:
+
+- **Git** (version control) → [Download](https://git-scm.com/downloads)  
+- **Node.js (LTS)** → [Download](https://nodejs.org/)  
+- **npm** (comes with Node.js) or **pnpm/yarn** as a package manager  
+- **Firebase CLI** → [Install](https://firebase.google.com/docs/cli)  
+- **VS Code** → [Download](https://code.visualstudio.com/)  
+- **Docker** (optional, for containerized setup) → [Download](https://www.docker.com/)  
+
+---
+
+## B. Clone the Repository
+
+```bash
+git clone https://github.com/DevHackerGamer/sports-live.git
+cd sports-live
+ ```
+---
+
+---
+## 1. Development Servers
+
+### 1.1 Mock Server (No API Usage)
+
+Run the app with mock API calls (no real API usage):
+
 ```bash
 npm start
 ```
-- Uses mock sports data
-- No API costs
-- Fast development
+Starts a development server using mock data.
+Helps avoid unnecessary API requests during development.
 
-**Live Data Mode (For Testing)**
+### 1.2 API Server (With Real API Calls)
+
+Run the app connected to real APIs:
 ```bash
 npx vercel dev
 ```
-- Uses real Football-Data.org API
-- Requires API token setup
-- Live sports data
+Starts a development server connecting to actual APIs.
 
-### Environment Setup
+### 1.3 Combined Dev (React + Local API Proxy)
 
-Create a `.env.local` file:
+Run React with a local proxy mapping /api/* to handlers in api/:
 ```bash
-REACT_APP_CLERK_PUBLISHABLE_KEY=your_clerk_key
-FOOTBALL_API_TOKEN=your_football_api_token
+npm run dev
+```
+React dev server → http://localhost:3000
+Express proxy → http://localhost:3001
+
+
+### 2. Firebase Setup
+Login to Firebase CLI:
+```bash
+firebase login
 ```
 
-### Testing
-
-Run the test suite:
+Initialize Firebase:
 ```bash
-npm test
+firebase init
+```
+Select Firestore for database
+Select Authentication for user management
+
+Add .env variables:
+```bash
+VITE_FIREBASE_API_KEY=<your_api_key>
+VITE_FIREBASE_AUTH_DOMAIN=<your_project>.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=<your_project>
+VITE_FIREBASE_STORAGE_BUCKET=<your_project>.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=<your_sender_id>
+VITE_FIREBASE_APP_ID=<your_app_id>
+```
+### 3. Backend Setup
+```bash
+cd backend
+npm install
+npm run dev
 ```
 
-### Building
+Backend runs at http://localhost:5000
 
-Create production build:
+Firebase handles database and authentication.
+
+### 4. Frontend Setup
 ```bash
-npm run build
+cd frontend
+npm install
+npm run dev
 ```
+
+### 5. Authentication
+
+Sign up: /auth/signup
+
+Login: /auth/login → JWT or Firebase Auth token
+
+### 6. Testing
+### Backend
+```bash
+npm run test
+```
+
+### Frontend
+```bash
+npm run test
+```
+Frontend runs at http://localhost:5173
+
+### 7. Deploy to Azure (Container)
+Build locally:
+7. Deploy to Azure (Container)
+
+Build locally:
+```bash
+docker build \
+  -t sports-live:latest \
+  --build-arg REACT_APP_CLERK_PUBLISHABLE_KEY=pk_test_xxx .
+```
+
+Run locally:
+```bash
+docker run --rm -p 8080:8080 \
+  -e FOOTBALL_API_TOKEN=your_football_api_token \
+  sports-live:latest
+```
+
+Open http://localhost:8080
+
+Notes:
+
+REACT_APP_CLERK_PUBLISHABLE_KEY → public client key
+
+
+
