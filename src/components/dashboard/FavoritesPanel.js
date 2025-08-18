@@ -1,201 +1,168 @@
 import React, { useEffect, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { db } from '../../lib/firebase';
-import { ref, get, set } from 'firebase/database';
+import { db, ref, onValue, update } from '../../lib/firebase';
 
 const FavoritesPanel = () => {
   const { user } = useUser();
-  const [favorites, setFavorites] = useState([]); // store team names
+  const uid = user?.id;
+
+  const [favorites, setFavorites] = useState([]);
+  const [teams, setTeams] = useState([]);
+  const [selectedTeam, setSelectedTeam] = useState('');
   const [matches, setMatches] = useState([]);
-  const [allTeams, setAllTeams] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [newTeam, setNewTeam] = useState('');
-
-  // Fetchs upcoming matchs and limited to 200 due to some error 429 of request limit by free tier that leads to internal server error 500
-  const fetchMatches = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      const res = await fetch('/api/sports-data?limit=200&range=30');
-      if (!res.ok) throw new Error('Failed to fetch matches');
-      const data = await res.json();
-      setMatches(data.games || []);
-    } catch (err) {
-      console.error('Error fetching matches:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // This one instead fetchs all teams to be able to validate team name and for dropdown for valid team selection 
-  const fetchAllTeams = async () => {
-    try {
-      const res = await fetch('/api/sports-data?endpoint=teams');
-      if (!res.ok) throw new Error('Failed to fetch teams');
-      const data = await res.json();
-      setAllTeams(data.teams || []);
-    } catch (err) {
-      console.error('Error fetching all teams:', err);
-    }
-  };
-
-  // load autorized user fav from firebase rdb
-  const loadFavorites = async () => {
-    if (!user) return;
-    try {
-      const favRef = ref(db, `users/${user.id}/favorites`);
-      const snapshot = await get(favRef);
-      if (snapshot.exists()) {
-        setFavorites(snapshot.val());
-      } else {
-        setFavorites([]);
-      }
-    } catch (err) {
-      console.error('Error loading favorites:', err);
-      setError(err.message);
-    }
-  };
-
-  // Ensuures whatever user has entered is a valid team before updating db
-  const validateTeam = (teamName) => {
-    const team = allTeams.find(t => t.name.toLowerCase() === teamName.toLowerCase());
-    if (!team) throw new Error('Team not found');
-    return team;
-  };
-
-  // Validate team and adds to firebase rdb
-  const addFavorite = async (teamName) => {
-    if (!user || !teamName) return;
-    try {
-      const team = validateTeam(teamName);
-      const favRef = ref(db, `users/${user.id}/favorites`);
-      const updated = Array.from(new Set([...favorites, team.name]));
-      await set(favRef, updated);
-      setFavorites(updated);
-      setNewTeam('');
-    } catch (err) {
-      console.error('Error adding favorite:', err);
-      setError(err.message);
-    }
-  };
-
-  // Remove team from fav and updates firebase rdb
-  const removeFavorite = async (teamName) => {
-    if (!user || !teamName) return;
-    try {
-      const favRef = ref(db, `users/${user.id}/favorites`);
-      const updated = favorites.filter(f => f !== teamName);
-      await set(favRef, updated);
-      setFavorites(updated);
-    } catch (err) {
-      console.error('Error removing favorite:', err);
-      setError(err.message);
-    }
-  };
+  const [loadingFavorites, setLoadingFavorites] = useState(true);
+  const [loadingTeams, setLoadingTeams] = useState(true);
+  const [loadingMatches, setLoadingMatches] = useState(true);
 
   useEffect(() => {
-    fetchMatches();
-    fetchAllTeams();
+    if (!uid) return;
+    const favRef = ref(db, `users/${uid}/favorites`);
+    const unsubscribe = onValue(
+      favRef,
+      (snapshot) => {
+        const data = snapshot.val() || [];
+        setFavorites(Array.isArray(data) ? data : Object.values(data));
+        setLoadingFavorites(false);
+      },
+      (err) => {
+        console.error('Error fetching favorites:', err);
+        setFavorites([]);
+        setLoadingFavorites(false);
+      }
+    );
+    return () => unsubscribe();
+  }, [uid]);
+
+  useEffect(() => {
+    const teamsRef = ref(db, 'teams');
+    const unsubscribe = onValue(
+      teamsRef,
+      (snapshot) => {
+        const data = snapshot.val() || [];
+        setTeams(Array.isArray(data) ? data : Object.values(data));
+        setLoadingTeams(false);
+      },
+      (err) => {
+        console.error('Error fetching teams:', err);
+        setTeams([]);
+        setLoadingTeams(false);
+      }
+    );
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
-    loadFavorites();
-  }, [user]);
+    const matchesRef = ref(db, 'matches');
+    const unsubscribe = onValue(
+      matchesRef,
+      (snapshot) => {
+        const data = snapshot.val() || {};
+        const matchList = Object.values(data);
+        setMatches(matchList);
+        setLoadingMatches(false);
+      },
+      (err) => {
+        console.error('Error fetching matches:', err);
+        setMatches([]);
+        setLoadingMatches(false);
+      }
+    );
+    return () => unsubscribe();
+  }, []);
 
-  // Display for upcoming matchs for user fav team -> FrontEnd its all you now :)
-  const formatMatch = (match) => {
-    const date = new Date(match.utcDate);
-    const day = date.getDate();
-    const month = date.toLocaleString('default', { month: 'short' });
-    const year = date.getFullYear();
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const status = match.status.charAt(0).toUpperCase() + match.status.slice(1);
-    return `${match.homeTeam} vs ${match.awayTeam} | ${day} ${month} ${year} | ${hours}:${minutes} -> ${status}`;
+  const addFavorite = async () => {
+    if (!selectedTeam) return alert('Please select a team');
+    if (!teams.includes(selectedTeam)) return alert('Invalid team selected');
+    if (favorites.includes(selectedTeam)) return alert('Team already in favorites');
+
+    const newFavorites = [...favorites, selectedTeam];
+    try {
+      await update(ref(db, `users/${uid}`), { favorites: newFavorites });
+      setFavorites(newFavorites);
+      setSelectedTeam('');
+    } catch (err) {
+      console.error('Error updating favorites:', err);
+      alert('Failed to add favorite team');
+    }
   };
 
-  // While we get data from firebase rdb we display this in the meantime 
-  if (!user) return <p data-testid="loading-user">Loading user...</p>;
+  const removeFavorite = async (teamToRemove) => {
+    const newFavorites = favorites.filter((t) => t !== teamToRemove);
+    try {
+      await update(ref(db, `users/${uid}`), { favorites: newFavorites });
+      setFavorites(newFavorites);
+    } catch (err) {
+      console.error('Error removing favorite:', err);
+      alert('Failed to remove favorite team');
+    }
+  };
+
+  const getTeamMatches = (teamName) => {
+    return matches
+      .filter(
+        (m) => (m.homeTeam === teamName || m.awayTeam === teamName) &&
+               (m.status === 'scheduled' || m.status === 'live')
+      )
+      .sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate));
+  };
+
+  const formatDateTime = (utcDate) => {
+    const date = new Date(utcDate);
+    return `${date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })} at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+  };
+
+  if (!uid) return <div className="favorites-panel" data-testid="no-user">Please log in to see your favorites.</div>;
+  if (loadingFavorites || loadingTeams || loadingMatches)
+    return <div className="favorites-panel loading-state" data-testid="loading">Loading...</div>;
 
   return (
-    <div className="favorites-panel" style={{ marginBottom: '24px' }} data-testid="favorites-panel">
-      <h2>Favorites</h2>
-
-      {error && <p className="error" data-testid="error">{error}</p>}
-      {loading && <p data-testid="loading-matches">Loading matches...</p>}
-
-      <ul data-testid="favorites-list">
-        {favorites.length === 0 ? (
-          <li style={{ fontStyle: 'italic', color: '#666' }} data-testid="no-favorites">
-            No favorite teams chosen
-          </li>
-        ) : (
-          favorites.map((teamName) => {
-            const upcoming = matches
-              .filter(m => m.homeTeam === teamName || m.awayTeam === teamName)
-              .sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate));
-
+    <div className="favorites-panel" data-testid="favorites-panel">
+      <h3>Favorites</h3>
+      {favorites.length === 0 ? (
+        <p data-testid="no-favorites">No favorite teams chosen</p>
+      ) : (
+        <ul data-testid="favorites-list">
+          {favorites.map((team) => {
+            const teamMatches = getTeamMatches(team);
             return (
-              <li key={teamName} style={{ marginBottom: '12px' }} data-testid="favorite-item">
-                <strong data-testid="favorite-name">{teamName}</strong> — Upcoming Matches: {upcoming.length}
-                <button
-                  style={{ marginLeft: '12px', padding: '4px 8px', cursor: 'pointer' }}
-                  onClick={() => removeFavorite(teamName)}
-                  data-testid="remove-favorite"
-                >
-                  Remove
-                </button>
-                <ul style={{ marginTop: '4px', marginLeft: '16px' }} data-testid="upcoming-list">
-                  {upcoming.map(match => (
-                    <li key={match.id} data-testid="upcoming-match">{formatMatch(match)}</li>
-                  ))}
-                </ul>
+              <li key={team} data-testid={`favorite-${team}`}>
+                <strong>{team}</strong>
+                <span style={{ margin: '0 10px' }}>({teamMatches.length} matches)</span>
+                <button onClick={() => removeFavorite(team)} data-testid={`remove-${team}`}>Remove</button>
+                {teamMatches.length > 0 && (
+                  <ul className="team-matches" data-testid={`matches-${team}`}>
+                    {teamMatches.map((match) => (
+                      <li key={match.id} data-testid={`match-${match.id}`}>
+                        {match.homeTeam} vs {match.awayTeam} — {formatDateTime(match.utcDate)}
+                        {match.status === 'live' && <span className="live-badge" data-testid={`live-${match.id}`}> LIVE {match.minute}'</span>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </li>
             );
-          })
-        )}
-      </ul>
+          })}
+        </ul>
+      )}
 
-      <div style={{ marginTop: '16px' }} data-testid="add-favorite-section">
-        <input
-          type="text"
-          value={newTeam}
-          onChange={(e) => setNewTeam(e.target.value)}
-          onKeyDown={async (e) => {
-            if (e.key === 'Enter' && newTeam.trim()) {
-              await addFavorite(newTeam.trim());
-            }
-          }}
-          data-testid="add-input"
-        />
+      <div className="favorites-add" style={{ marginTop: '10px', display: 'flex', gap: '10px', alignItems: 'center' }} data-testid="add-favorite-panel">
         <select
-          value=""
-          onChange={async (e) => {
-            if (e.target.value) {
-              await addFavorite(e.target.value);
-            }
-          }}
-          data-testid="add-dropdown"
+          value={selectedTeam}
+          onChange={(e) => setSelectedTeam(e.target.value)}
+          data-testid="team-select"
         >
-          <option value="" disabled selected>Select a team...</option>
-          {allTeams
-            .filter(t => !favorites.includes(t.name))
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .map(t => (
-              <option key={t.id} value={t.name} data-testid="dropdown-option">{t.name}</option>
-            ))}
+          <option value="">Select a team...</option>
+          {teams.map((team) => (
+            <option key={team} value={team} data-testid={`team-option-${team}`}>{team}</option>
+          ))}
         </select>
         <button
-          onClick={async () => {
-            if (newTeam.trim()) {
-              await addFavorite(newTeam.trim());
-            }
-          }}
-          data-testid="add-button"
+          onClick={addFavorite}
+          disabled={!selectedTeam || favorites.includes(selectedTeam)}
+          style={{ padding: '8px 5px', fontSize: '16px', flex: '1' }}
+          data-testid="add-favorite-btn"
         >
-          Add
+          Add Favorite
         </button>
       </div>
     </div>
