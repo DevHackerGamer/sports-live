@@ -2,7 +2,7 @@
 
 ## **Chosen Methodology: Agile (Scrum Framework)**
 
-We use the **Agile methodology**, following the **Scrum framework**, to ensure flexibility, collaboration, and continuous delivery of working software.
+We use the **Agile methodology**, following the **Scrum framework**, to ensure flexibility, collaboration, and continuous delivery of working softwares.
 
 ---
 
