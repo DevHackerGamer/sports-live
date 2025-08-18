@@ -70,6 +70,7 @@ const FavoritesPanel = () => {
     return () => unsubscribe();
   }, []);
 
+  // adding user fav team to the rdb
   const addFavorite = async () => {
     if (!selectedTeam) return alert('Please select a team');
     if (!teams.includes(selectedTeam)) return alert('Invalid team selected');
@@ -86,6 +87,7 @@ const FavoritesPanel = () => {
     }
   };
 
+  // remove user fav team in the rdb
   const removeFavorite = async (teamToRemove) => {
     const newFavorites = favorites.filter((t) => t !== teamToRemove);
     try {
@@ -97,6 +99,7 @@ const FavoritesPanel = () => {
     }
   };
 
+  // get upocoming matches for user fav team based from matches store in rdb
   const getTeamMatches = (teamName) => {
     return matches
       .filter(
@@ -106,6 +109,7 @@ const FavoritesPanel = () => {
       .sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate));
   };
 
+
   const formatDateTime = (utcDate) => {
     const date = new Date(utcDate);
     return `${date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })} at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`;
@@ -114,7 +118,8 @@ const FavoritesPanel = () => {
   if (!uid) return <div className="favorites-panel" data-testid="no-user">Please log in to see your favorites.</div>;
   if (loadingFavorites || loadingTeams || loadingMatches)
     return <div className="favorites-panel loading-state" data-testid="loading">Loading...</div>;
-
+  
+  // frontend do some justice :)
   return (
     <div className="favorites-panel" data-testid="favorites-panel">
       <h3>Favorites</h3>

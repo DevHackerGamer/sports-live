@@ -9,7 +9,7 @@ const LiveSports = () => {
 
   useEffect(() => {
     const matchesRef = ref(db, 'matches');
-
+    // load matchs from rdb
     const unsubscribe = onValue(
       matchesRef,
       snapshot => {
@@ -37,6 +37,7 @@ const LiveSports = () => {
       ? new Date(date).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
       : 'TBA';
 
+  // find match status also stored in rdb 
   const getStatusBadge = status => {
     const config = {
       live: ['LIVE', 'status-live'],
@@ -53,6 +54,7 @@ const LiveSports = () => {
   if (!sportsData || Object.keys(sportsData).length === 0)
     return <div className="live-sports empty-state" data-testid="empty">No matches available</div>;
 
+  // getting matches acorrding to league and group them in display
   const groupedMatches = Object.values(sportsData).reduce((acc, match) => {
     const league = match.competition || 'Other';
     acc[league] = acc[league] || [];
