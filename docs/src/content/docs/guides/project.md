@@ -1,30 +1,33 @@
-# Project Development Methodology
+---
+title: Project Management Methodology
+description: Our chosen project management methology for our Sports Live Tracker
 
-## **Chosen Methodology: Agile (Scrum Framework)**
+---
+
+## Chosen Methodology: Agile (Scrum Framework)
 
 We use the **Agile methodology**, following the **Scrum framework**, to ensure flexibility, collaboration, and continuous delivery of working software.
 
 ---
 
-## **Why Agile for Sport Live Feeds?**
+## Why Agile for Sport Live Feeds?
 
 - Requirements may evolve after stakeholder feedback.
 - Frequent delivery allows us to adapt quickly.
 - Encourages transparency, communication, and accountability.
 - Short iterations keep progress measurable and visible.
 
-We work in **two-week sprints**, providing enough time for meaningful progress while maintaining rapid feedback loops.
-
+We work in **two-week sprints**, providing enough time for meaningful progress while maintaining rapid feedback loops
 ---
 
-## **Scrum Process**
+## Scrum Process
 
-### **Roles**
+### Roles
 - **Product Owner** – Represents stakeholder interests and prioritizes backlog.
 - **Scrum Master** – Facilitates ceremonies, removes blockers.
 - **Development Team** – Builds, tests, and delivers product increments.
 
-### **Ceremonies**
+### Ceremonies
 1. **Sprint Planning** – Define sprint goals, select backlog items, estimate work.
 2. **Daily Standups** – Quick syncs to report progress and highlight blockers.
 3. **Sprint Review** – Demo completed features to stakeholders and gather feedback.
@@ -32,12 +35,12 @@ We work in **two-week sprints**, providing enough time for meaningful progress w
 
 ---
 
-## **Workflow Diagram**
+## Workflow Diagram
 `Backlog → Sprint Planning → Development → Daily Standups → Sprint Review → Retrospective → Next Sprint`
 
 ---
 
-## **Tools Used**
+## Tools Used
 - **React** – Frontend framework for building fast, responsive UI.
 - **Notion** – Central hub for sprint boards, backlog, and documentation.
 - **Discord** – Async communication, quick updates, and stakeholder coordination.
@@ -46,7 +49,7 @@ We work in **two-week sprints**, providing enough time for meaningful progress w
 
 ---
 
-## **Workflow Structure**
+## Workflow Structure
 
 ### Sprint Length
 - Each sprint runs for **2 weeks**.
@@ -61,7 +64,7 @@ We work in **two-week sprints**, providing enough time for meaningful progress w
 
 ---
 
-## **Proof of Agile in Action**
+## Proof of Agile in Action
 We maintain our project board in **Notion**:  
 📌 [View on Notion](https://www.notion.so/Sports-Live-Tracker-2467a77b8bee80ff9843cca11627b087?source=copy_link)
 
