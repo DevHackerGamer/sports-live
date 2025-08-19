@@ -16,7 +16,8 @@ We use the **Agile methodology**, following the **Scrum framework**, to ensure f
 - Frequent delivery allows us to adapt quickly.
 - Encourages transparency, communication, and accountability.
 - Short iterations keep progress measurable and visible.
----
+
+
 We work in **two-week sprints**, providing enough time for meaningful progress while maintaining rapid feedback loops
 ---
 
@@ -64,6 +65,20 @@ We work in **two-week sprints**, providing enough time for meaningful progress w
 
 ---
 
+## Definition of Done (DoD)  
+- Code reviewed and merged.  
+- Feature tested and passes QA.  
+- Documentation updated.  
+- Stakeholder acceptance obtained.  
+
+---
+
+## Continuous Improvement  
+- Retrospective action items applied in next sprint.  
+- Regular evaluation of workflow and tools.  
+- Experimentation with new practices for efficiency.  
+
+---
 ## Proof of Agile in Action
 We maintain our project board in **Notion**:  
 📌 [View on Notion](https://www.notion.so/Sports-Live-Tracker-2467a77b8bee80ff9843cca11627b087?source=copy_link)
@@ -82,6 +97,25 @@ Additional evidence:
 - Retrospective improvement notes.
 
 ---
+---
+
+## Definition of Done (DoD)  
+- Code reviewed and merged.  
+- Feature tested and passes QA.  
+- Documentation updated.  
+- Stakeholder acceptance obtained.  
+
+---
+
+## Continuous Improvement  
+- Retrospective action items applied in next sprint.  
+- Regular evaluation of workflow and tools.  
+- Experimentation with new practices for efficiency.  
+
+---
+
+## Workflow Structure  
+
 
 ## **Architecture Overview**
 

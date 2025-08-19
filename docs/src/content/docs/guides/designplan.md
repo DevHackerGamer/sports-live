@@ -25,18 +25,89 @@ Provide a clear, structured roadmap of development milestones, including timelin
 
 Week 1: ██████████ (Setup & Design)
 
-Week 2:   ██████████ (Authentication)
+Week 2:      ██████████ (Authentication)
 
-Week 3:     ██████████ (Core Features)
+Week 3:           ██████████ (Core Features)
 
-Week 4:       ██████████ (Testing & Feedback)
+Week 4:               ██████████ (Testing & Feedback)
 
 
 ---
 
 # 🎨 Design Artifacts
-- **Wireframes (Figma/Excalidraw)** → Login Page, Dashboard, Match Input Form, Live Viewer Page  
-- **Architecture Diagram** → Frontend (React) ↔ Backend (Express) ↔ Database (Postgres/MongoDB) ↔ WebSocket  
+
+- **Wireframes** → UI mockups for core pages (Login, Dashboard, Match Input, Viewer)  
+- **Architecture Diagram** → High-level system overview (Frontend ↔ Backend ↔ Firebase)  
+- **UML Diagrams** → Use Case Diagram + Component Diagram 
+
+
+# 🖼️ Wireframes
+
+ ![Wireframes](/diagrams/wiref.png)
+
+
+---
+
+## 👤 Use Case Diagram
+
+> Shows how admins, viewers, and guests interact with the system.
+
+
+![Use Case Diagram](/diagrams/use.png)
+
+Main Use Cases:
+
+Admin → Add/Edit/Remove Matches, Manage Users, Push Updates
+
+Viewer → View Live Scores, Follow Teams, Receive Notifications
+
+---
+## 🧩 Component Diagram
+
+> High-level breakdown of frontend, backend, and Firebase integration.
+
+![Component Diagram](/diagrams/component.png)
+
+Components:
+### a) Frontend (React)
+- Pages (Login, Dashboard, Viewer)
+- Reusable Components (MatchCard, ScoreBoard) 
+- Talks to backend via REST APIs and WebSockets  
+
+### b) Backend (Node.js + Express)
+- Auth Service
+- Match Service 
+- Database (Firebase)
+- Firestore: Matches, Users, Events
+
+
+---
+## 🔄 Sequence Diagram
+
+> Example: Admin adds a goal → Viewers see it live.
+
+
+![Sequence Diagram](/diagrams/sequence.png)
+
+---
+## 🗄️ Data Model (ER Diagram)
+
+> Entities: User, Team, Match, Event, Player.
+
+
+![ER Model](/diagrams/class.png)
+
+---
+
+## ☁️ Deployment Diagram
+
+> Local dev, Azure hosting, Firebase integration.
+
+
+![Deployment Diagram](/diagrams/deployment.png)
+
+---
+
 
 ---
 
