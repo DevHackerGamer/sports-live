@@ -1,169 +1,143 @@
-# Sports Feed Development Guide
+---
+title: Sports Live Tracker
+description: A modern web platform for tracking live sports feeds, scores, and stats.
+---
 
-Welcome! Please follow these instructions when running the application locally:
+# ⚽ Sports Live Tracker
 
-## Development Servers
 
-### 1. Mock Server (No API Usage)
-To run the app with mock API calls (no real API usage):
+A modern web platform for tracking live sports feeds, scores, and stats. Built with **React**, **Node.js/Express**, and **Azure services** for real-time updates.
+
+---
+
+## 🌐 Live Links
+- Frontend: [React App / Azure Static Web App]()
+- Backend API: [Azure Web App / API Endpoint]()
+- GitHub: [Repo Link](https://github.com/DevHackerGamer/sports-live)
+
+---
+
+## 🚀 Project Overview
+- View live sports scores and stats
+- Filter by teams, leagues, and events
+- Admins can manage feeds and API connections
+- Mobile-friendly and responsive UI
+
+---
+
+## 🧰 Tech Stack
+- Backend: Node.js, Express, Axios for API requests
+- Frontend: React (functional components & hooks), Tailwind CSS
+- Deployment & Dev Tools: Azure Web Apps / Container Registry, Docker, Git & GitHub, Notion (sprint boards), Discord (team communication)
+
+---
+
+## 🔑 Core Features
+- **Admin Portal**: Add/manage feeds, Authentication & user roles, API key management and data sync
+- **Public Interface**: Live feed display & scoreboards, Filter by league/team/event, Mobile-friendly interface
+
+---
+
+## ⚙️ Setup Instructions
+### 1. Clone the Repo
 
 ```bash
-npm start
+git clone https://github.com/DevHackerGamer/sports-live.git
+cd sports-live
 ```
 
-This will start a development server using mock data, which helps avoid unnecessary API requests during development.
-
-### 2. API Server (With Real API Calls)
-To run the app with real API calls:
+### 2. Install Dependencies (Backend + Frontend)
 
 ```bash
-npx vercel dev
+cd backend
+npm install
+
+cd ../frontend
+npm install
 ```
 
-This will start a development server that connects to the actual APIs.
-
-### 3. Combined Dev (React + Local API Proxy)
-To run React and a small local proxy that maps `/api/*` to the handlers in `api/`:
+### 3. Run Backend Locally
 
 ```bash
+cd backend
 npm run dev
 ```
 
-This starts:
-- React dev server on http://localhost:3000
-- Express proxy on http://localhost:3001
-
-You can call API endpoints via the React app at:
-- http://localhost:3000/api/joke
-- http://localhost:3000/api/sports-data
-- http://localhost:3000/api/status
-- http://localhost:3000/api/uptime
-
-Troubleshooting:
-- If you see `Cannot find module dev-proxy-server.js`, ensure the file exists in the repo root.
-- If port 3001 is in use, run `PROXY_PORT=4001 npm run dev` to use a different proxy port.
-- Requires Node 18+ for dynamic import used by the proxy.
-
-## Notes
-
-- Use `npm start` for most development tasks to conserve API usage.
-- Only use `npx vercel dev` when you need to test with real API data.
-
-If you have any questions, please reach out to me (Josh).
-
-## Deploy to Azure (Container)
-
-This app can run as a single container that serves the React build and the `/api/*` endpoints via an Express server.
-
-Why this container? Azure Web App for Containers expects your app to listen on the `PORT` env var. Our server (`server.js`) serves the built React app and mounts the API handlers so everything runs in one container.
-
-### Build locally
-
-Provide the Clerk publishable key at build time so React can inline it:
+### 4. Run Frontend Locally
 
 ```bash
-docker build \
-	-t sports-live:latest \
-	--build-arg REACT_APP_CLERK_PUBLISHABLE_KEY=pk_test_xxx \
-	.
-
-docker run --rm -p 8080:8080 \
-	-e FOOTBALL_API_TOKEN=your_football_api_token \
-	sports-live:latest
+cd frontend
+npm start
 ```
 
-Then open http://localhost:8080.
+> ⚠️ Ensure your `.env` is configured with valid `REACT_APP_CLERK_PUBLISHABLE_KEY`, Firebase, and Search API keys.
 
-Notes:
-- Build-time: `REACT_APP_CLERK_PUBLISHABLE_KEY` is for client-side (public) use and is baked into the bundle.
-- Runtime: Set `FOOTBALL_API_TOKEN` (server-only) at container runtime or in Azure App Settings.
+---
 
-### Push to Azure Container Registry (ACR) and deploy
+## 👥 Team
+- Fullstack Dev
+- Testing & QA
+- DevOps & Deployment
+- Mentorship: University of the Witwatersrand – Software Design Project 2025
 
-```bash
-# Create ACR if needed
-az acr create -g <resource-group> -n <acrName> --sku Basic
-az acr login -n <acrName>
+---
 
-# Tag and push
-docker tag sports-live:latest <acrName>.azurecr.io/sports-live:latest
-docker push <acrName>.azurecr.io/sports-live:latest
+## 🧪 Testing & UAT
+- Manual and automated User Acceptance Testing (UAT)
+- CI/CD testing pipeline integrated with GitHub Actions
+- Code coverage tracked via Codecov
 
-# Create Web App for Containers (Linux)
-az webapp create -g <resource-group> -p <appservice-plan> \
-	-n <app-name> --runtime "NODE:20-lts" --deployment-container-image-name <acrName>.azurecr.io/sports-live:latest
+---
 
-# Configure container settings
-az webapp config container set -g <resource-group> -n <app-name> \
-	-i <acrName>.azurecr.io/sports-live:latest -r https://<acrName>.azurecr.io
+## 📋 Project Management Methodology
+- **Framework:** Agile (Scrum)  
+- **Sprint Length:** 2 weeks  
+- **Roles:** Product Owner (prioritizes backlog), Scrum Master (removes blockers), Development Team (implements & tests features)  
+- **Ceremonies:** Sprint Planning, Daily Standups, Sprint Review, Sprint Retrospective  
+- **Evidence:** Notion sprint board, GitHub PRs linked to tasks, Discord standup notes  
+- **Rationale:** Allows rapid feedback, adapts to changing requirements, ensures accountability  
+- **References:** [Scrum Guide 2020](https://www.scrumguides.org/scrum-guide.html)
 
-# App settings (runtime env)
-az webapp config appsettings set -g <resource-group> -n <app-name> \
-	--settings FOOTBALL_API_TOKEN=your_football_api_token
-```
+---
 
-Azure will set `PORT` automatically; the server listens on that value (defaults to 8080 locally).
+## 📄 License
+- Academic project under Wits University’s Software Development Project module
 
-## Deploy to Azure App Service (ZIP)
+---
 
-If you prefer Azure App Service (Windows Free tier supported), deploy the Node server + built React assets via ZIP. We provide scripts that set app settings and package the right files.
+## 🙌 Contributions
+- Pull requests and feedback welcome. Open an issue or fork the repo to contribute
 
-### Requirements
-- Azure CLI logged in (`az account show`)
-- Resource Group and App Service name
-- Env values:
-	- REACT_APP_CLERK_PUBLISHABLE_KEY (public, required at build-time)
-	- FOOTBALL_API_TOKEN (server-side, runtime)
+---
 
-### 1) Provision App Service (Free F1, Windows, region example: centralindia)
+## 📚 Resources
+- [React Documentation](https://reactjs.org/)  
+- [Tailwind CSS](https://tailwindcss.com/)  
+- [Azure Web Apps](https://learn.microsoft.com/en-us/azure/app-service/)
 
-```bash
-./scripts/deploy-azure-appservice.sh <resourceGroup> <planName> <appName> \
-	--location <allowed-region> \
-	--sku F1 \
-	--clerk <publishableKey> \
-	--football <apiToken>
-```
+# Folder Structure
 
-Notes:
-- Your subscription may restrict regions/SKUs. Use an allowed region (e.g., centralindia, uaenorth, southafricanorth, brazilsouth, brazilsoutheast).
-- On Windows App Service, `web.config` routes traffic to `server.js` via iisnode.
+- `frontend/` – React app UI (Live scoreboard, event feed, match setup, etc.)
+- `backend/` – REST APIs for live updates, match metadata, and feed delivery
+- `docs/` – Sprint planning, setup instructions, team roles, methodology
 
-### 2) Deploy via ZIP
+# Setting Up
 
-Option A — Build on Azure (simple, slower):
-```bash
-./scripts/deploy-azure-zip.sh <resourceGroup> <appName> \
-	--clerk <publishableKey> \
-	--football <apiToken>
-```
+More details on dev setup coming soon!
 
-Option B — Local build (recommended on Windows):
-```bash
-./scripts/deploy-azure-zip.sh <resourceGroup> <appName> \
-	--clerk <publishableKey> \
-	--football <apiToken> \
-	--local-build
-```
+#  Team
 
-What the script does:
-- Sets WEBSITE_NODE_DEFAULT_VERSION=~20 and SCM_DO_BUILD_DURING_DEPLOYMENT (when not local-build)
-- Ensures Clerk key is available for the CRA build
-- Packages server.js, api/, build/, package*.json, and web.config (with --local-build)
+- Joshua Williams
+- Mohau Makunyane  
+- Bohlale Mabonga
+- Tshepo Mngomezulu
+- Kwezi Mudacumura
+- Lehlohonolo Tosa
 
-### Verify
 
-```bash
-az webapp log tail -g <resourceGroup> -n <appName>
-```
+# Documentation 
 
-Open:
-- https://<appName>.azurewebsites.net/
-- https://<appName>.azurewebsites.net/api/status
-- https://<appName>.azurewebsites.net/api/sports-data
+For the full documentation of the website visit:
 
-### Troubleshooting
-- 404 on root/static assets (Windows): ensure `web.config` is deployed or use `--local-build` packaging.
-- App crashes on wildcard route: Express v5 requires regex fallback. We use `app.get(/^\/(?!api\/).*/, ...)`.
-- `Missing Publishable Key`: set REACT_APP_CLERK_PUBLISHABLE_KEY in App Settings (ZIP) or pass via `--clerk`.
-- `fetch is not defined`: ensure Node >=18. We set WEBSITE_NODE_DEFAULT_VERSION=~20.
+
+https://adorable-kleicha-8ace6b.netlify.app/
