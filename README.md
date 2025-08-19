@@ -70,7 +70,7 @@ cd frontend
 npm start
 ```
 
-> ⚠️ Ensure your `.env` is configured with valid Azure Storage, Firebase, and Search API keys.
+> ⚠️ Ensure your `.env` is configured with valid `REACT_APP_CLERK_PUBLISHABLE_KEY`, Firebase, and Search API keys.
 
 ---
 
