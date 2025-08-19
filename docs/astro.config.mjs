@@ -11,7 +11,7 @@ export default defineConfig({
         {
           icon: "github",
           label: "GitHub",
-          href: "https://github.com/mohauMakunyane22/LiveSportUpdates",
+          href: "https://github.com/DevHackerGamer/sports-live",
         },
       ],
       sidebar: [
@@ -52,10 +52,6 @@ export default defineConfig({
             },
             //{ label: "API Documentation", slug: "guides/endpoints" },
           ],
-        },
-        {
-          label: "Reference",
-          autogenerate: { directory: "reference" },
         },
       ],
     }),
