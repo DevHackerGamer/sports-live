@@ -1,193 +1,119 @@
-import React from 'react';
-import { useLiveSports } from '../../hooks/useLiveSports';
+import React, { useEffect, useState } from 'react';
+import { db, ref, onValue } from '../../lib/firebase';
 import '../../styles/LiveSports.css';
 
-
-
 const LiveSports = () => {
-  // Update time every 10ms
-  const [currentTime, setCurrentTime] = React.useState(new Date());
-  React.useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 10);
-    return () => clearInterval(timer);
+  const [sportsData, setSportsData] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const matchesRef = ref(db, 'matches');
+    // load matchs from rdb
+    const unsubscribe = onValue(
+      matchesRef,
+      snapshot => {
+        const data = snapshot.val() || {};
+        setSportsData(data);
+        setLoading(false);
+      },
+      err => {
+        console.error('Error reading matches from DB:', err);
+        setError('Failed to load matches');
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
   }, []);
-  const { 
-    sportsData, 
-    isConnected, 
-    error, 
-    lastUpdated, 
-    refreshData 
-  } = useLiveSports();
 
-  const formatTime = (date) => {
-    if (!date) return '';
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  const formatTime = date =>
+    date && date !== 'TBA'
+      ? new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : 'TBA';
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString([], { 
-      weekday: 'short', 
-      month: 'short', 
-      day: 'numeric' 
-    });
-  };
+  const formatDate = date =>
+    date && date !== 'TBA'
+      ? new Date(date).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+      : 'TBA';
 
-  const formatShortDate = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-  };
-
-  const getStatusBadge = (status) => {
-    const statusConfig = {
-      live: { text: 'LIVE', className: 'status-live' },
-      final: { text: 'FINAL', className: 'status-final' },
-      scheduled: { text: 'SCHEDULED', className: 'status-scheduled' },
-      default: { text: 'UPCOMING', className: 'status-default' }
+  // find match status also stored in rdb 
+  const getStatusBadge = status => {
+    const config = {
+      live: ['LIVE', 'status-live'],
+      final: ['FINAL', 'status-final'],
+      scheduled: ['SCHEDULED', 'status-scheduled'],
+      upcoming: ['UPCOMING', 'status-default'],
     };
-    
-    const config = statusConfig[status] || statusConfig.default;
-    return <span className={`status-badge ${config.className}`}>{config.text}</span>;
+    const [text, className] = config[status] || config.upcoming;
+    return <span className={`status-badge ${className}`} data-testid={`status-${status}`}>{text}</span>;
   };
 
-  if (error) {
-    return (
-      <div className="live-sports error-state">
-        <div className="error-content">
-          <h3>Connection Error</h3>
-          <p>Unable to fetch live sports data</p>
-          <button onClick={refreshData} className="retry-button">
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div className="live-sports loading-state" data-testid="loading">Loading matches...</div>;
+  if (error) return <div className="live-sports error-state" data-testid="error">{error}</div>;
+  if (!sportsData || Object.keys(sportsData).length === 0)
+    return <div className="live-sports empty-state" data-testid="empty">No matches available</div>;
 
-  if (!sportsData) {
-    return (
-      <div className="live-sports loading-state">
-        <div className="loading-content">
-          <div className="loading-spinner"></div>
-          <h3>Loading live matches...</h3>
-        </div>
-      </div>
-    );
-  }
+  // getting matches acorrding to league and group them in display
+  const groupedMatches = Object.values(sportsData).reduce((acc, match) => {
+    const league = match.competition || 'Other';
+    acc[league] = acc[league] || [];
+    acc[league].push(match);
+    return acc;
+  }, {});
 
   return (
-    <div className="live-sports">
-      <div className="sports-header">
-        <div className="header-left">
-          <h2>Live Football</h2>
-          <div className="connection-indicator">
-            <div className={`status-dot ${isConnected ? 'connected' : 'disconnected'}`}></div>
-            <span className="status-text">
-              {isConnected ? 'Live' : 'Offline'}
-            </span>
-          </div>
-        </div>
-
-        <div className="header-right">
-          <div className="current-time">
-            {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-          </div>
-          {lastUpdated && (
-            <div className="last-updated">
-              Updated {formatTime(lastUpdated)}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Optional context about the fetched window across competitions */}
-      {(sportsData.dateFrom || sportsData.dateTo || sportsData.totalMatches) && (
-        <div className="fetch-context" style={{ display: 'flex', gap: 12, alignItems: 'center', margin: '8px 0' }}>
-          {sportsData.dateFrom && (
-            <span className="date-range">Range: {formatShortDate(sportsData.dateFrom)} → {formatShortDate(sportsData.dateTo)}</span>
-          )}
-          {typeof sportsData.totalMatches === 'number' && (
-            <span className="count">Matches: {sportsData.totalMatches}</span>
-          )}
-          {sportsData.environment && (
-            <span className="env">Env: {sportsData.environment}</span>
-          )}
-        </div>
-      )}
-
-      <div className="matches-grid">
-        {sportsData.games && sportsData.games.length > 0 ? (
-          sportsData.games.map((game) => (
-            <div key={game.id} className="match-card">
-              <div className="match-header">
-                <span className="competition">
-                  {game.competition}
-                  {game.competitionCode && (
-                    <span className="competition-code" style={{ marginLeft: 8, fontSize: 12, opacity: 0.8 }}>
-                      [{game.competitionCode}]
+    <div className="live-sports" data-testid="matches-container">
+      {Object.entries(groupedMatches).map(([league, matches]) => (
+        <section key={league} className="league-section" data-testid={`league-${league}`}>
+          <h2 className="league-title">{league}</h2>
+          <div className="matches-grid">
+            {matches.map(match => (
+              <div
+                key={match.id}
+                className={`match-card ${match.status === 'live' ? 'live-highlight' : ''}`}
+                data-testid={`match-${match.id}`}
+              >
+                <div className="match-header">
+                  <span className="competition">{match.competition || 'TBA'}</span>
+                  {getStatusBadge(match.status)}
+                </div>
+                <div className="match-teams">
+                  <div className="team">
+                    <span className="team-name">{match.homeTeam || 'TBA'}</span>
+                    <span className="team-score">
+                      {match.homeScore !== 'TBA' ? match.homeScore : '–'}
+                    </span>
+                  </div>
+                  <div className="match-separator">vs</div>
+                  <div className="team">
+                    <span className="team-name">{match.awayTeam || 'TBA'}</span>
+                    <span className="team-score">
+                      {match.awayScore !== 'TBA' ? match.awayScore : '–'}
+                    </span>
+                  </div>
+                </div>
+                <div className="match-details">
+                  {match.minute && match.minute !== 'TBA' && match.status === 'live' && (
+                    <span className="match-time">{match.minute}'</span>
+                  )}
+                  {match.matchday && match.matchday !== 'TBA' && (
+                    <span className="matchday">MD {match.matchday}</span>
+                  )}
+                  {match.venue && match.venue !== 'TBD' && match.venue !== 'TBA' && (
+                    <span className="venue">{match.venue}</span>
+                  )}
+                  {match.utcDate && match.utcDate !== 'TBA' && match.status !== 'live' && (
+                    <span className="scheduled-time">
+                      {formatDate(match.utcDate)} at {formatTime(match.utcDate)}
                     </span>
                   )}
-                </span>
-                {getStatusBadge(game.status)}
-              </div>
-              
-              <div className="match-teams">
-                <div className="team">
-                  <span className="team-name">{game.homeTeam}</span>
-                  <span className="team-score">{game.homeScore}</span>
-                </div>
-                
-                <div className="match-separator">vs</div>
-                
-                <div className="team">
-                  <span className="team-name">{game.awayTeam}</span>
-                  <span className="team-score">{game.awayScore}</span>
                 </div>
               </div>
-
-              <div className="match-details">
-                {game.minute && game.status === 'live' && (
-                  <span className="match-time">{game.minute}'</span>
-                )}
-                {game.matchday && (
-                  <span className="matchday" style={{ marginLeft: 8 }}>MD {game.matchday}</span>
-                )}
-                {game.venue && game.venue !== 'TBD' && (
-                  <span className="venue">{game.venue}</span>
-                )}
-                {game.utcDate && game.status === 'scheduled' && (
-                  <span className="scheduled-time">
-                    {formatDate(game.utcDate)} at {formatTime(new Date(game.utcDate))}
-                  </span>
-                )}
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="no-matches">
-            <p>No matches available</p>
-            <button onClick={refreshData} className="refresh-btn">
-              Refresh
-            </button>
+            ))}
           </div>
-        )}
-      </div>
-
-      <div className="sports-footer">
-        <button onClick={refreshData} className="refresh-btn">
-          Refresh Data
-        </button>
-        <div className="data-info">
-          <span className="source">Source: {sportsData?.source || 'Unknown'}</span>
-          {sportsData?.totalMatches && (
-            <span className="count">{sportsData.totalMatches} matches</span>
-          )}
-        </div>
-      </div>
+        </section>
+      ))}
     </div>
   );
 };
