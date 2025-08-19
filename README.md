@@ -78,7 +78,7 @@ npm start
 - Fullstack Dev
 - Testing & QA
 - DevOps & Deployment
-- Mentorship: University of the Witwatersrand – Software Design 2025
+- Mentorship: University of the Witwatersrand – Software Design Project 2025
 
 ---
 
