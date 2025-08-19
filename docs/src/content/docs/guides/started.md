@@ -1,17 +1,19 @@
 ---
 title: Welcome
-description: Introduction to the LiveSportUpdates real-time broadcasting platform.
+description: Introduction to the Sports Live real-time broadcasting platform.
 ---
 
-# 👋 Welcome to LiveSportUpdates
+#  Welcome to Sports Live
 
-LiveSportUpdates is a real-time broadcasting tool designed to deliver lightning-fast sports scores and updates to users.
+Sports Live is a real-time broadcasting tool designed to deliver lightning-fast sports scores and updates to users. Currently built with React and Vercel serverless functions.
 
-This documentation will guide you through setting up, running, and contributing to the project. Whether you're a frontend developer, backend engineer, QA tester, or open-source contributor — there's a place for you here.
+This documentation will guide you through the making of the app and its structure.
+
+Hosted here: [Sports Live](https://sports-live-peach.vercel.app/)
 
 ---
 
-### ⚡ What You'll Find
+###  What You'll Find
 
 - Step-by-step setup guides
 - Technical deep-dives into the architecture

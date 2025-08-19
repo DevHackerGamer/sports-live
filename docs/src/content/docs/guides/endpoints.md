@@ -1,11 +1,30 @@
 ---
-title: Example Guide
-description: A guide in my new Starlight docs site.
+title: API Endpoints
+description: Documentation for Sports Live API endpoints.
 ---
 
-Guides lead a user through a specific task they want to accomplish, often with a sequence of steps.
-Writing a good guide requires thinking about what your users are trying to do.
+## API Endpoints
 
-## Further reading
+The Sports Live application provides several API endpoints for accessing sports data and system information.
 
-- Read [about how-to guides](https://diataxis.fr/how-to-guides/) in the Diátaxis framework
+### Sports Data
+
+**GET** `/api/sports-data`
+- Fetches live and upcoming football match data
+- Returns JSON with game information including scores, teams, and status
+
+### System Status
+
+**GET** `/api/status`
+- Returns system health status
+- Used for monitoring and uptime checks
+
+**GET** `/api/uptime`
+- Provides system uptime and performance metrics
+
+### Example Endpoint
+
+**GET** `/api/joke`
+- Demo endpoint that returns a random programming joke
+
+All endpoints are serverless functions deployed on Vercel.

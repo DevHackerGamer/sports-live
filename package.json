@@ -2,23 +2,38 @@
   "name": "sports-feed",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=18 <21"
+  },
   "dependencies": {
+    "@astrojs/starlight": "^0.35.2",
+    "@clerk/clerk-react": "^5.40.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.6.4",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
+    "astro": "^5.12.8",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "firebase": "^12.1.0",
+    "firebase-admin": "^12.7.0",
+    "node-fetch": "^3.3.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-scripts": "5.0.1",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "node server.js",
+    "start:react": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
+    "start:prod": "node server.js",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d build"
+    "deploy": "gh-pages -d build",
+    "dev": "concurrently -k -n server,ui -c green,cyan \"PORT=8080 node server.js\" \"react-scripts start\""
   },
   "eslintConfig": {
     "extends": [
@@ -38,8 +53,20 @@
       "last 1 safari version"
     ]
   },
-  "homepage": "https://DevHackerGamer.github.io/sports-live",
   "devDependencies": {
-    "gh-pages": "^6.3.0"
+    "concurrently": "^9.2.0",
+    "gh-pages": "^6.3.0",
+    "http-proxy-middleware": "^3.0.5",
+    "node-mocks-http": "^1.17.2"
+  },
+  "proxy": "http://localhost:8080",
+  "jest": {
+    "collectCoverageFrom": [
+      "src/**/*.{js,jsx}",
+      "!src/**/*.test.{js,jsx}",
+      "!src/**/__tests__/**",
+      "!src/index.js",
+      "!src/components/auth/LoginPage.old.js"
+    ]
   }
 }

@@ -1,70 +1,143 @@
-# Getting Started with Create React App
+---
+title: Sports Live Tracker
+description: A modern web platform for tracking live sports feeds, scores, and stats.
+---
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# ⚽ Sports Live Tracker
 
-## Available Scripts
 
-In the project directory, you can run:
+A modern web platform for tracking live sports feeds, scores, and stats. Built with **React**, **Node.js/Express**, and **Azure services** for real-time updates.
 
-### `npm start`
+---
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## 🌐 Live Links
+- Frontend: [React App / Azure Static Web App]()
+- Backend API: [Azure Web App / API Endpoint]()
+- GitHub: [Repo Link](https://github.com/DevHackerGamer/sports-live)
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+---
 
-### `npm test`
+## 🚀 Project Overview
+- View live sports scores and stats
+- Filter by teams, leagues, and events
+- Admins can manage feeds and API connections
+- Mobile-friendly and responsive UI
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+---
 
-### `npm run build`
+## 🧰 Tech Stack
+- Backend: Node.js, Express, Axios for API requests
+- Frontend: React (functional components & hooks), Tailwind CSS
+- Deployment & Dev Tools: Azure Web Apps / Container Registry, Docker, Git & GitHub, Notion (sprint boards), Discord (team communication)
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+---
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## 🔑 Core Features
+- **Admin Portal**: Add/manage feeds, Authentication & user roles, API key management and data sync
+- **Public Interface**: Live feed display & scoreboards, Filter by league/team/event, Mobile-friendly interface
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+---
 
-### `npm run eject`
+## ⚙️ Setup Instructions
+### 1. Clone the Repo
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+```bash
+git clone https://github.com/DevHackerGamer/sports-live.git
+cd sports-live
+```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### 2. Install Dependencies (Backend + Frontend)
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+```bash
+cd backend
+npm install
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+cd ../frontend
+npm install
+```
 
-## Learn More
+### 3. Run Backend Locally
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+```bash
+cd backend
+npm run dev
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+### 4. Run Frontend Locally
 
-### Code Splitting
+```bash
+cd frontend
+npm start
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+> ⚠️ Ensure your `.env` is configured with valid `REACT_APP_CLERK_PUBLISHABLE_KEY`, Firebase, and Search API keys.
 
-### Analyzing the Bundle Size
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+## 👥 Team
+- Fullstack Dev
+- Testing & QA
+- DevOps & Deployment
+- Mentorship: University of the Witwatersrand – Software Design Project 2025
 
-### Making a Progressive Web App
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+## 🧪 Testing & UAT
+- Manual and automated User Acceptance Testing (UAT)
+- CI/CD testing pipeline integrated with GitHub Actions
+- Code coverage tracked via Codecov
 
-### Advanced Configuration
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+## 📋 Project Management Methodology
+- **Framework:** Agile (Scrum)  
+- **Sprint Length:** 2 weeks  
+- **Roles:** Product Owner (prioritizes backlog), Scrum Master (removes blockers), Development Team (implements & tests features)  
+- **Ceremonies:** Sprint Planning, Daily Standups, Sprint Review, Sprint Retrospective  
+- **Evidence:** Notion sprint board, GitHub PRs linked to tasks, Discord standup notes  
+- **Rationale:** Allows rapid feedback, adapts to changing requirements, ensures accountability  
+- **References:** [Scrum Guide 2020](https://www.scrumguides.org/scrum-guide.html)
 
-### Deployment
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+## 📄 License
+- Academic project under Wits University’s Software Development Project module
 
-### `npm run build` fails to minify
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+## 🙌 Contributions
+- Pull requests and feedback welcome. Open an issue or fork the repo to contribute
+
+---
+
+## 📚 Resources
+- [React Documentation](https://reactjs.org/)  
+- [Tailwind CSS](https://tailwindcss.com/)  
+- [Azure Web Apps](https://learn.microsoft.com/en-us/azure/app-service/)
+
+# Folder Structure
+
+- `frontend/` – React app UI (Live scoreboard, event feed, match setup, etc.)
+- `backend/` – REST APIs for live updates, match metadata, and feed delivery
+- `docs/` – Sprint planning, setup instructions, team roles, methodology
+
+# Setting Up
+
+More details on dev setup coming soon!
+
+#  Team
+
+- Joshua Williams
+- Mohau Makunyane  
+- Bohlale Mabonga
+- Tshepo Mngomezulu
+- Kwezi Mudacumura
+- Lehlohonolo Tosa
+
+
+# Documentation 
+
+For the full documentation of the website visit:
+
+
+https://adorable-kleicha-8ace6b.netlify.app/

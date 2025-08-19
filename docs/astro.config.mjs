@@ -6,7 +6,7 @@ import starlight from "@astrojs/starlight";
 export default defineConfig({
   integrations: [
     starlight({
-      title: "Live Sport Stats Documentation",
+      title: "Sports Live Documentation",
       social: [
         {
           icon: "github",
@@ -28,17 +28,18 @@ export default defineConfig({
           items: [
             // Each item here is one entry in the navigation menu.
             { label: "Frontend ", slug: "guides/frontend" },
-            // { label: "Backend", slug: "guides/backend" },
-            // { label: "Authentication", slug: "guides/authentication" },
+            { label: "Backend", slug: "guides/backend" },
+            { label: "Authentication", slug: "guides/authentication" },
           ],
         },
         {
           label: "Development",
           items: [
             // Each item here is one entry in the navigation menu.
+            { label: "Development Guide", slug: "guides/development" },
             { label: "Technology Stack", slug: "guides/stack" },
             { label: "Testing and Linting", slug: "guides/testing" },
-            //{ label: "API Documentation", slug: "guides/endpoints" },
+            { label: "API Documentation", slug: "guides/endpoints" },
           ],
         },
         {

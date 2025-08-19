@@ -1,0 +1,62 @@
+.dashboard {
+  min-height: 100vh;
+  background: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2rem 3rem;
+  background: #ffffff;
+  color: #1a1a1a;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.brand-section .app-title {
+  font-size: 2.5rem;
+  font-weight: 300;
+  margin: 0;
+  letter-spacing: -1px;
+  color: #1a1a1a;
+}
+
+.brand-section .app-subtitle {
+  margin: 0.5rem 0 0 0;
+  font-size: 1rem;
+  opacity: 0.8;
+  font-weight: 300;
+  color: #666;
+}
+
+.user-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-greeting {
+  font-size: 1rem;
+  font-weight: 300;
+  color: #666;
+}
+
+.dashboard-main {
+  padding: 3rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 2rem;
+  }
+  
+  .dashboard-main {
+    padding: 2rem;
+  }
+}
