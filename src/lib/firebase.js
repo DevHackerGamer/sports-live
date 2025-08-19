@@ -8,7 +8,7 @@ import {
   set as dbSet,
   child as dbChild,
   get as dbGet,
-  onValue as dbOnValue  // <-- add this
+  onValue as dbOnValue, // <-- add this
 } from 'firebase/database';
 
 // Firebase web config (public by design)
@@ -35,7 +35,7 @@ export const update = dbUpdate;
 export const set = dbSet;
 export const child = dbChild;
 export const get = dbGet;
-export const onValue = dbOnValue;  // <-- export onValue
+export const onValue = dbOnValue; // <-- export onValue
 
 // Guard analytics for browser-only environments
 export const initAnalytics = () => {

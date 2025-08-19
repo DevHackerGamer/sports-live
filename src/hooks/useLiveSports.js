@@ -5,7 +5,7 @@ export const useLiveSports = (updateInterval = 60000) => {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
-  
+
   const intervalRef = useRef(null);
   const isActiveRef = useRef(true);
 
@@ -16,43 +16,42 @@ export const useLiveSports = (updateInterval = 60000) => {
       // Always call API; use a minimal fallback if it fails
       try {
         const response = await fetch('/api/sports-data');
-        
+
         if (!response.ok) {
           throw new Error(`API request failed: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         if (isActiveRef.current) {
           setSportsData(data);
           setLastUpdated(new Date());
           setIsConnected(true);
           console.log('API data updated successfully');
         }
-        
       } catch (apiError) {
         console.warn('API request failed:', apiError.message);
-        
+
         // Final fallback to ensure app doesn't break
         const fallbackData = {
           games: [
             {
               id: 1,
-              homeTeam: "Loading...",
-              awayTeam: "Please wait",
+              homeTeam: 'Loading...',
+              awayTeam: 'Please wait',
               homeScore: 0,
               awayScore: 0,
-              status: "scheduled",
-              sport: "Football",
-              competition: "API Loading",
-              venue: "TBD"
-            }
+              status: 'scheduled',
+              sport: 'Football',
+              competition: 'API Loading',
+              venue: 'TBD',
+            },
           ],
           lastUpdated: new Date().toISOString(),
           source: 'Fallback (API temporarily unavailable)',
-          totalMatches: 1
+          totalMatches: 1,
         };
-        
+
         if (isActiveRef.current) {
           setSportsData(fallbackData);
           setLastUpdated(new Date());
@@ -60,7 +59,6 @@ export const useLiveSports = (updateInterval = 60000) => {
           console.log('Using fallback data - API temporarily unavailable');
         }
       }
-      
     } catch (err) {
       console.error('Failed to fetch real sports data:', err);
       if (isActiveRef.current) {
@@ -104,6 +102,6 @@ export const useLiveSports = (updateInterval = 60000) => {
     lastUpdated,
     refreshData,
     startUpdates,
-    stopUpdates
+    stopUpdates,
   };
 };
