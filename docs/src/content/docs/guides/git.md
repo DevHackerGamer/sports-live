@@ -14,7 +14,7 @@ We follow a **"one developer, one branch"** model:
 - Each developer creates a personal branch from `main`
 - Branches are named clearly based on the feature or the developer, e.g.:
   mohau-auth-setup
-  lebo-profile-page
+  josh-profile-page
 
 - Once work is complete and tested, the developer **merges their branch into `main`**
 
@@ -28,7 +28,7 @@ Before merging into `main`, developers should:
 - Avoid breaking any existing features
 - Pull the latest changes from `main` and resolve any conflicts
 
-> ⚠️ Tip: To prevent overwriting someone else’s work, always `git pull origin main` before merging.
+> Tip: To prevent overwriting someone else’s work, always `git pull origin main` before merging.
 
 ## Versioning and GitHub Releases (Planned)
 
