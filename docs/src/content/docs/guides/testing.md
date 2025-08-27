@@ -1,11 +1,8 @@
 ---
-title: Testing and Linting
-description: A guide on how testing and linting is performed in the application.
+title: Testing 
+description: Life
 ---
 
-This project follows a code quality standard that includes linting and manual testing. Automated testing and CI enforcement are planned for future sprints.
-
----
 
 ## Linting
 

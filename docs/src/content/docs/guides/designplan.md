@@ -3,12 +3,12 @@ title: Inital Design & Development Plan
 description: Development workflow and best practices for Sports Live.
 ---
 
-### 🎯 Goal
+###  Goal
 Provide a clear, structured roadmap of development milestones, including timeline, design artifacts, and responsibilities.
 
 ---
 
-## ✅ Roadmap with Milestones (4 Weeks)
+##  Roadmap with Milestones (4 Weeks)
 
 | Week | Focus Area      | Tasks / Deliverables                                                                 |
 |------|-----------------|--------------------------------------------------------------------------------------|
@@ -19,36 +19,25 @@ Provide a clear, structured roadmap of development milestones, including timelin
 
 **Tools**: GitHub, Notion, Figma, Draw.io, Clerk/Auth0, Firebase, Express.js, React, Jest  
 
----
-
-# 📊 Visual Timeline
-
-Week 1: ██████████ (Setup & Design)
-
-Week 2:      ██████████ (Authentication)
-
-Week 3:           ██████████ (Core Features)
-
-Week 4:               ██████████ (Testing & Feedback)
 
 
 ---
 
-# 🎨 Design Artifacts
+#  Design Artifacts
 
 - **Wireframes** → UI mockups for core pages (Login, Dashboard, Match Input, Viewer)  
 - **Architecture Diagram** → High-level system overview (Frontend ↔ Backend ↔ Firebase)  
 - **UML Diagrams** → Use Case Diagram + Component Diagram 
 
 
-# 🖼️ Wireframes
+#  Wireframes
 
  ![Wireframes](/diagrams/wiref.png)
 
 
 ---
 
-## 👤 Use Case Diagram
+## Use Case Diagram
 
 > Shows how admins, viewers, and guests interact with the system.
 
@@ -62,7 +51,7 @@ Admin → Add/Edit/Remove Matches, Manage Users, Push Updates
 Viewer → View Live Scores, Follow Teams, Receive Notifications
 
 ---
-## 🧩 Component Diagram
+## Component Diagram
 
 > High-level breakdown of frontend, backend, and Firebase integration.
 
@@ -82,7 +71,7 @@ Components:
 
 
 ---
-## 🔄 Sequence Diagram
+##  Sequence Diagram
 
 > Example: Admin adds a goal → Viewers see it live.
 
@@ -90,7 +79,7 @@ Components:
 ![Sequence Diagram](/diagrams/sequence.png)
 
 ---
-## 🗄️ Data Model (ER Diagram)
+##  Data Model (ER Diagram)
 
 > Entities: User, Team, Match, Event, Player.
 
@@ -99,7 +88,7 @@ Components:
 
 ---
 
-## ☁️ Deployment Diagram
+##  Deployment Diagram
 
 > Local dev, Azure hosting, Firebase integration.
 
@@ -111,7 +100,7 @@ Components:
 
 ---
 
-## 🏗️ System Architecture Overview
+##  System Architecture Overview
 
 # a) Frontend (React)
 - Displays live match data, timelines, and match setup forms  
@@ -128,7 +117,7 @@ Components:
 
 ---
 
-## 🔗 Backend API Endpoints
+##  Backend API Endpoints
 
 # Auth
 - `POST /auth/login` → User login  
@@ -157,7 +146,7 @@ Components:
 
 ---
 
-#🗄️ Database Schema
+# Database Schema
 
 **Users**  
 - user_id (PK)  
@@ -194,7 +183,7 @@ Components:
 
 ---
 
-## 🎨 Frontend Components (React)
+##  Frontend Components (React)
 
 ### Pages
 1. **LoginPage**  
@@ -223,7 +212,7 @@ Components:
 
 ---
 
-## 🔄 Integration Flow
+##  Integration Flow
 
 1. Admin/Operator creates a match via `/matches`  
 2. Operator adds live events manually via `/matches/:id/events`  

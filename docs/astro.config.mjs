@@ -21,6 +21,7 @@ export default defineConfig({
             // Each item here is one entry in the navigation menu.
             { label: "Getting Started", slug: "guides/started" },
             { label: "Project set up", slug: "guides/installation" },
+            { label: "Overview", slug: "guides/overview" },
           ],
         },
         {
@@ -30,19 +31,32 @@ export default defineConfig({
             { label: "Frontend ", slug: "guides/frontend" },
             { label: "Backend", slug: "guides/backend" },
             { label: "Authentication", slug: "guides/authentication" },
+            { label: "API Documentation", slug: "guides/endpoints" }
           ],
         },
         {
           label: "Development",
           items: [
             // Each item here is one entry in the navigation menu.
-            { label: "Design & Development Plan", slug: "guides/designplan" },
+          
+             { label: "Design & Development Plan", slug: "guides/designplan" },
             { label: "Development Guide", slug: "guides/development" },
             { label: "Technology Stack", slug: "guides/stack" },
-            { label: "Testing and Linting", slug: "guides/testing" },
-            { label: "API Documentation", slug: "guides/endpoints" },
+            { label: "Database Documentation", slug: "guides/dbdoc" },
+            { label: "Third-Party Integrations", slug: "guides/third-party" },
           ],
         },
+
+        {
+          label: "Testing & Quality",
+          items: [
+                { label: "Code Quality Tools", slug: "guides/codeq" },
+                { label: "Testing", slug: "guides/testing" },
+            { label: "User Feedback", slug: "guides/ufeedback" }
+            // Each item here is one entry in the navigation menu.
+           
+          ],
+        }, 
         {
           label: "Methodology",
           items: [
