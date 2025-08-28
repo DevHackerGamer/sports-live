@@ -117,18 +117,43 @@ export default connectDB;
   "name": "string",
   "position": "string"
 }
-
 ```
-## 4 Entity Relationship Diagram(ERD)
+##  4. Relationships
+
+##### USERS ↔ FAVORITE_TEAMS
+- **One** `USER` can have **many** `FAVORITE_TEAMS` entries.
+- **Relationship type:** One-to-Many
+
+
+##### FAVORITE_TEAMS ↔ TEAMS
+- **Many** `FAVORITE_TEAMS` entries can point to the **same** `TEAM`.
+- **Relationship type:** Many-to-One
+
+
+#####  MATCH_INFO ↔ TEAMS
+- Each `MATCH_INFO` document contains an **array of two `teamID`s**.
+- **Relationship type:** Many-to-Many
+
+
+##### MATCH_INFO ↔ EVENT_LOG
+- A single match can produce **many** events.
+- **Relationship type:** One-to-Many
+
+##### MATCH_INFO ↔ DISPLAY_STATE
+- Each match has **one** live display state..
+- **Relationship type:** One-to-One
+
+
+## 5 Entity Relationship Diagram(ERD)
  ![ERD](/diagrams/erd.png)
 - **Users** -> Favourite Teams ->Teams
 - **Teams** -> Players
 = **Match_Info** -> Event_Log + Display State 
 
-## 5. References 
+## 6. References 
 - MongoDb Documentation: [https://www.mongodb.com/docs](https://www.mongodb.com/docs)  
 - Clerk Authentication Docs: [https://clerk.com/docs](https://clerk.com/docs)  
 - MongoDB Node.js Driver: [https://www.mongodb.com/docs/drivers/node/current](https://www.mongodb.com/docs/drivers/node/current)  
-### 5.1 Video Reference
+### 6.1 Video Reference
 - Youtube Video Reference : [https://www.youtube.com/watch?v=SV0o0qOmKOQ](https://www.youtube.com/watch?v=SV0o0qOmKOQs)  
 
