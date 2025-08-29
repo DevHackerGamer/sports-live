@@ -31,21 +31,13 @@ setTimeout(() => {
 }, 5000);
 
 function delegate(moduleRelPath) {
-  return async (req, res) => {
+  return (req, res) => {
     try {
       const absPath = path.resolve(__dirname, moduleRelPath);
-      // Clear require cache for development hot reloading
-      delete require.cache[absPath];
+      // Handlers are CommonJS modules exporting a function
+      const handler = require(absPath);
       
-      // Handlers can be either CommonJS modules or Vercel-style functions
-      const handlerModule = require(absPath);
-      const handler = typeof handlerModule === 'function' ? handlerModule : handlerModule.default || handlerModule.handler;
-      
-      if (typeof handler !== 'function') {
-        throw new Error(`Handler at ${moduleRelPath} is not a function. Got: ${typeof handler}`);
-      }
-      
-      return await handler(req, res);
+      return handler(req, res);
     } catch (err) {
       console.error(`API route error for ${moduleRelPath}:`, err.message);
       res.status(500).json({ error: 'API handler error', message: err.message });
@@ -68,8 +60,8 @@ app.all('/api/admin-health', delegate('./api/admin-health.js'));
 app.all('/api/matches', delegate('./api/matches.js'));
 app.all('/api/matches/:id', delegate('./api/matches.js'));
 app.all('/api/teams', delegate('./api/teams.js'));
-app.all('/api/users/:userId/favorites', delegate('./api/users/[userId]/favorites.js'));
-app.all('/api/users/:userId/favorites/:teamName', delegate('./api/users/[userId]/favorites.js'));
+app.all('/api/users/:userId/favorites', delegate('./api/users.js'));
+app.all('/api/users/:userId/favorites/:teamName', delegate('./api/users.js'));
 
 // New schema-based API routes
 app.all('/api/event-log', delegate('./api/event-log.js'));
