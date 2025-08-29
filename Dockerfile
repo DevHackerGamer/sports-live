@@ -19,8 +19,10 @@ COPY package*.json ./
 RUN npm ci --omit=dev --no-audit --no-fund
 COPY --from=builder /app/build ./build
 COPY api ./api
+COPY services ./services
+COPY lib ./lib
 COPY server.js ./server.js
-# Port Azure App Service expects
+# Port for deployment platforms
 ENV PORT=8080
 EXPOSE 8080
 CMD ["node", "server.js"]
