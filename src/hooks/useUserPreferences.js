@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { db } from '../lib/firebase';
-import { ref, onValue, set, update } from 'firebase/database';
+import { apiClient } from '../lib/api';
 
-// Real-time user preferences stored at /preferences/{userId}
+// Real-time user preferences stored via REST API
 export function useUserPreferences(userId) {
   const [prefs, setPrefs] = useState(null);
   const [loading, setLoading] = useState(Boolean(userId));
@@ -14,31 +13,52 @@ export function useUserPreferences(userId) {
       setLoading(false);
       return;
     }
-    const prefsRef = ref(db, `preferences/${userId}`);
-    const off = onValue(
-      prefsRef,
-      (snap) => {
-        setPrefs(snap.val() || {});
+
+    const fetchPreferences = async () => {
+      try {
+        setLoading(true);
+        const response = await apiClient.getUserFavorites(userId);
+        setPrefs(response.data || {});
         setLoading(false);
-      },
-      (err) => {
+      } catch (err) {
         setError(err);
         setLoading(false);
       }
-    );
-    return () => off();
+    };
+
+    fetchPreferences();
+
+    // Set up polling for real-time updates (every 30 seconds)
+    const interval = setInterval(fetchPreferences, 30000);
+
+    return () => clearInterval(interval);
   }, [userId]);
 
   const savePreferences = async (partial) => {
     if (!userId) throw new Error('Missing userId');
-    const prefsRef = ref(db, `preferences/${userId}`);
-    await update(prefsRef, partial);
+    try {
+      // For now, we'll treat this as updating favorites
+      if (partial.favorites) {
+        await apiClient.updateUserFavorites(userId, partial.favorites);
+        setPrefs(prev => ({ ...prev, ...partial }));
+      }
+    } catch (error) {
+      setError(error);
+      throw error;
+    }
   };
 
   const setPreferences = async (value) => {
     if (!userId) throw new Error('Missing userId');
-    const prefsRef = ref(db, `preferences/${userId}`);
-    await set(prefsRef, value);
+    try {
+      if (value.favorites) {
+        await apiClient.updateUserFavorites(userId, value.favorites);
+        setPrefs(value);
+      }
+    } catch (error) {
+      setError(error);
+      throw error;
+    }
   };
 
   return { prefs, loading, error, savePreferences, setPreferences };

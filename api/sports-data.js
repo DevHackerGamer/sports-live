@@ -1,9 +1,65 @@
-// Sports data API endpoint using football-data.org only
+// Sports data API endpoint using football-data.org and MongoDB storage
+const fetch = require('node-fetch');
+const { getMatchesCollection, getTeamsCollection } = require('../lib/mongodb');
 
 // for caching beacause of some error 429 for req limit on free tier causes some internal server error 500 :(
 let teamsCache = null;
 let teamsCacheTime = 0;
 const TEAMS_CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour cache for teams
+
+// Function to store matches and teams in MongoDB
+async function storeMatchesAndTeams(games) {
+  try {
+    // Store matches
+    if (games && games.length > 0) {
+      const matchesCollection = await getMatchesCollection();
+      const operations = games.map(match => ({
+        updateOne: {
+          filter: { id: match.id },
+          update: { 
+            $set: {
+              ...match,
+              lastUpdated: new Date().toISOString()
+            }
+          },
+          upsert: true
+        }
+      }));
+      
+      await matchesCollection.bulkWrite(operations);
+      console.log(`Stored ${games.length} matches in MongoDB`);
+    }
+
+    // Extract and store teams
+    const teamsSet = new Set();
+    games.forEach(game => {
+      if (game.homeTeam) teamsSet.add(game.homeTeam);
+      if (game.awayTeam) teamsSet.add(game.awayTeam);
+    });
+
+    if (teamsSet.size > 0) {
+      const teamsCollection = await getTeamsCollection();
+      const teamOperations = Array.from(teamsSet).map(teamName => ({
+        updateOne: {
+          filter: { name: teamName },
+          update: { 
+            $set: {
+              name: teamName,
+              lastUpdated: new Date().toISOString()
+            }
+          },
+          upsert: true
+        }
+      }));
+      
+      await teamsCollection.bulkWrite(teamOperations);
+      console.log(`Stored ${teamsSet.size} teams in MongoDB`);
+    }
+  } catch (error) {
+    console.error('Error in storeMatchesAndTeams:', error);
+    throw error;
+  }
+}
 
 async function handler(req, res) {
   // Security headers for production
@@ -156,6 +212,15 @@ async function handler(req, res) {
     };
 
     console.log(`football-data.org: served ${games.length} matches across competitions` + (competitionFilter ? ` (filter=${competitionFilter})` : ''));
+    
+    // Store matches and teams in MongoDB
+    try {
+      await storeMatchesAndTeams(games);
+    } catch (storageError) {
+      console.error('Error storing data in MongoDB:', storageError.message);
+      // Don't fail the request if storage fails
+    }
+    
     return res.status(200).json(payload);
   } catch (error) {
     console.error('football-data.org API Error:', error.message);

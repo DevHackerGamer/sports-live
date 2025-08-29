@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { db } from '../../lib/firebase';
-import { ref, get, set } from 'firebase/database';
+import { apiClient } from '../../lib/api';
 
 const FavoritesPanel = () => {
   const { user } = useUser();
@@ -12,15 +11,31 @@ const FavoritesPanel = () => {
   const [error, setError] = useState('');
   const [newTeam, setNewTeam] = useState('');
 
-  // Fetchs upcoming matchs and limited to 200 due to some error 429 of request limit by free tier that leads to internal server error 500
+  // Fetch upcoming matches using our new MongoDB API
   const fetchMatches = async () => {
     try {
       setLoading(true);
       setError('');
-      const res = await fetch('/api/sports-data?limit=200&range=30');
-      if (!res.ok) throw new Error('Failed to fetch matches');
-      const data = await res.json();
-      setMatches(data.games || []);
+      
+      // Try MongoDB API first
+      try {
+        const matchesResponse = await apiClient.getMatches();
+        // Transform match data to ensure team names are strings
+        const transformedMatches = (matchesResponse.data || []).map(match => ({
+          ...match,
+          homeTeam: match.homeTeam?.name || match.homeTeam || 'Unknown',
+          awayTeam: match.awayTeam?.name || match.awayTeam || 'Unknown',
+          competition: match.competition?.name || match.competition || 'Unknown'
+        }));
+        setMatches(transformedMatches);
+      } catch (apiError) {
+        console.warn('MongoDB API failed, trying fallback:', apiError.message);
+        // Fallback to sports-data API
+        const res = await fetch('/api/sports-data?limit=200&range=30');
+        if (!res.ok) throw new Error('Failed to fetch matches');
+        const data = await res.json();
+        setMatches(data.games || []);
+      }
     } catch (err) {
       console.error('Error fetching matches:', err);
       setError(err.message);
@@ -29,50 +44,55 @@ const FavoritesPanel = () => {
     }
   };
 
-  // This one instead fetchs all teams to be able to validate team name and for dropdown for valid team selection 
+  // Fetch all teams using our new MongoDB API
   const fetchAllTeams = async () => {
     try {
-      const res = await fetch('/api/sports-data?endpoint=teams');
-      if (!res.ok) throw new Error('Failed to fetch teams');
-      const data = await res.json();
-      setAllTeams(data.teams || []);
+      // Try MongoDB API first
+      try {
+        const teamsResponse = await apiClient.getTeams();
+        setAllTeams(teamsResponse.data || []);
+      } catch (apiError) {
+        console.warn('MongoDB teams API failed, trying fallback:', apiError.message);
+        // Fallback to sports-data API
+        const res = await fetch('/api/sports-data?endpoint=teams');
+        if (!res.ok) throw new Error('Failed to fetch teams');
+        const data = await res.json();
+        setAllTeams(data.teams || []);
+      }
     } catch (err) {
       console.error('Error fetching all teams:', err);
     }
   };
 
-  // load autorized user fav from firebase rdb
+  // Load authorized user favorites from MongoDB
   const loadFavorites = async () => {
     if (!user) return;
     try {
-      const favRef = ref(db, `users/${user.id}/favorites`);
-      const snapshot = await get(favRef);
-      if (snapshot.exists()) {
-        setFavorites(snapshot.val());
-      } else {
-        setFavorites([]);
-      }
+      const favoritesResponse = await apiClient.getUserFavorites(user.id);
+      setFavorites(favoritesResponse.data || []);
     } catch (err) {
       console.error('Error loading favorites:', err);
       setError(err.message);
     }
   };
 
-  // Ensuures whatever user has entered is a valid team before updating db
+  // Ensures whatever user has entered is a valid team before updating db
   const validateTeam = (teamName) => {
-    const team = allTeams.find(t => t.name.toLowerCase() === teamName.toLowerCase());
+    const team = allTeams.find(t => {
+      const name = typeof t === 'string' ? t : t.name;
+      return name.toLowerCase() === teamName.toLowerCase();
+    });
     if (!team) throw new Error('Team not found');
-    return team;
+    return typeof team === 'string' ? { name: team } : team;
   };
 
-  // Validate team and adds to firebase rdb
+  // Validate team and add to MongoDB
   const addFavorite = async (teamName) => {
     if (!user || !teamName) return;
     try {
       const team = validateTeam(teamName);
-      const favRef = ref(db, `users/${user.id}/favorites`);
+      await apiClient.addUserFavorite(user.id, team.name);
       const updated = Array.from(new Set([...favorites, team.name]));
-      await set(favRef, updated);
       setFavorites(updated);
       setNewTeam('');
     } catch (err) {
@@ -81,13 +101,12 @@ const FavoritesPanel = () => {
     }
   };
 
-  // Remove team from fav and updates firebase rdb
+  // Remove team from favorites and update MongoDB
   const removeFavorite = async (teamName) => {
     if (!user || !teamName) return;
     try {
-      const favRef = ref(db, `users/${user.id}/favorites`);
+      await apiClient.removeUserFavorite(user.id, teamName);
       const updated = favorites.filter(f => f !== teamName);
-      await set(favRef, updated);
       setFavorites(updated);
     } catch (err) {
       console.error('Error removing favorite:', err);
@@ -179,13 +198,26 @@ const FavoritesPanel = () => {
           }}
           data-testid="add-dropdown"
         >
-          <option value="" disabled selected>Select a team...</option>
+          <option value="" disabled>Select a team...</option>
           {allTeams
-            .filter(t => !favorites.includes(t.name))
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .map(t => (
-              <option key={t.id} value={t.name} data-testid="dropdown-option">{t.name}</option>
-            ))}
+            .filter(t => {
+              const teamName = typeof t === 'string' ? t : t.name;
+              return !favorites.includes(teamName);
+            })
+            .sort((a, b) => {
+              const aName = typeof a === 'string' ? a : a.name;
+              const bName = typeof b === 'string' ? b : b.name;
+              return aName.localeCompare(bName);
+            })
+            .map((t, index) => {
+              const teamName = typeof t === 'string' ? t : t.name;
+              const teamId = typeof t === 'string' ? `team-${index}` : (t._id || t.id || `team-${index}`);
+              return (
+                <option key={teamId} value={teamName} data-testid="dropdown-option">
+                  {teamName}
+                </option>
+              );
+            })}
         </select>
         <button
           onClick={async () => {

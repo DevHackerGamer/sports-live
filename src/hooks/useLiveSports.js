@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { apiClient } from '../lib/api';
 
 export const useLiveSports = (updateInterval = 60000) => {
   const [sportsData, setSportsData] = useState(null);
@@ -12,57 +13,95 @@ export const useLiveSports = (updateInterval = 60000) => {
   const fetchSportsData = useCallback(async () => {
     try {
       setError(null);
-      console.log('Fetching sports data from API...');
-      // Always call API; use a minimal fallback if it fails
+      console.log('Fetching sports data from MongoDB API...');
+      
       try {
-        const response = await fetch('/api/sports-data');
-        
-        if (!response.ok) {
-          throw new Error(`API request failed: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
+        // Fetch from our new MongoDB-based matches API
+        const matchesResponse = await apiClient.getMatches();
+
         if (isActiveRef.current) {
-          setSportsData(data);
+          // Transform data to match the expected format
+          const transformedGames = (matchesResponse.data || []).map(match => ({
+            id: match.id || match._id,
+            homeTeam: match.homeTeam?.name || match.homeTeam || 'Unknown',
+            awayTeam: match.awayTeam?.name || match.awayTeam || 'Unknown',
+            homeScore: match.score?.fullTime?.home || match.homeScore || 0,
+            awayScore: match.score?.fullTime?.away || match.awayScore || 0,
+            status: match.status || 'scheduled',
+            competition: match.competition?.name || match.competition || 'Unknown',
+            competitionCode: match.competition?.code || match.competitionCode,
+            venue: match.venue || 'TBD',
+            utcDate: match.utcDate || match.startTime,
+            minute: match.minute,
+            matchday: match.matchday
+          }));
+
+          const transformedData = {
+            games: transformedGames,
+            lastUpdated: matchesResponse.lastUpdated || new Date().toISOString(),
+            source: 'MongoDB via REST API',
+            totalMatches: matchesResponse.count || transformedGames.length,
+          };
+
+          setSportsData(transformedData);
           setLastUpdated(new Date());
           setIsConnected(true);
-          console.log('API data updated successfully');
+          console.log('MongoDB API data updated successfully');
         }
         
       } catch (apiError) {
-        console.warn('API request failed:', apiError.message);
+        console.warn('MongoDB API request failed:', apiError.message);
         
-        // Final fallback to ensure app doesn't break
-        const fallbackData = {
-          games: [
-            {
-              id: 1,
-              homeTeam: "Loading...",
-              awayTeam: "Please wait",
-              homeScore: 0,
-              awayScore: 0,
-              status: "scheduled",
-              sport: "Football",
-              competition: "API Loading",
-              venue: "TBD"
-            }
-          ],
-          lastUpdated: new Date().toISOString(),
-          source: 'Fallback (API temporarily unavailable)',
-          totalMatches: 1
-        };
-        
-        if (isActiveRef.current) {
-          setSportsData(fallbackData);
-          setLastUpdated(new Date());
-          setIsConnected(false);
-          console.log('Using fallback data - API temporarily unavailable');
+        // Try fallback to sports-data API
+        try {
+          const response = await fetch('/api/sports-data');
+          
+          if (!response.ok) {
+            throw new Error(`Sports data API request failed: ${response.status}`);
+          }
+          
+          const fallbackData = await response.json();
+          
+          if (isActiveRef.current) {
+            setSportsData(fallbackData);
+            setLastUpdated(new Date());
+            setIsConnected(true);
+            console.log('Fallback sports-data API used successfully');
+          }
+        } catch (fallbackError) {
+          console.warn('Fallback API also failed:', fallbackError.message);
+          
+          // Final fallback to ensure app doesn't break
+          const finalFallbackData = {
+            games: [
+              {
+                id: 1,
+                homeTeam: "Loading...",
+                awayTeam: "Please wait",
+                homeScore: 0,
+                awayScore: 0,
+                status: "scheduled",
+                sport: "Football",
+                competition: "API Loading",
+                venue: "TBD"
+              }
+            ],
+            lastUpdated: new Date().toISOString(),
+            source: 'Fallback (APIs temporarily unavailable)',
+            totalMatches: 1
+          };
+          
+          if (isActiveRef.current) {
+            setSportsData(finalFallbackData);
+            setLastUpdated(new Date());
+            setIsConnected(false);
+            console.log('Using final fallback data - APIs temporarily unavailable');
+          }
         }
       }
       
     } catch (err) {
-      console.error('Failed to fetch real sports data:', err);
+      console.error('Failed to fetch sports data:', err);
       if (isActiveRef.current) {
         setError(err.message);
         setIsConnected(false);

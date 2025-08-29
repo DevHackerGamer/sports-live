@@ -121,8 +121,8 @@ const LiveSports = () => {
 
       <div className="matches-grid">
         {sportsData.games && sportsData.games.length > 0 ? (
-          sportsData.games.map((game) => (
-            <div key={game.id} className="match-card">
+          sportsData.games.map((game, index) => (
+            <div key={game.id || `match-${index}`} className="match-card">
               <div className="match-header">
                 <span className="competition">
                   {game.competition}
