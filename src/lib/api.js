@@ -1,0 +1,260 @@
+// API client for making HTTP requests to our MongoDB-based backend
+// This replaces Firebase real-time database functionality
+
+class ApiClient {
+  constructor(baseUrl = '') {
+    this.baseUrl = baseUrl;
+  }
+
+  async request(endpoint, options = {}) {
+    const url = `${this.baseUrl}${endpoint}`;
+    const config = {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      ...options,
+    };
+
+    if (config.body && typeof config.body === 'object') {
+      config.body = JSON.stringify(config.body);
+    }
+
+    try {
+      const response = await fetch(url, config);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || `HTTP ${response.status}`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error(`API request failed: ${url}`, error);
+      throw error;
+    }
+  }
+
+  // Matches API
+  async getMatches() {
+    return this.request('/api/matches');
+  }
+
+  async getMatch(id) {
+    return this.request(`/api/matches/${id}`);
+  }
+
+  async createMatches(matches) {
+    return this.request('/api/matches', {
+      method: 'POST',
+      body: { matches },
+    });
+  }
+
+  async updateMatch(id, data) {
+    return this.request(`/api/matches/${id}`, {
+      method: 'PUT',
+      body: data,
+    });
+  }
+
+  async deleteMatch(id) {
+    return this.request(`/api/matches/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Teams API
+  async getTeams() {
+    return this.request('/api/teams');
+  }
+
+  async createTeams(teams) {
+    return this.request('/api/teams', {
+      method: 'POST',
+      body: { teams },
+    });
+  }
+
+  // Users API
+  async getUserFavorites(userId) {
+    return this.request(`/api/users/${userId}/favorites`);
+  }
+
+  async addUserFavorite(userId, teamName) {
+    return this.request(`/api/users/${userId}/favorites`, {
+      method: 'POST',
+      body: { teamName },
+    });
+  }
+
+  async removeUserFavorite(userId, teamName) {
+    return this.request(`/api/users/${userId}/favorites/${teamName}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async updateUserFavorites(userId, favorites) {
+    return this.request(`/api/users/${userId}/favorites`, {
+      method: 'PUT',
+      body: { favorites },
+    });
+  }
+}
+
+// Create a singleton instance
+const apiClient = new ApiClient();
+
+// Real-time data simulation using polling
+class RealTimeData {
+  constructor(apiClient) {
+    this.apiClient = apiClient;
+    this.subscriptions = new Map();
+    this.intervals = new Map();
+  }
+
+  // Simulate Firebase onValue with polling
+  onValue(endpoint, callback, errorCallback, pollInterval = 30000) {
+    const id = Math.random().toString(36);
+    
+    // Initial fetch
+    this.fetchAndNotify(endpoint, callback, errorCallback);
+    
+    // Set up polling
+    const intervalId = setInterval(() => {
+      this.fetchAndNotify(endpoint, callback, errorCallback);
+    }, pollInterval);
+    
+    this.intervals.set(id, intervalId);
+    this.subscriptions.set(id, { endpoint, callback, errorCallback });
+    
+    // Return unsubscribe function
+    return () => {
+      if (this.intervals.has(id)) {
+        clearInterval(this.intervals.get(id));
+        this.intervals.delete(id);
+      }
+      this.subscriptions.delete(id);
+    };
+  }
+
+  async fetchAndNotify(endpoint, callback, errorCallback) {
+    try {
+      let data;
+      switch (endpoint) {
+        case 'matches':
+          data = await this.apiClient.getMatches();
+          // Convert array to object with IDs as keys (Firebase-like structure)
+          const matchesObj = {};
+          data.data.forEach(match => {
+            matchesObj[match.id] = match;
+          });
+          callback({ val: () => matchesObj });
+          break;
+        case 'teams':
+          data = await this.apiClient.getTeams();
+          callback({ val: () => data.data });
+          break;
+        default:
+          if (endpoint.startsWith('users/') && endpoint.includes('/favorites')) {
+            const userId = endpoint.split('/')[1];
+            data = await this.apiClient.getUserFavorites(userId);
+            callback({ val: () => data.data });
+          }
+          break;
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      if (errorCallback) {
+        errorCallback(error);
+      }
+    }
+  }
+
+  // Clean up all subscriptions
+  cleanup() {
+    this.intervals.forEach(intervalId => clearInterval(intervalId));
+    this.intervals.clear();
+    this.subscriptions.clear();
+  }
+}
+
+const realTimeData = new RealTimeData(apiClient);
+
+// Firebase-compatible API
+export const db = {
+  // Placeholder for compatibility
+};
+
+export const ref = (db, path) => {
+  return { path };
+};
+
+export const onValue = (ref, callback, errorCallback) => {
+  const path = ref.path;
+  return realTimeData.onValue(path, callback, errorCallback);
+};
+
+export const update = async (ref, data) => {
+  const path = ref.path;
+  
+  if (path.startsWith('users/') && path.includes('/favorites')) {
+    const userId = path.split('/')[1];
+    await apiClient.updateUserFavorites(userId, data.favorites);
+  } else if (path === 'matches') {
+    // Handle bulk match updates
+    const matchesArray = Object.values(data);
+    await apiClient.createMatches(matchesArray);
+  } else if (path === 'teams') {
+    await apiClient.createTeams(data);
+  }
+};
+
+export const set = async (ref, data) => {
+  return update(ref, data);
+};
+
+export const get = async (ref) => {
+  const path = ref.path;
+  
+  try {
+    let data;
+    switch (path) {
+      case 'matches':
+        data = await apiClient.getMatches();
+        return { val: () => data.data };
+      case 'teams':
+        data = await apiClient.getTeams();
+        return { val: () => data.data };
+      default:
+        if (path.startsWith('users/') && path.includes('/favorites')) {
+          const userId = path.split('/')[1];
+          data = await apiClient.getUserFavorites(userId);
+          return { val: () => data.data };
+        }
+        return { val: () => null };
+    }
+  } catch (error) {
+    console.error('Error getting data:', error);
+    return { val: () => null };
+  }
+};
+
+export const child = (ref, path) => {
+  return { path: `${ref.path}/${path}` };
+};
+
+// Export API client for direct use
+export { apiClient, realTimeData };
+
+export default {
+  db,
+  ref,
+  onValue,
+  update,
+  set,
+  get,
+  child,
+  apiClient,
+  realTimeData,
+};

@@ -1,124 +1,240 @@
+// Sports data API endpoint using football-data.org and MongoDB storage
 const fetch = require('node-fetch');
-const { db, ref, update, set } = require('../src/lib/firebase');
+const { getMatchesCollection, getTeamsCollection } = require('../lib/mongodb');
 
-// Only free leagues (Football-Data.org free plan)
-const FREE_LEAGUES = ['PL', 'PD', 'BL1', 'SA', 'FL1', 'DED', 'PPL'];
+// for caching beacause of some error 429 for req limit on free tier causes some internal server error 500 :(
+let teamsCache = null;
+let teamsCacheTime = 0;
+const TEAMS_CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour cache for teams
 
-let lastFetchTime = 0;
-let liveMatches = new Set();
-let fetchInProgress = null;
-let cachedMatches = [];
-
-async function fetchLeagueMatches(league, token, dateFrom, dateTo) {
-  const url = `https://api.football-data.org/v4/competitions/${league}/matches?dateFrom=${dateFrom}&dateTo=${dateTo}`;
-  const res = await fetch(url, { headers: { 'X-Auth-Token': token, 'User-Agent': 'Sports Live App v1.0' } });
-  if (!res.ok) {
-    console.warn(`Skipping ${league}: ${res.statusText}`);
-    return [];
-  }
-  const data = await res.json();
-  return Array.isArray(data.matches) ? data.matches : [];
-}
-
-async function fetchAndStoreMatches() {
-  const now = Date.now();
-
-  // If a fetch is ongoing wait for it so that the dash and fav is not left black
-  if (fetchInProgress) return fetchInProgress;
-
-  // If last fetch was recent, return cached matches 30sec to tighten it up while app flows
-  if (now - lastFetchTime < 30000) {
-    console.log("Returning cached matches to avoid hitting API cap.");
-    return cachedMatches;
-  }
-
-  fetchInProgress = (async () => {
-    lastFetchTime = now;
-    const token = process.env.FOOTBALL_API_TOKEN;
-    if (!token) throw new Error('API token not configured');
-
-    const pad2 = n => String(n).padStart(2, '0');
-    const fmt = d => `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
-    const dateFrom = fmt(new Date());
-    const dateTo = fmt(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
-
-    const allMatches = [];
-    const allTeamsSet = new Set();
-    const newLiveMatches = new Set();
-
-    for (const league of FREE_LEAGUES) {
-      const matches = await fetchLeagueMatches(league, token, dateFrom, dateTo);
-
-      matches.forEach(m => {
-        const home = m.homeTeam?.name || 'TBA';
-        const away = m.awayTeam?.name || 'TBA';
-        allTeamsSet.add(home);
-        allTeamsSet.add(away);
-
-        const status = m.status === 'IN_PLAY' ? 'live'
-                     : m.status === 'FINISHED' ? 'final'
-                     : (m.status === 'SCHEDULED' || m.status === 'TIMED') ? 'scheduled'
-                     : 'upcoming';
-
-        if (status === 'live') newLiveMatches.add(m.id);
-
-        allMatches.push({
-          id: m.id ?? `TBA-${Date.now()}-${Math.random()}`,
-          homeTeam: home,
-          awayTeam: away,
-          homeScore: m.score?.fullTime?.home ?? 'TBA',
-          awayScore: m.score?.fullTime?.away ?? 'TBA',
-          status,
-          sport: 'Football',
-          competition: m.competition?.name || league,
-          utcDate: m.utcDate || 'TBA',
-          minute: m.minute ?? 'TBA',
-          lastChanged: m.lastUpdated || 'TBA',
-        });
-      });
+// Function to store matches and teams in MongoDB
+async function storeMatchesAndTeams(games) {
+  try {
+    // Store matches
+    if (games && games.length > 0) {
+      const matchesCollection = await getMatchesCollection();
+      const operations = games.map(match => ({
+        updateOne: {
+          filter: { id: match.id },
+          update: { 
+            $set: {
+              ...match,
+              lastUpdated: new Date().toISOString()
+            }
+          },
+          upsert: true
+        }
+      }));
+      
+      await matchesCollection.bulkWrite(operations);
+      console.log(`Stored ${games.length} matches in MongoDB`);
     }
 
-    // Update matches in Firebase to be in sync with matches and scales our rdb accordingly
-    const updates = {};
-    allMatches.forEach(m => { updates[m.id] = m; });
-    await update(ref(db, 'matches'), updates);
-
-    // Update teams once since teams hardly change so add to rdb and do the rest
-    await set(ref(db, 'teams'), Array.from(allTeamsSet).sort());
-
-    // Track live matches
-    liveMatches = newLiveMatches;
-
-    console.log(`[${new Date().toISOString()}] Matches updated: ${allMatches.length}`);
-
-    // Store cached matches - to save number of requests and avaid server error when hiting api too much 
-    cachedMatches = allMatches;
-    fetchInProgress = null;
-
-    return allMatches;
-  })();
-
-  return fetchInProgress;
-}
-
-// Auto-refresh every 1 minute to not exceed the cap in free tier
-setInterval(fetchAndStoreMatches, 60000);
-
-// API handler store matches and store them in firebase rdb
-async function handler(req, res) {
-  try {
-    const games = await fetchAndStoreMatches();
-    res.setHeader('Cache-Control', 'public, max-age=30');
-    res.status(200).json({
-      totalMatches: games.length,
-      lastUpdated: new Date().toISOString(),
-      source: 'football-data.org',
-      games,
+    // Extract and store teams
+    const teamsSet = new Set();
+    games.forEach(game => {
+      if (game.homeTeam) teamsSet.add(game.homeTeam);
+      if (game.awayTeam) teamsSet.add(game.awayTeam);
     });
-  } catch (err) {
-    console.error('Error fetching matches:', err);
-    res.status(500).json({ error: 'Failed to fetch matches', message: err.message, games: [] });
+
+    if (teamsSet.size > 0) {
+      const teamsCollection = await getTeamsCollection();
+      const teamOperations = Array.from(teamsSet).map(teamName => ({
+        updateOne: {
+          filter: { name: teamName },
+          update: { 
+            $set: {
+              name: teamName,
+              lastUpdated: new Date().toISOString()
+            }
+          },
+          upsert: true
+        }
+      }));
+      
+      await teamsCollection.bulkWrite(teamOperations);
+      console.log(`Stored ${teamsSet.size} teams in MongoDB`);
+    }
+  } catch (error) {
+    console.error('Error in storeMatchesAndTeams:', error);
+    throw error;
   }
 }
 
-module.exports = { fetchAndStoreMatches, handler };
+async function handler(req, res) {
+  // Security headers for production
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Cache-Control', 'public, max-age=30'); // Cache for 30 seconds
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // getting all teams available to validate team name and get upcoming matchs from all competitions(league)
+  if (req.query?.endpoint === 'teams') {
+    try {
+      const now = Date.now();
+
+      // Serve cached teams if valid -> cached beacause of some error 429 for req limit on free tier causes some internal server error 500 :(
+      if (teamsCache && (now - teamsCacheTime) < TEAMS_CACHE_DURATION_MS) {
+        return res.status(200).json({ teams: teamsCache, total: teamsCache.length });
+      }
+
+      const token = process.env.FOOTBALL_API_TOKEN;
+      if (!token) throw new Error('API token not configured');
+
+      // Fetch all available competitions(leagues)
+      const compRes = await fetch('https://api.football-data.org/v4/competitions', {
+        headers: { 'X-Auth-Token': token, 'User-Agent': 'Sports Live App v1.0' }
+      });
+      if (!compRes.ok) throw new Error(`Failed to fetch competitions: ${compRes.status}`);
+      const compData = await compRes.json();
+      const competitions = Array.isArray(compData?.competitions) ? compData.competitions.map(c => c.code) : [];
+
+      // Fetch teams from each competition(league)
+      const allTeams = [];
+      await Promise.all(
+        competitions.map(async (code) => {
+          try {
+            const url = `https://api.football-data.org/v4/competitions/${code}/teams`;
+            const resComp = await fetch(url, { headers: { 'X-Auth-Token': token, 'User-Agent': 'Sports Live App v1.0' } });
+            if (!resComp.ok) return;
+            const data = await resComp.json();
+            if (Array.isArray(data?.teams)) {
+              allTeams.push(...data.teams.map(t => ({
+                id: t.id,
+                name: t.name,
+                shortName: t.shortName,
+                tla: t.tla,
+                area: t.area?.name,
+                competition: code
+              })));
+            }
+          } catch {}
+        })
+      );
+
+      // Remove duplicates by team ID
+      const uniqueTeams = Object.values(allTeams.reduce((acc, t) => {
+        acc[t.id] = t;
+        return acc;
+      }, {}));
+
+      // Save to cache
+      teamsCache = uniqueTeams;
+      teamsCacheTime = now;
+
+      return res.status(200).json({ teams: uniqueTeams, total: uniqueTeams.length });
+    } catch (err) {
+      console.error('Error fetching teams:', err.message);
+      return res.status(500).json({ error: 'Failed to fetch teams', message: err.message, teams: [] });
+    }
+  }
+
+  try {
+    const token = process.env.FOOTBALL_API_TOKEN;
+    if (!token) {
+      console.error('FOOTBALL_API_TOKEN is not set');
+      throw new Error('API token not configured');
+    }
+
+    // Query params
+    const competitionFilter = req.query?.competition ? String(req.query.competition) : undefined; // e.g., PL, CL
+    const limit = Number.isFinite(Number(req.query?.limit)) ? Math.max(1, Math.min(200, Number(req.query.limit))) : 50;
+    const rangeDays = Number.isFinite(Number(req.query?.range)) ? Math.max(0, Math.min(10, Number(req.query.range))) : 7;
+    const fromQ = req.query?.from ? String(req.query.from) : undefined; // YYYY-MM-DD
+    const toQ = req.query?.to ? String(req.query.to) : undefined;       // YYYY-MM-DD
+
+    const now = new Date();
+    const pad2 = n => String(n).padStart(2, '0');
+    const fmt = (d) => `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+    const dateFrom = fromQ || fmt(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())));
+    const dateTo = toQ || fmt(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + rangeDays)));
+
+    const url = `https://api.football-data.org/v4/matches?dateFrom=${encodeURIComponent(dateFrom)}&dateTo=${encodeURIComponent(dateTo)}`;
+    console.log(`football-data.org: fetching matches dateFrom=${dateFrom} dateTo=${dateTo}${competitionFilter ? ` filter=${competitionFilter}` : ''}`);
+    const response = await fetch(url, {
+      headers: {
+        'X-Auth-Token': token,
+        'User-Agent': 'Sports Live App v1.0'
+      }
+    });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`football-data.org status ${response.status} body: ${text.slice(0,200)}`);
+    }
+
+    const data = await response.json();
+    const allMatches = Array.isArray(data?.matches) ? data.matches : [];
+
+    // Optional: filter by competition code
+    const filtered = competitionFilter
+      ? allMatches.filter(m => (m.competition?.code || '').toUpperCase() === competitionFilter.toUpperCase())
+      : allMatches;
+
+    const games = filtered
+      .slice(0, limit)
+      .map(m => ({
+        id: m.id,
+        homeTeam: m.homeTeam?.name || m.homeTeam?.shortName,
+        awayTeam: m.awayTeam?.name || m.awayTeam?.shortName,
+        homeScore: m.score?.fullTime?.home ?? m.score?.halfTime?.home ?? 0,
+        awayScore: m.score?.fullTime?.away ?? m.score?.halfTime?.away ?? 0,
+        status: m.status === 'IN_PLAY' ? 'live' :
+               m.status === 'FINISHED' ? 'final' :
+               (m.status === 'SCHEDULED' || m.status === 'TIMED') ? 'scheduled' : 'upcoming',
+        sport: 'Football',
+        competition: m.competition?.name || m.competition?.code || 'Football',
+        competitionCode: m.competition?.code,
+        venue: m.venue || 'TBD',
+        minute: null,
+        utcDate: m.utcDate,
+        matchday: m.matchday,
+        lastChanged: m.lastUpdated,
+        area: m.competition?.area?.name
+      }));
+
+    const payload = {
+      games,
+      lastUpdated: new Date().toISOString(),
+      source: 'football-data.org',
+      totalMatches: games.length,
+      apiStatus: 'operational',
+      environment: process.env.NODE_ENV || 'development',
+      dateFrom,
+      dateTo
+    };
+
+    console.log(`football-data.org: served ${games.length} matches across competitions` + (competitionFilter ? ` (filter=${competitionFilter})` : ''));
+    
+    // Store matches and teams in MongoDB
+    try {
+      await storeMatchesAndTeams(games);
+    } catch (storageError) {
+      console.error('Error storing data in MongoDB:', storageError.message);
+      // Don't fail the request if storage fails
+    }
+    
+    return res.status(200).json(payload);
+  } catch (error) {
+    console.error('football-data.org API Error:', error.message);
+    return res.status(500).json({
+      error: 'Unable to fetch sports data',
+      message: error.message || 'Service temporarily unavailable',
+      games: [],
+      lastUpdated: new Date().toISOString(),
+      source: 'error-response',
+      totalMatches: 0,
+      apiStatus: 'error',
+      environment: process.env.NODE_ENV || 'development'
+    });
+  }
+}
+
+module.exports = handler;
