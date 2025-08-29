@@ -1,28 +1,20 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "server.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "build/**",
-      "use": "@vercel/static"
+  "functions": {
+    "api/**/*.js": {
+      "runtime": "nodejs18.x"
     }
-  ],
+  },
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/server.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/build/$1"
+      "dest": "/api/$1"
     }
   ],
   "env": {
     "MONGODB_URI": "@mongodb_uri",
     "DATABASE_NAME": "@database_name",
-    "FOOTBALL_API_TOKEN": "@football_api_token"
+    "FOOTBALL_API_TOKEN": "@football_api_token",
+    "REACT_APP_CLERK_PUBLISHABLE_KEY": "@react_app_clerk_publishable_key"
   }
 }

@@ -1,4 +1,5 @@
 // Vercel serverless function for user favorites API
+// This handles the endpoint: /api/users/[userId]/favorites
 const { MongoClient } = require('mongodb');
 
 let cachedClient = null;
@@ -14,8 +15,29 @@ async function connectToDatabase() {
   return client;
 }
 
-export default async function handler(req, res) {
-  const { userId } = req.query;
+module.exports = async function handler(req, res) {
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  // Extract userId from URL path
+  const urlParts = req.url.split('/');
+  const userIdIndex = urlParts.findIndex(part => part === 'users') + 1;
+  const userId = urlParts[userIdIndex];
+  
+  if (!userId) {
+    return res.status(400).json({
+      success: false,
+      error: 'User ID is required'
+    });
+  }
 
   try {
     const client = await connectToDatabase();
@@ -95,4 +117,4 @@ export default async function handler(req, res) {
       message: error.message
     });
   }
-}
+};
