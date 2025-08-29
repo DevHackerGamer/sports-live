@@ -102,8 +102,23 @@ class ApiClient {
   }
 }
 
-// Create a singleton instance
-const apiClient = new ApiClient();
+// Create a singleton instance with environment-aware base URL
+const getBaseUrl = () => {
+  // Use environment variable if set
+  if (process.env.REACT_APP_API_BASE_URL) {
+    return process.env.REACT_APP_API_BASE_URL;
+  }
+  
+  // In development, use localhost backend
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:8080';  // Your local backend server
+  }
+  
+  // In production, use the current domain (Vercel deployment)
+  return window.location.origin;
+};
+
+const apiClient = new ApiClient(getBaseUrl());
 
 // Real-time data simulation using polling
 class RealTimeData {
