@@ -1,0 +1,91 @@
+.event-feed {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.events-container {
+  max-height: 500px;
+  overflow-y: auto;
+  margin-bottom: 2rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: white;
+}
+
+.event-item {
+  display: flex;
+  padding: 1rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.event-item:last-child {
+  border-bottom: none;
+}
+
+.event-time {
+  font-weight: 600;
+  min-width: 50px;
+  margin-right: 1rem;
+}
+
+.event-icon {
+  font-size: 1.2rem;
+  margin-right: 1rem;
+}
+
+.event-details {
+  flex: 1;
+}
+
+.event-description {
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.event-meta {
+  font-size: 0.9rem;
+  color: #7f8c8d;
+}
+
+.add-event-form {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.add-event-form h3 {
+  margin-top: 0;
+}
+
+.form-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.form-row input, .form-row select {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.add-event-form textarea {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  min-height: 80px;
+  resize: vertical;
+}
+
+.add-event-form button {
+  background: #3498db;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
