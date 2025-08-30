@@ -22,14 +22,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Optional: register Clerk middleware if available to populate req.auth
-try {
-  const { ClerkExpressRequireAuth } = require('@clerk/express');
-  // We won't require auth for all routes, but this ensures getAuth(req) works in handlers
-  app.use((req, res, next) => next());
-} catch (_) {
-  // Clerk not installed in some environments; handlers will fall back to dev headers
-}
+// Clerk middleware is optional; handlers fall back to dev headers when absent.
 
 // Initialize and start the data fetcher
 const dataFetcher = new SportsDataFetcher();
