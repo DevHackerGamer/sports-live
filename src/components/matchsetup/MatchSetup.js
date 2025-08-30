@@ -1,9 +1,15 @@
 import React, { useState } from 'react';
+import { useUser } from '@clerk/clerk-react';
+import { isAdminFromUser } from '../../lib/roles';
 import '../../styles/MatchSetup.css';
 
 
 //Component for setting up and managing matches
-const MatchSetup = () => {
+// Admin-only screen for creating/scheduling matches.
+// Accepts optional isAdmin prop from parent; falls back to Clerk metadata if not provided.
+const MatchSetup = ({ isAdmin: isAdminProp }) => {
+  const { user } = useUser();
+  // Declare hooks unconditionally
   const [matches, setMatches] = useState([]);
   const [newMatch, setNewMatch] = useState({
     teamA: '',
@@ -13,6 +19,18 @@ const MatchSetup = () => {
     competition: ''
   });
   const [showForm, setShowForm] = useState(false);
+
+  // Compute role after hooks to avoid conditional hook calls
+  const isAdmin = typeof isAdminProp === 'boolean' ? isAdminProp : isAdminFromUser(user);
+
+  if (!isAdmin) {
+    return (
+      <div className="match-setup">
+        <h2>Match Setup</h2>
+        <p style={{ color: '#b00' }}>Access denied: Admin role required.</p>
+      </div>
+    );
+  }
 
 
   //Handle input changes

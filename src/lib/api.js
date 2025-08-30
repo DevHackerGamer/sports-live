@@ -11,6 +11,8 @@ class ApiClient {
     const config = {
       headers: {
         'Content-Type': 'application/json',
+  // Optional dev pass-through; in production backend should validate Clerk token
+  ...(options.userType ? { 'X-User-Type': options.userType } : {}),
         ...options.headers,
       },
       ...options,
@@ -42,6 +44,41 @@ class ApiClient {
 
   async getMatch(id) {
     return this.request(`/api/matches/${id}`);
+  }
+    // Alias for compatibility
+    async getMatchById(id) {
+      return this.getMatch(id);
+    }
+  
+  async getMatchEvents(id) {
+    return this.request(`/api/matches/${id}/events`);
+  }
+  
+  async addMatchEvent(id, event) {
+  return this.request(`/api/matches/${id}/events`, {
+      method: 'POST',
+      body: event,
+    });
+  }
+  
+  async updateMatchEvent(id, eventId, updates) {
+  return this.request(`/api/matches/${id}/events/${eventId}`, {
+      method: 'PUT',
+      body: updates,
+    });
+  }
+  
+  async deleteMatchEvent(id, eventId) {
+  return this.request(`/api/matches/${id}/events/${eventId}`, {
+      method: 'DELETE',
+    });
+  }
+  
+  async updateMatch(id, updates) {
+  return this.request(`/api/matches/${id}`, {
+      method: 'PUT',
+      body: updates,
+    });
   }
 
   async createMatches(matches) {
@@ -89,7 +126,8 @@ class ApiClient {
   }
 
   async removeUserFavorite(userId, teamName) {
-    return this.request(`/api/users/${userId}/favorites/${teamName}`, {
+  const encoded = encodeURIComponent(teamName);
+  return this.request(`/api/users/${userId}/favorites/${encoded}`, {
       method: 'DELETE',
     });
   }
@@ -246,6 +284,8 @@ export const child = (ref, path) => {
 
 // Export API client for direct use
 export { apiClient, realTimeData };
+// Export getMatchById for direct use
+export const getMatchById = (id) => apiClient.getMatchById(id);
 
 export default {
   db,

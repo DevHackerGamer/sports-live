@@ -1,14 +1,52 @@
-import React, { useState } from 'react';
-import { useUser, UserButton } from '@clerk/clerk-react';
+import React, { useEffect, useState } from 'react';
+import { useUser, useAuth, UserButton } from '@clerk/clerk-react';
 import LiveSports from '../sports/LiveSports';
 import FavoritesPanel from '../favouritespanel/FavoritesPanel';
 import MatchViewer from '../matchViewer/MatchViewer';
 import MatchSetup from '../matchsetup/MatchSetup';
 import LiveInput from '../liveInput/LiveInput';
+import { isAdminFromUser, getUserRoles } from '../../lib/roles';
 import '../../styles/Dashboard.css';
 
 const Dashboard = () => {
   const { user } = useUser();
+  const { getToken, isSignedIn } = useAuth();
+  // Seed from Clerk metadata so admins see tabs immediately (case-insensitive)
+  const clerkIsAdmin = isAdminFromUser(user);
+  const [isAdmin, setIsAdmin] = useState(!!clerkIsAdmin);
+
+  // Keep isAdmin in sync with Clerk metadata on user change
+  useEffect(() => {
+    setIsAdmin(isAdminFromUser(user));
+  }, [user?.id, user?.privateMetadata?.type, user?.publicMetadata?.type]);
+  // Resolve role from backend to honor Clerk private metadata
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const headers = new Headers();
+  // Try Clerk session token for server-side verification
+        try {
+          const token = await getToken();
+          if (token) headers.set('Authorization', `Bearer ${token}`);
+        } catch {}
+  // Always include client-known role as hint for servers without Clerk
+  const userRoles = getUserRoles(user);
+  const devType = (userRoles[0] || '').toString();
+  const roleHeader = userRoles.join(',');
+  if (devType) headers.set('X-User-Type', devType);
+  if (roleHeader) headers.set('X-User-Role', roleHeader);
+
+  const res = await fetch('/api/auth-me', { headers });
+        const data = await res.json().catch(() => ({}));
+  if (!cancelled) setIsAdmin(prev => !!prev || !!data.isAdmin);
+      } catch (e) {
+        // Don't downgrade an already-true admin flag on transient errors
+        if (!cancelled) setIsAdmin(prev => !!prev);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, isSignedIn, getToken, user?.privateMetadata?.type, user?.publicMetadata?.type]);
   const [activeTab, setActiveTab] = useState('liveSports');
   const [selectedMatch, setSelectedMatch] = useState(null);
 
@@ -21,16 +59,16 @@ const Dashboard = () => {
   const renderContent = () => {
     switch(activeTab) {
       case 'matchViewer':
-        return <MatchViewer match={selectedMatch} />;
+        return <MatchViewer match={selectedMatch} initialSection={isAdmin ? 'update' : 'details'} />;
       case 'matchSetup':
-        return <MatchSetup />;
+        return <MatchSetup isAdmin={isAdmin} />;
       case 'liveInput':
-        return <LiveInput />;
+        return <LiveInput isAdmin={isAdmin} />;
       case 'liveSports':
       default:
         return (
           <>
-            <FavoritesPanel />
+            <FavoritesPanel onMatchSelect={handleMatchSelect} />
             <LiveSports onMatchSelect={handleMatchSelect} />
           </>
         );
@@ -47,12 +85,12 @@ const Dashboard = () => {
         <div className="user-section">
           <span className="user-greeting">Welcome, {user?.firstName || 'User'}</span>
           <UserButton
-            appearance={{
-              elements: {
-                avatarBox: "w-10 h-10",
-                userButtonPopover: "shadow-lg border"
-              }
-            }}
+            // appearance={{
+            //   elements: {
+            //     avatarBox: "w-10 h-10",
+            //     userButtonPopover: "shadow-lg border"
+            //   }
+            // }}
           />
         </div>
       </header>
@@ -70,18 +108,22 @@ const Dashboard = () => {
         >
           Match Viewer
         </button>
-        <button 
-          className={activeTab === 'matchSetup' ? 'nav-btn active' : 'nav-btn'}
-          onClick={() => setActiveTab('matchSetup')}
-        >
-          Match Setup
-        </button>
-        <button 
-          className={activeTab === 'liveInput' ? 'nav-btn active' : 'nav-btn'}
-          onClick={() => setActiveTab('liveInput')}
-        >
-          Live Input
-        </button>
+        {isAdmin && (
+          <>
+            <button 
+              className={activeTab === 'matchSetup' ? 'nav-btn active' : 'nav-btn'}
+              onClick={() => setActiveTab('matchSetup')}
+            >
+              Match Setup
+            </button>
+            <button 
+              className={activeTab === 'liveInput' ? 'nav-btn active' : 'nav-btn'}
+              onClick={() => setActiveTab('liveInput')}
+            >
+              Live Input
+            </button>
+          </>
+        )}
       </nav>
 
       <main className="dashboard-main">

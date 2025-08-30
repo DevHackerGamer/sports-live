@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { apiClient } from '../../lib/api';
 import '../../styles/FavoritesPanel.css';
+import '../../styles/LiveSports.css';
 
-const FavoritesPanel = () => {
+const FavoritesPanel = ({ onMatchSelect }) => {
   const { user } = useUser();
   const [favorites, setFavorites] = useState([]); // store team names
   const [matches, setMatches] = useState([]);
@@ -116,9 +117,10 @@ const FavoritesPanel = () => {
   const removeFavorite = async (teamName) => {
     if (!user || !teamName) return;
     try {
-      await apiClient.removeUserFavorite(user.id, teamName);
-      const updated = favorites.filter(f => f !== teamName);
-      setFavorites(updated);
+  await apiClient.removeUserFavorite(user.id, teamName);
+  // Re-fetch from server to ensure persistence
+  const favoritesResponse = await apiClient.getUserFavorites(user.id);
+  setFavorites(favoritesResponse.data || []);
     } catch (err) {
       console.error('Error removing favorite:', err);
       setError(err.message);
@@ -150,6 +152,34 @@ const FavoritesPanel = () => {
     }
   };
 
+  const formatTime = (date) => {
+    if (!date) return '';
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString([], {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const getStatusBadge = (status) => {
+    const statusConfig = {
+      live: { text: 'LIVE', className: 'status-live' },
+      final: { text: 'FINAL', className: 'status-final' },
+      finished: { text: 'FINAL', className: 'status-final' },
+      scheduled: { text: 'SCHEDULED', className: 'status-scheduled' },
+      default: { text: 'UPCOMING', className: 'status-default' }
+    };
+    const key = (status || '').toString().toLowerCase();
+    const config = statusConfig[key] || statusConfig.default;
+    return <span className={`status-badge ${config.className}`}>{config.text}</span>;
+  };
+
   // While we get data from API we display this in the meantime 
   if (!user) return <p data-testid="loading-user">Loading user...</p>;
 
@@ -159,6 +189,64 @@ const FavoritesPanel = () => {
 
       {error && <p className="error" data-testid="error">{error}</p>}
       {loading && <p data-testid="loading-matches">Loading matches...</p>}
+
+      {/* Favorite matches as clickable cards at the top */}
+      {favorites.length > 0 && (
+        <div className="favorites-matches">
+          <h3>Your favorite matches</h3>
+          <div className="matches-grid">
+            {Array.from(
+              new Map(
+                matches
+                  .filter(m => favorites.includes(m.homeTeam) || favorites.includes(m.awayTeam))
+                  .map(m => [m.id || `${m.homeTeam}-${m.awayTeam}-${m.utcDate || ''}`, m])
+              ).values()
+            )
+              .sort((a, b) => new Date(a.utcDate || 0) - new Date(b.utcDate || 0))
+              .map((game, index) => (
+                <div
+                  key={game.id || `fav-match-${index}`}
+                  className="match-card clickable"
+                  onClick={() => onMatchSelect && onMatchSelect(game)}
+                >
+                  <div className="match-header">
+                    <span className="competition">{game.competition}</span>
+                    {getStatusBadge(game.status)}
+                  </div>
+
+                  <div className="match-teams">
+                    <div className="team">
+                      <span className="team-name">{game.homeTeam}</span>
+                      <span className="team-score">{game.homeScore ?? '-'}</span>
+                    </div>
+                    <div className="match-separator">vs</div>
+                    <div className="team">
+                      <span className="team-name">{game.awayTeam}</span>
+                      <span className="team-score">{game.awayScore ?? '-'}</span>
+                    </div>
+                  </div>
+
+                  <div className="match-details">
+                    {game.minute && (game.status || '').toLowerCase() === 'live' && (
+                      <span className="match-time">{game.minute}'</span>
+                    )}
+                    {game.matchday && (
+                      <span className="matchday">MD {game.matchday}</span>
+                    )}
+                    {game.venue && game.venue !== 'TBD' && (
+                      <span className="venue">{game.venue}</span>
+                    )}
+                    {game.utcDate && (game.status || '').toLowerCase() === 'scheduled' && (
+                      <span className="scheduled-time">
+                        {formatDate(game.utcDate)} at {formatTime(new Date(game.utcDate))}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
 
       <ul data-testid="favorites-list">
         {favorites.length === 0 ? (

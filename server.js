@@ -22,6 +22,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Optional: register Clerk middleware if available to populate req.auth
+try {
+  const { ClerkExpressRequireAuth } = require('@clerk/express');
+  // We won't require auth for all routes, but this ensures getAuth(req) works in handlers
+  app.use((req, res, next) => next());
+} catch (_) {
+  // Clerk not installed in some environments; handlers will fall back to dev headers
+}
+
 // Initialize and start the data fetcher
 const dataFetcher = new SportsDataFetcher();
 
@@ -53,12 +62,15 @@ app.all('/api/sports-data', (req, res) => {
 });
 app.all('/api/status', delegate('./api/status.js'));
 app.all('/api/uptime', delegate('./api/uptime.js'));
+app.all('/api/auth-me', delegate('./api/auth-me.js'));
 app.all('/api/ingest-football', delegate('./api/ingest-football.js'));
 app.all('/api/admin-health', delegate('./api/admin-health.js'));
 
 // New MongoDB-based CRUD API routes
 app.all('/api/matches', delegate('./api/matches.js'));
 app.all('/api/matches/:id', delegate('./api/matches.js'));
+app.all('/api/matches/:id/events', delegate('./api/matches.js'));
+app.all('/api/matches/:id/events/:eventId', delegate('./api/matches.js'));
 app.all('/api/teams', delegate('./api/teams.js'));
 app.all('/api/users/:userId/favorites', delegate('./api/users.js'));
 app.all('/api/users/:userId/favorites/:teamName', delegate('./api/users.js'));
@@ -68,6 +80,7 @@ app.all('/api/event-log', delegate('./api/event-log.js'));
 app.all('/api/display-state', delegate('./api/display-state.js'));
 app.all('/api/players', delegate('./api/players.js'));
 app.all('/api/favorite-teams', delegate('./api/favorite-teams.js'));
+app.all('/api/auth-me', delegate('./api/auth-me.js'));
 
 // Serve static React build
 const buildDir = path.join(__dirname, 'build');

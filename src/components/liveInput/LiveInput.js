@@ -1,7 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useUser } from '@clerk/clerk-react';
+import { isAdminFromUser } from '../../lib/roles';
 import '../../styles/LiveInput.css';
 
-const LiveInput = () => {
+// Admin-only screen for entering live match data.
+// Accepts optional isAdmin prop from parent; falls back to Clerk metadata if not provided.
+const LiveInput = ({ isAdmin: isAdminProp }) => {
+  const { user } = useUser();
+
+  // All hooks must be declared unconditionally and in the same order on every render.
   const [isPaused, setIsPaused] = useState(true);
   const [matchTime, setMatchTime] = useState(0); // time in seconds
   const [score, setScore] = useState({ home: 0, away: 0 });
@@ -14,8 +21,10 @@ const LiveInput = () => {
     minute: '0',
     description: ''
   });
-  
   const timerRef = useRef(null);
+
+  // Derive admin after hooks are declared to avoid conditional hooks.
+  const isAdmin = typeof isAdminProp === 'boolean' ? isAdminProp : isAdminFromUser(user);
 
   // Format seconds to MM:SS
   const formatTime = (seconds) => {
@@ -86,6 +95,15 @@ const LiveInput = () => {
     setIsPaused(true);
     setMatchTime(0);
   };
+
+  if (!isAdmin) {
+    return (
+      <div className="live-input">
+        <h2>Live Match Input</h2>
+        <p style={{ color: '#b00' }}>Access denied: Admin role required.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="live-input">

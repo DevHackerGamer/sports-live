@@ -1,14 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useUser } from '@clerk/clerk-react';
 import { apiClient } from '../../lib/api';
 import '../../styles/MatchViewer.css';
 
-const MatchViewer = ({ match }) => {
+const MatchViewer = ({ match, initialSection = 'details' }) => {
+  const { user } = useUser();
+  const isAdmin = (user?.privateMetadata?.type === 'admin');
   const [matchDetails, setMatchDetails] = useState(null);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [activeSection, setActiveSection] = useState('details'); // 'details', 'stats', 'events', 'update'
+  const [activeSection, setActiveSection] = useState(initialSection); // 'details', 'stats', 'events', 'update'
   const [comment, setComment] = useState('');
+  const [teamsList, setTeamsList] = useState([]);
+  const [homeTeamPlayers, setHomeTeamPlayers] = useState([]);
+  const [awayTeamPlayers, setAwayTeamPlayers] = useState([]);
+  // Admin form state
+  const [newEvent, setNewEvent] = useState({ type: 'goal', time: '', team: '', player: '', description: '' });
+  const [meta, setMeta] = useState({ referee: '', venue: '' });
 
   useEffect(() => {
     if (match) {
@@ -19,6 +28,13 @@ const MatchViewer = ({ match }) => {
       setEvents([]);
     }
   }, [match]);
+
+  useEffect(() => {
+    // If admin by default, show update section on mount
+    if (initialSection && initialSection !== activeSection) {
+      setActiveSection(initialSection);
+    }
+  }, [initialSection]);
 
   const fetchMatchDetails = async () => {
     if (!match) return;
@@ -31,6 +47,7 @@ const MatchViewer = ({ match }) => {
       try {
         const matchResponse = await apiClient.getMatchById(match.id || match._id);
         setMatchDetails(matchResponse.data);
+        setMeta({ referee: matchResponse.data?.referee || '', venue: matchResponse.data?.venue || '' });
         
         // If the API doesn't return any events, fetch them separately
         if (!matchResponse.data.events || matchResponse.data.events.length === 0) {
@@ -44,6 +61,40 @@ const MatchViewer = ({ match }) => {
         // If API fails, use the basic match data we already have
         setMatchDetails(match);
         setEvents([]);
+      }
+
+      // Fetch teams list and players to support admin editing
+      try {
+        const teamsRes = await apiClient.getTeams();
+        const teams = teamsRes.data || [];
+        setTeamsList(teams);
+        // Try to find team IDs by name
+        const homeTeamName = (match.homeTeam?.name || match.homeTeam || '').toString();
+        const awayTeamName = (match.awayTeam?.name || match.awayTeam || '').toString();
+        const homeTeam = teams.find(t => (t.name || '').toLowerCase() === homeTeamName.toLowerCase());
+        const awayTeam = teams.find(t => (t.name || '').toLowerCase() === awayTeamName.toLowerCase());
+        if (homeTeam?.id || homeTeam?._id) {
+          const teamId = homeTeam.id || homeTeam._id;
+          try {
+            const playersRes = await fetch(`/api/players?teamId=${encodeURIComponent(teamId)}`);
+            if (playersRes.ok) {
+              const pdata = await playersRes.json();
+              setHomeTeamPlayers(pdata.players || []);
+            }
+          } catch {}
+        }
+        if (awayTeam?.id || awayTeam?._id) {
+          const teamId = awayTeam.id || awayTeam._id;
+          try {
+            const playersRes = await fetch(`/api/players?teamId=${encodeURIComponent(teamId)}`);
+            if (playersRes.ok) {
+              const pdata = await playersRes.json();
+              setAwayTeamPlayers(pdata.players || []);
+            }
+          } catch {}
+        }
+      } catch (e) {
+        console.warn('Failed to load teams/players for admin editing:', e.message);
       }
     } catch (err) {
       console.error('Error fetching match details:', err);
@@ -95,6 +146,51 @@ const MatchViewer = ({ match }) => {
     }
   };
 
+  // Admin actions
+  const submitNewEvent = async () => {
+    if (!isAdmin || !match) return;
+    try {
+      const id = match.id || match._id;
+      await apiClient.addMatchEvent(id, {
+        type: newEvent.type,
+        time: newEvent.time,
+        player: newEvent.player,
+        team: newEvent.team,
+        description: newEvent.description,
+      }, { userType: 'admin' });
+    } catch (e) {
+      setError(e.message);
+      return;
+    }
+    await fetchMatchDetails();
+    setNewEvent({ type: 'goal', time: '', team: '', player: '', description: '' });
+  };
+
+  const saveMatchMeta = async () => {
+    if (!isAdmin || !match) return;
+    try {
+      const id = match.id || match._id;
+      await apiClient.updateMatch(id, { referee: meta.referee, venue: meta.venue }, { userType: 'admin' });
+      await fetchMatchDetails();
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  const playerOptions = useMemo(() => ({
+    home: (homeTeamPlayers || []).map(p => p.name || p.playerName || ''),
+    away: (awayTeamPlayers || []).map(p => p.name || p.playerName || ''),
+  }), [homeTeamPlayers, awayTeamPlayers]);
+
+  // Compute display match fields before any conditional returns to satisfy hooks rules
+  const displayMatchRaw = matchDetails || match;
+  const displayMatch = useMemo(() => ({
+    ...displayMatchRaw,
+    homeTeam: displayMatchRaw?.homeTeam?.name || displayMatchRaw?.homeTeam || '',
+    awayTeam: displayMatchRaw?.awayTeam?.name || displayMatchRaw?.awayTeam || '',
+    competition: displayMatchRaw?.competition?.name || displayMatchRaw?.competition || '',
+  }), [displayMatchRaw]);
+
   if (!match) {
     return (
       <div className="match-viewer">
@@ -106,8 +202,6 @@ const MatchViewer = ({ match }) => {
       </div>
     );
   }
-
-  const displayMatch = matchDetails || match;
 
   return (
     <div className="match-viewer">
@@ -149,12 +243,14 @@ const MatchViewer = ({ match }) => {
         >
           Event Timeline
         </button>
-        <button 
-          className={activeSection === 'update' ? 'section-btn active' : 'section-btn'}
-          onClick={() => setActiveSection('update')}
-        >
-          Update Events
-        </button>
+        {isAdmin && (
+          <button 
+            className={activeSection === 'update' ? 'section-btn active' : 'section-btn'}
+            onClick={() => setActiveSection('update')}
+          >
+            Update Events
+          </button>
+        )}
       </div>
 
       {activeSection === 'details' && (
@@ -278,16 +374,35 @@ const MatchViewer = ({ match }) => {
         </div>
       )}
 
-      {activeSection === 'update' && (
+      {activeSection === 'update' && isAdmin && (
         <div className="event-update">
           <h3>Update Event Timeline</h3>
+          <div className="match-meta-form">
+            <div className="form-row">
+              <input 
+                type="text" 
+                placeholder="Referee" 
+                value={meta.referee}
+                onChange={(e) => setMeta(m => ({ ...m, referee: e.target.value }))}
+              />
+              <input 
+                type="text" 
+                placeholder="Venue" 
+                value={meta.venue}
+                onChange={(e) => setMeta(m => ({ ...m, venue: e.target.value }))}
+              />
+              <button onClick={saveMatchMeta}>Save Match Info</button>
+            </div>
+          </div>
           <div className="add-event-form">
             <div className="form-row">
               <input 
                 type="text" 
                 placeholder="Time (e.g., 23:45)" 
+                value={newEvent.time}
+                onChange={(e) => setNewEvent(ev => ({ ...ev, time: e.target.value }))}
               />
-              <select>
+              <select value={newEvent.type} onChange={(e) => setNewEvent(ev => ({ ...ev, type: e.target.value }))}>
                 <option value="goal">Goal</option>
                 <option value="yellow_card">Yellow Card</option>
                 <option value="red_card">Red Card</option>
@@ -301,20 +416,25 @@ const MatchViewer = ({ match }) => {
               </select>
             </div>
             <div className="form-row">
-              <input 
-                type="text" 
-                placeholder="Team" 
-              />
-              <input 
-                type="text" 
-                placeholder="Player" 
-              />
+              <select value={newEvent.team} onChange={(e) => setNewEvent(ev => ({ ...ev, team: e.target.value }))}>
+                <option value="">Select Team</option>
+                <option value={matchDetails?.homeTeam || match?.homeTeam}>Home - {matchDetails?.homeTeam || match?.homeTeam}</option>
+                <option value={matchDetails?.awayTeam || match?.awayTeam}>Away - {matchDetails?.awayTeam || match?.awayTeam}</option>
+              </select>
+              <select value={newEvent.player} onChange={(e) => setNewEvent(ev => ({ ...ev, player: e.target.value }))}>
+                <option value="">Select Player</option>
+                {(newEvent.team === (matchDetails?.homeTeam || match?.homeTeam) ? playerOptions.home : playerOptions.away).map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
             </div>
             <textarea 
               placeholder="Event description" 
               rows="3"
+              value={newEvent.description}
+              onChange={(e) => setNewEvent(ev => ({ ...ev, description: e.target.value }))}
             />
-            <button>Add Event</button>
+            <button onClick={submitNewEvent}>Add Event</button>
           </div>
         </div>
       )}
