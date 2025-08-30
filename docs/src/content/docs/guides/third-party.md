@@ -56,13 +56,14 @@ async function connectDB() {
   await client.connect();
   return client.db("sport-live-feeds");
 };
-- Youtube Video Reference : [https://www.youtube.com/watch?v=SV0o0qOmKOQ](https://www.youtube.com/watch?v=SV0o0qOmKOQs)  
+  
 
 ```
 
 ### References 
 - MongoDB Docs: [https://www.mongodb.com/docs](https://www.mongodb.com/docs)  
 - MongoDB Node.js Driver: [https://www.mongodb.com/docs/drivers/node/current](https://www.mongodb.com/docs/drivers/node/current)  
+- Youtube Video Reference : [https://www.youtube.com/watch?v=SV0o0qOmKOQ](https://www.youtube.com/watch?v=SV0o0qOmKOQs)
 
 ---
 ## 3 Backend - Node.js + Express
