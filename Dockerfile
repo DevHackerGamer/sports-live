@@ -3,7 +3,7 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --no-audit --no-fund
+RUN npm install --no-audit --no-fund
 COPY . ./
 # Pass CRA env at build time so React can inline it
 ARG REACT_APP_CLERK_PUBLISHABLE_KEY
@@ -16,7 +16,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 # Copy only what's needed at runtime
 COPY package*.json ./
-RUN npm ci --omit=dev --no-audit --no-fund
+RUN npm install --omit=dev --no-audit --no-fund
 COPY --from=builder /app/build ./build
 COPY api ./api
 COPY services ./services
