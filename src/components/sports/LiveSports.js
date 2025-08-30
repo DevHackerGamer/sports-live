@@ -2,10 +2,7 @@ import React from 'react';
 import { useLiveSports } from '../../hooks/useLiveSports';
 import '../../styles/LiveSports.css';
 
-
-
-const LiveSports = () => {
-  // Update time every 10ms
+const LiveSports = ({ onMatchSelect }) => {
   const [currentTime, setCurrentTime] = React.useState(new Date());
   React.useEffect(() => {
     const timer = setInterval(() => {
@@ -13,6 +10,7 @@ const LiveSports = () => {
     }, 10);
     return () => clearInterval(timer);
   }, []);
+  
   const { 
     sportsData, 
     isConnected, 
@@ -46,6 +44,7 @@ const LiveSports = () => {
     const statusConfig = {
       live: { text: 'LIVE', className: 'status-live' },
       final: { text: 'FINAL', className: 'status-final' },
+      finished: { text: 'FINAL', className: 'status-final' },
       scheduled: { text: 'SCHEDULED', className: 'status-scheduled' },
       default: { text: 'UPCOMING', className: 'status-default' }
     };
@@ -104,9 +103,8 @@ const LiveSports = () => {
         </div>
       </div>
 
-      {/* Optional context about the fetched window across competitions */}
       {(sportsData.dateFrom || sportsData.dateTo || sportsData.totalMatches) && (
-        <div className="fetch-context" style={{ display: 'flex', gap: 12, alignItems: 'center', margin: '8px 0' }}>
+        <div className="fetch-context">
           {sportsData.dateFrom && (
             <span className="date-range">Range: {formatShortDate(sportsData.dateFrom)} → {formatShortDate(sportsData.dateTo)}</span>
           )}
@@ -122,14 +120,16 @@ const LiveSports = () => {
       <div className="matches-grid">
         {sportsData.games && sportsData.games.length > 0 ? (
           sportsData.games.map((game, index) => (
-            <div key={game.id || `match-${index}`} className="match-card">
+            <div 
+              key={game.id || `match-${index}`} 
+              className="match-card clickable"
+              onClick={() => onMatchSelect(game)}
+            >
               <div className="match-header">
                 <span className="competition">
                   {game.competition}
                   {game.competitionCode && (
-                    <span className="competition-code" style={{ marginLeft: 8, fontSize: 12, opacity: 0.8 }}>
-                      [{game.competitionCode}]
-                    </span>
+                    <span className="competition-code">[{game.competitionCode}]</span>
                   )}
                 </span>
                 {getStatusBadge(game.status)}
@@ -154,7 +154,7 @@ const LiveSports = () => {
                   <span className="match-time">{game.minute}'</span>
                 )}
                 {game.matchday && (
-                  <span className="matchday" style={{ marginLeft: 8 }}>MD {game.matchday}</span>
+                  <span className="matchday">MD {game.matchday}</span>
                 )}
                 {game.venue && game.venue !== 'TBD' && (
                   <span className="venue">{game.venue}</span>

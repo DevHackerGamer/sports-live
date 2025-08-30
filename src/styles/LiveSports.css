@@ -357,3 +357,14 @@
     font-size: 1.5rem;
   }
 }
+
+.match-card.clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.match-card.clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: #3498db;
+}
