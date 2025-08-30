@@ -160,8 +160,8 @@ async function handler(req, res) {
   try {
     // Extract parameters from URL path
     const urlParts = req.url.split('/');
-    const userId = urlParts[3]; // /api/users/:userId/favorites
-    const teamName = urlParts[5]; // /api/users/:userId/favorites/:teamName
+  const userId = urlParts[3]; // /api/users/:userId/favorites
+  const teamName = urlParts[5] ? decodeURIComponent(urlParts[5]) : undefined; // /api/users/:userId/favorites/:teamName
     
     // Create req.params for compatibility
     req.params = { userId, teamName };
