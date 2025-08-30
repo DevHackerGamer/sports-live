@@ -51,6 +51,7 @@ export default defineConfig({
           label: "Testing & Quality",
           items: [
                 { label: "Code Quality Tools", slug: "guides/codeq" },
+                 { label: "Bug Tracking", slug: "guides/bugtracker" },
                 { label: "Testing", slug: "guides/testing" },
             { label: "User Feedback", slug: "guides/ufeedback" }
             // Each item here is one entry in the navigation menu.
