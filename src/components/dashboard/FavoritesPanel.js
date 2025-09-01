@@ -11,6 +11,33 @@ const FavoritesPanel = () => {
   const [error, setError] = useState('');
   const [newTeam, setNewTeam] = useState('');
 
+  // Helper: normalize strings for matching (case-insensitive, remove punctuation and trailing FC)
+  const normalize = (s) => (s || '')
+    .toString()
+    .toLowerCase()
+    .replace(/\./g, '')
+    .replace(/[^a-z0-9]/g, '')
+    .replace(/fc$/, '');
+
+  const teamMatchesFavorite = (team, favName, favRecord) => {
+    if (!team && !favName) return false;
+    const nameCandidates = [];
+    if (typeof team === 'string') nameCandidates.push(team);
+    if (team && typeof team === 'object') {
+      if (team.name) nameCandidates.push(team.name);
+      if (team.shortName) nameCandidates.push(team.shortName);
+      if (team.tla) nameCandidates.push(team.tla);
+    }
+    const favCandidates = [favName];
+    if (favRecord && typeof favRecord === 'object') {
+      if (favRecord.name) favCandidates.push(favRecord.name);
+      if (favRecord.shortName) favCandidates.push(favRecord.shortName);
+      if (favRecord.tla) favCandidates.push(favRecord.tla);
+    }
+    const favSet = new Set(favCandidates.map(normalize));
+    return nameCandidates.some(n => favSet.has(normalize(n)));
+  };
+
   // Fetch upcoming matches using our new MongoDB API
   const fetchMatches = async () => {
     try {
@@ -19,12 +46,16 @@ const FavoritesPanel = () => {
       
       // Try MongoDB API first
       try {
-        const matchesResponse = await apiClient.getMatches();
-        // Transform match data to ensure team names are strings
+        // Request a wider window so favorites with upcoming games appear
+        const now = new Date();
+        const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+        const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 20, 23, 59, 59, 999));
+        const toISODate = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+        const matchesResponse = await apiClient.getMatchesByDate(toISODate(start), toISODate(end), 1000);
         const transformedMatches = (matchesResponse.data || []).map(match => ({
           ...match,
-          homeTeam: match.homeTeam?.name || match.homeTeam || 'Unknown',
-          awayTeam: match.awayTeam?.name || match.awayTeam || 'Unknown',
+          homeTeam: match.homeTeam || match.homeTeamName || match.home || match.homeTeamId || match.home_team || match.homeTeamObject,
+          awayTeam: match.awayTeam || match.awayTeamName || match.away || match.awayTeamId || match.away_team || match.awayTeamObject,
           competition: match.competition?.name || match.competition || 'Unknown'
         }));
         setMatches(transformedMatches);
@@ -34,7 +65,12 @@ const FavoritesPanel = () => {
         const res = await fetch('/api/sports-data?limit=200&range=30');
         if (!res.ok) throw new Error('Failed to fetch matches');
         const data = await res.json();
-        setMatches(data.games || []);
+        const transformed = (data.games || []).map(match => ({
+          ...match,
+          homeTeam: match.homeTeam || { name: match.homeTeamName || match.home || 'Unknown' },
+          awayTeam: match.awayTeam || { name: match.awayTeamName || match.away || 'Unknown' },
+        }));
+        setMatches(transformed);
       }
     } catch (err) {
       console.error('Error fetching matches:', err);
@@ -132,7 +168,9 @@ const FavoritesPanel = () => {
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
     const status = match.status.charAt(0).toUpperCase() + match.status.slice(1);
-    return `${match.homeTeam} vs ${match.awayTeam} | ${day} ${month} ${year} | ${hours}:${minutes} -> ${status}`;
+  const homeName = typeof match.homeTeam === 'string' ? match.homeTeam : (match.homeTeam?.name || match.homeTeam?.shortName || match.homeTeam?.tla || 'Unknown');
+  const awayName = typeof match.awayTeam === 'string' ? match.awayTeam : (match.awayTeam?.name || match.awayTeam?.shortName || match.awayTeam?.tla || 'Unknown');
+  return `${homeName} vs ${awayName} | ${day} ${month} ${year} | ${hours}:${minutes} -> ${status}`;
   };
 
   // While we get data from firebase rdb we display this in the meantime 
@@ -152,8 +190,9 @@ const FavoritesPanel = () => {
           </li>
         ) : (
           favorites.map((teamName) => {
+            const favRecord = allTeams.find(t => (t.name || t) === teamName);
             const upcoming = matches
-              .filter(m => m.homeTeam === teamName || m.awayTeam === teamName)
+              .filter(m => teamMatchesFavorite(m.homeTeam, teamName, favRecord) || teamMatchesFavorite(m.awayTeam, teamName, favRecord))
               .sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate));
 
             return (

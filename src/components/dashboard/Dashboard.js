@@ -53,20 +53,44 @@ const Dashboard = () => {
   const handleMatchSelect = (match) => {
     console.log('Match selected:', match);
     setSelectedMatch(match);
-    setActiveTab('matchViewer');
+  };
+
+  const handleBackFromViewer = () => {
+    setSelectedMatch(null);
+    // Keep user on the same tab (liveSports)
+  };
+
+  const handleAddToWatchlist = async (match) => {
+    try {
+      if (!user) return;
+      const home = match?.homeTeam?.name || match?.homeTeam;
+      const away = match?.awayTeam?.name || match?.awayTeam;
+      // Add both teams to favorites (dedup handled server-side)
+      if (home) await fetch('/api/users/' + encodeURIComponent(user.id) + '/favorites', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ teamName: home }) });
+      if (away) await fetch('/api/users/' + encodeURIComponent(user.id) + '/favorites', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ teamName: away }) });
+      // Optional: provide lightweight feedback
+      console.log('Added to watchlist:', { home, away });
+    } catch (e) {
+      console.error('Failed to add to watchlist', e);
+    }
   };
 
   const renderContent = () => {
     switch(activeTab) {
-      case 'matchViewer':
-        return <MatchViewer match={selectedMatch} initialSection={isAdmin ? 'update' : 'details'} />;
       case 'matchSetup':
         return <MatchSetup isAdmin={isAdmin} />;
       case 'liveInput':
         return <LiveInput isAdmin={isAdmin} />;
       case 'liveSports':
       default:
-        return (
+        return selectedMatch ? (
+          <MatchViewer 
+            match={selectedMatch} 
+            initialSection={'details'}
+            onBack={handleBackFromViewer}
+            onAddToWatchlist={handleAddToWatchlist}
+          />
+        ) : (
           <>
             <FavoritesPanel onMatchSelect={handleMatchSelect} />
             <LiveSports onMatchSelect={handleMatchSelect} />
@@ -102,12 +126,7 @@ const Dashboard = () => {
         >
           Live Sports
         </button>
-        <button 
-          className={activeTab === 'matchViewer' ? 'nav-btn active' : 'nav-btn'}
-          onClick={() => setActiveTab('matchViewer')}
-        >
-          Match Viewer
-        </button>
+  {/* Match Viewer is now contextual; no persistent tab */}
         {isAdmin && (
           <>
             <button 

@@ -7,6 +7,72 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
+.chunk-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 8px 0 16px;
+}
+.chunk-btn {
+  background: var(--btn-bg, #f0f0f0);
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 16px;
+}
+.chunk-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.chunk-title {
+  font-weight: 600;
+}
+
+.fetch-context {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin: 8px 0 12px;
+  padding: 8px 10px;
+  background: #f9fafb;
+  border: 1px solid #eee;
+  border-radius: 8px;
+}
+.fetch-context .date-range {
+  font-weight: 600;
+}
+.matches-groups .week-group {
+  margin-bottom: 22px;
+}
+.matches-groups .chunk-title {
+  margin: 6px 0 10px;
+  font-size: 0.95rem;
+  color: #333;
+}
+.match-card .team-crest {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  margin-right: 6px;
+}
+.match-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.match-details {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.match-details .meta-left,
+.match-details .meta-right {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .sports-header {
   display: flex;
   justify-content: space-between;

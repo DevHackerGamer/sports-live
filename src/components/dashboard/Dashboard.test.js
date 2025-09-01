@@ -8,6 +8,7 @@ import Dashboard from './Dashboard';
 // Mock Clerk hooks and components
 jest.mock('@clerk/clerk-react', () => ({
   useUser: jest.fn(),
+  useAuth: () => ({ getToken: async () => null, isSignedIn: true }),
   UserButton: () => <button>UserButton</button>,
 }));
 

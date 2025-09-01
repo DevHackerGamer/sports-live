@@ -3,7 +3,7 @@ import { useUser } from '@clerk/clerk-react';
 import { apiClient } from '../../lib/api';
 import '../../styles/MatchViewer.css';
 
-const MatchViewer = ({ match, initialSection = 'details' }) => {
+const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchlist }) => {
   const { user } = useUser();
   const isAdmin = (user?.privateMetadata?.type === 'admin');
   const [matchDetails, setMatchDetails] = useState(null);
@@ -35,6 +35,8 @@ const MatchViewer = ({ match, initialSection = 'details' }) => {
       setActiveSection(initialSection);
     }
   }, [initialSection]);
+
+  // Header loader removed to avoid layout shifts pushing action buttons
 
   const fetchMatchDetails = async () => {
     if (!match) return;
@@ -207,12 +209,23 @@ const MatchViewer = ({ match, initialSection = 'details' }) => {
     <div className="match-viewer">
       <div className="match-viewer-header">
         <h2>Match Overview</h2>
-        {loading && (
-          <div className="header-loading">
-            <div className="loading-spinner small"></div>
-            <span>Loading...</span>
-          </div>
-        )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {onAddToWatchlist && match && (
+            <button
+              onClick={() => onAddToWatchlist(match)}
+              className="section-btn"
+              title="Add both teams to your favorites"
+            >
+              + Add to Watchlist
+            </button>
+          )}
+          {onBack && (
+            <button onClick={onBack} className="section-btn" title="Back to matches">
+              ← Back
+            </button>
+          )}
+        </div>
+  {/* Loading indicator intentionally omitted from header to keep actions fixed at top-right */}
       </div>
 
       {error && (

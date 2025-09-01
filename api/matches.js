@@ -1,15 +1,18 @@
 // API endpoint for matches - compatible with both Express and Vercel
-const { getMatchesCollection } = require('../lib/mongodb');
+const { getMatchesCollection, getTeamsCollection } = require('../lib/mongodb');
 const { ObjectId } = require('mongodb');
 
 // GET /api/matches - Get all matches with optional filters
 async function getMatches(req, res) {
   try {
     const { 
-      limit = 100, 
+      limit = 500, 
       status, 
       competition, 
-      range = 7 
+      range = 10,
+      includePast, // if truthy, include past N days instead of only upcoming
+      dateFrom,
+      dateTo
     } = req.query;
 
     const matchesCollection = await getMatchesCollection();
@@ -25,18 +28,52 @@ async function getMatches(req, res) {
       filter['competition.name'] = new RegExp(competition, 'i');
     }
     
-    // Date range filter (default: last 7 days to next 7 days)
-    if (range) {
+    // Date range filter: prioritize explicit dateFrom/dateTo when provided
+    const normalizeDate = (str, end = false) => {
+      if (!str) return null;
+      // If only YYYY-MM-DD provided, assume UTC day boundaries
+      if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+        const [y,m,d] = str.split('-').map(n => parseInt(n,10));
+        const dt = end
+          ? new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999))
+          : new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
+        return dt.toISOString();
+      }
+      // Else, trust the input and convert
+      const dt = new Date(str);
+      return isNaN(dt.getTime()) ? null : dt.toISOString();
+    };
+
+    const dfISO = normalizeDate(dateFrom, false);
+    const dtISO = normalizeDate(dateTo, true);
+    if (dfISO || dtISO) {
+      filter.utcDate = {};
+      if (dfISO) filter.utcDate.$gte = dfISO;
+      if (dtISO) filter.utcDate.$lte = dtISO;
+    } else if (range) {
+      // Default: show upcoming matches only (now-2h .. now+rangeDays)
       const days = parseInt(range);
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
-      const endDate = new Date();
+      const now = new Date();
+      const startDate = new Date(now);
+      // Small grace window for in-progress or slightly delayed times
+      startDate.setHours(startDate.getHours() - 2);
+      let endDate = new Date(now);
       endDate.setDate(endDate.getDate() + days);
-      
-      filter.utcDate = {
-        $gte: startDate.toISOString(),
-        $lte: endDate.toISOString()
-      };
+
+      if (includePast) {
+        // Old behavior: last N days to next N days
+        const pastStart = new Date(now);
+        pastStart.setDate(pastStart.getDate() - days);
+        filter.utcDate = {
+          $gte: pastStart.toISOString(),
+          $lte: endDate.toISOString()
+        };
+      } else {
+        filter.utcDate = {
+          $gte: startDate.toISOString(),
+          $lte: endDate.toISOString()
+        };
+      }
     }
 
     const matches = await matchesCollection
@@ -44,12 +81,75 @@ async function getMatches(req, res) {
       .sort({ utcDate: 1 })
       .limit(parseInt(limit))
       .toArray();
-    
+
+  // Enrich with team crests from Teams collection
+  const teamsCollection = await getTeamsCollection();
+    const idSet = new Set();
+    const nameSet = new Set();
+    const tlaSet = new Set();
+    const shortNameSet = new Set();
+    for (const m of matches) {
+      const h = m.homeTeam; const a = m.awayTeam;
+      if (h && typeof h === 'object' && h.id) idSet.add(h.id);
+      if (a && typeof a === 'object' && a.id) idSet.add(a.id);
+      if (h && typeof h === 'string') nameSet.add(h);
+      if (a && typeof a === 'string') nameSet.add(a);
+      if (h && typeof h === 'object' && h.name) nameSet.add(h.name);
+      if (a && typeof a === 'object' && a.name) nameSet.add(a.name);
+      if (h && typeof h === 'object' && h.tla) tlaSet.add((h.tla||'').toUpperCase());
+      if (a && typeof a === 'object' && a.tla) tlaSet.add((a.tla||'').toUpperCase());
+      if (h && typeof h === 'object' && h.shortName) shortNameSet.add(h.shortName);
+      if (a && typeof a === 'object' && a.shortName) shortNameSet.add(a.shortName);
+    }
+
+    const ids = Array.from(idSet);
+    const names = Array.from(nameSet);
+  const byId = new Map();
+  const byName = new Map();
+  const byTla = new Map();
+  const byShort = new Map();
+    if (ids.length) {
+      const docs = await teamsCollection.find({ id: { $in: ids } }).project({ id:1, name:1, crest:1, tla:1 }).toArray();
+      for (const d of docs) byId.set(d.id, d);
+    }
+    if (names.length) {
+      const docs = await teamsCollection.find({ name: { $in: names } }).project({ id:1, name:1, crest:1, tla:1 }).toArray();
+      for (const d of docs) byName.set((d.name||'').toLowerCase(), d);
+    }
+    const tlas = Array.from(tlaSet);
+    if (tlas.length) {
+      const docs = await teamsCollection.find({ tla: { $in: tlas } }).project({ id:1, name:1, crest:1, tla:1, shortName:1 }).toArray();
+      for (const d of docs) byTla.set((d.tla||'').toUpperCase(), d);
+    }
+    const shorts = Array.from(shortNameSet);
+    if (shorts.length) {
+      const docs = await teamsCollection.find({ shortName: { $in: shorts } }).project({ id:1, name:1, crest:1, tla:1, shortName:1 }).toArray();
+      for (const d of docs) byShort.set((d.shortName||'').toLowerCase(), d);
+    }
+
+    const enriched = matches.map(m => {
+      const out = { ...m };
+      const h = m.homeTeam; const a = m.awayTeam;
+      const hDoc = (h && typeof h === 'object' && h.id && byId.get(h.id))
+        || (h && typeof h === 'object' && h.tla && byTla.get((h.tla||'').toUpperCase()))
+        || (h && byName.get((h.name||h).toString().toLowerCase()))
+        || (h && typeof h === 'object' && h.shortName && byShort.get((h.shortName||'').toLowerCase()));
+      const aDoc = (a && typeof a === 'object' && a.id && byId.get(a.id))
+        || (a && typeof a === 'object' && a.tla && byTla.get((a.tla||'').toUpperCase()))
+        || (a && byName.get((a.name||a).toString().toLowerCase()))
+        || (a && typeof a === 'object' && a.shortName && byShort.get((a.shortName||'').toLowerCase()));
+      if (h && typeof h === 'object') out.homeTeam = { ...h, crest: h.crest || hDoc?.crest || hDoc?.logo || hDoc?.crestUrl || undefined };
+      if (a && typeof a === 'object') out.awayTeam = { ...a, crest: a.crest || aDoc?.crest || aDoc?.logo || aDoc?.crestUrl || undefined };
+      if (typeof h === 'string') out.homeTeam = { name: h, crest: hDoc?.crest || hDoc?.logo || hDoc?.crestUrl };
+      if (typeof a === 'string') out.awayTeam = { name: a, crest: aDoc?.crest || aDoc?.logo || aDoc?.crestUrl };
+      return out;
+    });
+
     res.status(200).json({
       success: true,
-      data: matches,
+      data: enriched,
       count: matches.length,
-      filters: { status, competition, range: parseInt(range), limit: parseInt(limit) },
+  filters: { status, competition, range: parseInt(range), limit: parseInt(limit), includePast: !!includePast, dateFrom: dateFrom||null, dateTo: dateTo||null },
       lastUpdated: new Date().toISOString()
     });
   } catch (error) {

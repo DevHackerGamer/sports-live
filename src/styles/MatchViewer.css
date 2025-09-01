@@ -25,13 +25,7 @@
   color: #111827;
 }
 
-.header-loading {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.9rem;
-  color: #6b7280;
-}
+.header-loading { display: none; }
 
 .loading-spinner {
   border: 3px solid #e5e7eb;

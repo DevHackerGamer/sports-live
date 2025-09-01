@@ -75,6 +75,23 @@ app.all('/api/players', delegate('./api/players.js'));
 app.all('/api/favorite-teams', delegate('./api/favorite-teams.js'));
 app.all('/api/auth-me', delegate('./api/auth-me.js'));
 
+// Admin utility: trigger on-demand matches refresh (development only)
+app.all('/api/admin-refresh-matches', async (req, res) => {
+  try {
+    // Optional: simple guard in non-production
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({ error: 'Forbidden in production' });
+    }
+    const before = Date.now();
+    const matches = await dataFetcher.fetchAndStoreMatches();
+    const tookMs = Date.now() - before;
+    res.status(200).json({ ok: true, stored: matches?.length || 0, tookMs });
+  } catch (e) {
+    console.error('admin-refresh-matches error:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // Serve static React build
 const buildDir = path.join(__dirname, 'build');
 app.use(express.static(buildDir));

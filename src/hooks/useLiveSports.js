@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiClient } from '../lib/api';
 
-export const useLiveSports = (updateInterval = 60000) => {
+export const useLiveSports = (updateInterval = 120000) => {
   const [sportsData, setSportsData] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(null);
@@ -10,43 +10,70 @@ export const useLiveSports = (updateInterval = 60000) => {
   const intervalRef = useRef(null);
   const isActiveRef = useRef(true);
 
+  const lastPayloadRef = useRef(null);
   const fetchSportsData = useCallback(async () => {
     try {
       setError(null);
       console.log('Fetching sports data from MongoDB API...');
       
       try {
-        // Fetch from our new MongoDB-based matches API
-        const matchesResponse = await apiClient.getMatches();
+  // Fetch a rolling 14-day window (today -> +13 days)
+  const now = new Date();
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 13, 23, 59, 59, 999));
+  const toISODate = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+  const matchesResponse = await apiClient.getMatchesByDate(toISODate(start), toISODate(end), 1000);
 
         if (isActiveRef.current) {
           // Transform data to match the expected format
-          const transformedGames = (matchesResponse.data || []).map(match => ({
-            id: match.id || match._id,
-            homeTeam: match.homeTeam?.name || match.homeTeam || 'Unknown',
-            awayTeam: match.awayTeam?.name || match.awayTeam || 'Unknown',
-            homeScore: match.score?.fullTime?.home || match.homeScore || 0,
-            awayScore: match.score?.fullTime?.away || match.awayScore || 0,
-            status: match.status || 'scheduled',
-            competition: match.competition?.name || match.competition || 'Unknown',
-            competitionCode: match.competition?.code || match.competitionCode,
-            venue: match.venue || 'TBD',
-            utcDate: match.utcDate || match.startTime,
-            minute: match.minute,
-            matchday: match.matchday
-          }));
+          const transformedGames = (matchesResponse.data || []).map(match => {
+            const normalizeTeam = (t) => {
+              if (!t) return { name: 'Unknown' };
+              if (typeof t === 'string') return { name: t };
+              return {
+                id: t.id,
+                name: t.name || (typeof t === 'string' ? t : undefined) || 'Unknown',
+                crest: t.crest,
+                tla: t.tla,
+                shortName: t.shortName
+              };
+            };
+
+            return {
+              id: match.id || match._id,
+              homeTeam: normalizeTeam(match.homeTeam),
+              awayTeam: normalizeTeam(match.awayTeam),
+              homeScore: match.score?.fullTime?.home ?? match.homeScore ?? '-',
+              awayScore: match.score?.fullTime?.away ?? match.awayScore ?? '-',
+              status: match.status || 'scheduled',
+              competition: match.competition?.name || match.competition || 'Unknown',
+              competitionCode: match.competition?.code || match.competitionCode,
+              venue: match.venue || 'TBD',
+              utcDate: match.utcDate || match.startTime,
+              minute: match.minute,
+              matchday: match.matchday
+            };
+          });
 
           const transformedData = {
             games: transformedGames,
             lastUpdated: matchesResponse.lastUpdated || new Date().toISOString(),
             source: 'MongoDB via REST API',
             totalMatches: matchesResponse.count || transformedGames.length,
+            range: {
+              dateFrom: toISODate(start),
+              dateTo: toISODate(end)
+            }
           };
 
-          setSportsData(transformedData);
-          setLastUpdated(new Date());
-          setIsConnected(true);
-          console.log('MongoDB API data updated successfully');
+          const payloadKey = JSON.stringify({ ids: transformedGames.map(g => g.id), ts: matchesResponse.lastUpdated || '' });
+          if (lastPayloadRef.current !== payloadKey) {
+            setSportsData(transformedData);
+            setLastUpdated(new Date());
+            setIsConnected(true);
+            lastPayloadRef.current = payloadKey;
+            console.log('MongoDB API data updated successfully');
+          }
         }
         
       } catch (apiError) {

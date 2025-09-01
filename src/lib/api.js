@@ -39,7 +39,13 @@ class ApiClient {
 
   // Matches API
   async getMatches() {
-    return this.request('/api/matches');
+  // Request a broader upcoming window explicitly
+  return this.request('/api/matches?range=10&includePast=&limit=500');
+  }
+
+  async getMatchesByDate(dateFrom, dateTo, limit = 1000) {
+    const params = new URLSearchParams({ dateFrom, dateTo, limit: String(limit) });
+    return this.request(`/api/matches?${params.toString()}`);
   }
 
   async getMatch(id) {
