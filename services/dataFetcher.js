@@ -17,6 +17,8 @@ class SportsDataFetcher {
     this.apiToken = process.env.FOOTBALL_API_TOKEN;
     this.requestDelay = 1000; // 1 second between requests
     this.maxRetries = 3;
+    this.apiDisabled = false; // set to true if we detect 403 disabled
+    this.fetcherEnabled = String(process.env.FETCHER_ENABLED || 'true').toLowerCase() !== 'false';
   }
 
   // Log events to Event_Log collection
@@ -38,6 +40,9 @@ class SportsDataFetcher {
   // Helper method to make API requests with rate limiting and retries
   async makeApiRequest(url, retryCount = 0) {
     try {
+      if (this.apiDisabled) {
+        throw new Error('API disabled');
+      }
       await new Promise(resolve => setTimeout(resolve, this.requestDelay));
       
       const response = await fetch(url, {
@@ -61,6 +66,19 @@ class SportsDataFetcher {
       }
 
       if (!response.ok) {
+        if (response.status === 403) {
+          // capture body snippet for logs
+          let body = '';
+          try { body = await response.text(); } catch {}
+          if (!this.apiDisabled) {
+            console.error(`football-data.org 403: ${body?.slice?.(0, 200) || ''}`);
+            console.error('Disabling external fetcher until process restart. Please fix your account/token.');
+          }
+          this.apiDisabled = true; // short-circuit further calls in this process
+          // stop periodic fetch if running
+          this.stopPeriodicFetch();
+          throw new Error('API request failed: 403');
+        }
         throw new Error(`API request failed: ${response.status} ${response.statusText}`);
       }
 
@@ -100,8 +118,8 @@ class SportsDataFetcher {
     try {
       await this.logEvent('INFO', 'Starting teams data fetch');
       
-      if (!this.apiToken) {
-        throw new Error('Football API token not configured');
+      if (!this.apiToken || this.apiDisabled) {
+        throw new Error('Football API token not configured or API disabled');
       }
 
       // Fetch competitions first
@@ -171,8 +189,8 @@ class SportsDataFetcher {
     try {
       await this.logEvent('INFO', 'Starting matches data fetch');
 
-      if (!this.apiToken) {
-        throw new Error('Football API token not configured');
+      if (!this.apiToken || this.apiDisabled) {
+        throw new Error('Football API token not configured or API disabled');
       }
 
   // Define a window: from start-of-today (UTC) to +21 days, fetched in small slices to respect API limits
@@ -180,20 +198,20 @@ class SportsDataFetcher {
   const pad2 = (n) => String(n).padStart(2, '0');
   const fmtDate = (d) => `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
   const startOfTodayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  const endOfWindowUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 21));
+  const endOfWindowUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 14));
   const dateFrom = fmtDate(startOfTodayUTC);
   const dateTo = fmtDate(endOfWindowUTC);
       const fetchWindow = async (from, to) => {
         return this.makeApiRequest(`https://api.football-data.org/v4/matches?dateFrom=${from}&dateTo=${to}`);
       };
 
-    // Fetch in 5-7 day slices to avoid single-call limits and API constraints
+  // Fetch in 7-day slices to minimize calls and respect limits (two slices for 14 days)
       const sliceMatches = async () => {
         const all = [];
         let cursor = new Date(startOfTodayUTC);
         while (cursor < endOfWindowUTC) {
           const sliceStart = new Date(cursor);
-      const sliceEnd = new Date(Date.UTC(sliceStart.getUTCFullYear(), sliceStart.getUTCMonth(), sliceStart.getUTCDate() + 5));
+    const sliceEnd = new Date(Date.UTC(sliceStart.getUTCFullYear(), sliceStart.getUTCMonth(), sliceStart.getUTCDate() + 7));
           const from = fmtDate(sliceStart);
           const to = fmtDate(sliceEnd <= endOfWindowUTC ? sliceEnd : endOfWindowUTC);
           try {
@@ -202,105 +220,16 @@ class SportsDataFetcher {
           } catch (e) {
             console.warn(`Slice fetch failed ${from}..${to}:`, e.message);
           }
+      // brief delay between slices to stay under per-minute limit
+      await new Promise(r => setTimeout(r, this.requestDelay));
           cursor = sliceEnd;
         }
         // Deduplicate by id
         return Object.values(all.reduce((acc, m) => { acc[m.id] = m; return acc; }, {}));
       };
+    const matches = await sliceMatches();
 
-      let matches = await sliceMatches();
-
-      // Always attempt to augment with competition-based results for broader coverage
-      // Prefer competitions present in our Teams collection to avoid irrelevant leagues
-      try {
-        // Single-call augmentation: fetch multiple competitions at once to avoid many rate-limited calls
-        const combinedFetchForCodes = async (codes = []) => {
-          if (!codes.length) return [];
-          const param = codes.join(',');
-          try {
-            const res = await this.makeApiRequest(`https://api.football-data.org/v4/matches?competitions=${encodeURIComponent(param)}&dateFrom=${dateFrom}&dateTo=${dateTo}`);
-            return Array.isArray(res?.matches) ? res.matches : [];
-          } catch (e) {
-            // Some competitions may be unauthorized on the plan; ignore 403s
-            console.warn(`Combined competitions fetch failed: ${e.message}`);
-            return [];
-          }
-        };
-
-        const teamsCollection = await getTeamsCollection();
-        const teamCodes = (await teamsCollection.distinct('competitionCode')).filter(Boolean);
-        // Also fetch available competitions and prefer top ones
-        const compListResp = await this.makeApiRequest('https://api.football-data.org/v4/competitions');
-        const apiCodes = Array.isArray(compListResp?.competitions)
-          ? compListResp.competitions.map(c => c.code).filter(Boolean)
-          : [];
-        const preferredCodes = ['PL','CL','BL1','SA','PD','FL1','ELC','PPL','DED','BSA','CLF','EC'];
-        const uniqueCodes = Array.from(new Set([...preferredCodes, ...teamCodes, ...apiCodes]));
-        // Try a combined call with a reasonable chunk size to avoid URL length issues
-        const chunks = [];
-        const chunkSize = 10;
-        for (let i = 0; i < uniqueCodes.length && chunks.length < 2; i += chunkSize) {
-          chunks.push(uniqueCodes.slice(i, i + chunkSize));
-        }
-
-        const combinedAgg = [];
-        for (const chunk of chunks) {
-          const arr = await combinedFetchForCodes(chunk);
-          if (arr.length) combinedAgg.push(...arr);
-        }
-
-        // If combined calls didn't bring much, try per-competition for a small selection
-        const codesForSingles = uniqueCodes.slice(0, 8);
-        if (combinedAgg.length === 0 && codesForSingles.length > 0) {
-          const agg = [];
-          for (const code of codesForSingles) {
-            try {
-              const compMatches = await this.makeApiRequest(`https://api.football-data.org/v4/competitions/${code}/matches?dateFrom=${dateFrom}&dateTo=${dateTo}`);
-              if (Array.isArray(compMatches?.matches)) agg.push(...compMatches.matches);
-            } catch (e) {
-              console.warn(`Comp matches failed for ${code}:`, e.message);
-            }
-          }
-          if (agg.length) {
-            const map = new Map();
-            for (const m of [...matches, ...agg]) map.set(m.id, m);
-            matches = Array.from(map.values());
-          }
-        } else if (combinedAgg.length) {
-          const map = new Map();
-          for (const m of [...matches, ...combinedAgg]) map.set(m.id, m);
-          matches = Array.from(map.values());
-        }
-      } catch (e) {
-        console.warn('Competition augmentation failed:', e.message);
-      }
-
-  // If still empty, keep the same window but try competitions list aggregation (legacy fallback)
-
-      // Secondary fallback: aggregate by competitions if still empty
-      if (matches.length === 0) {
-        await this.logEvent('WARNING', 'No matches from /matches endpoint; aggregating per-competition');
-        try {
-          const compData = await this.makeApiRequest('https://api.football-data.org/v4/competitions');
-      const competitions = Array.isArray(compData?.competitions) ? compData.competitions.slice(0, 6) : [];
-          const agg = [];
-          for (const comp of competitions) {
-            try {
-        const compMatches = await this.makeApiRequest(`https://api.football-data.org/v4/competitions/${comp.code}/matches?dateFrom=${dateFrom}&dateTo=${dateTo}`);
-              if (Array.isArray(compMatches?.matches)) agg.push(...compMatches.matches);
-            } catch (e) {
-              console.warn(`Comp matches failed for ${comp.code}:`, e.message);
-            }
-          }
-          // De-duplicate by id
-          const dedup = Object.values(agg.reduce((acc, m) => { acc[m.id] = m; return acc; }, {}));
-          matches = dedup;
-        } catch (e) {
-          console.warn('Competition aggregation failed:', e.message);
-        }
-      }
-
-      if (matches.length > 0) {
+  if (matches.length > 0) {
         const matchInfoCollection = await getMatchesCollection();
         // Ensure indexes for performance
         try { await matchInfoCollection.createIndex({ utcDate: 1 }); } catch {}
@@ -363,8 +292,8 @@ class SportsDataFetcher {
         }
 
       } else {
-        await this.logEvent('INFO', 'No matches found for current window');
-        console.log('ℹ️ No matches found to store for current window');
+        await this.logEvent('INFO', this.apiDisabled ? 'API disabled; no matches fetched' : 'No matches found for current window');
+        console.log(this.apiDisabled ? 'ℹ️ API disabled; no matches fetched' : 'ℹ️ No matches found to store for current window');
       }
 
       return matches;
@@ -380,8 +309,8 @@ class SportsDataFetcher {
     try {
       await this.logEvent('INFO', 'Starting players data fetch');
 
-      if (!this.apiToken) {
-        throw new Error('Football API token not configured');
+      if (!this.apiToken || this.apiDisabled) {
+        throw new Error('Football API token not configured or API disabled');
       }
 
       const playersCollection = await getPlayersCollection();
@@ -472,16 +401,20 @@ class SportsDataFetcher {
       try {
         await this.fetchAndStoreMatches();
       } catch (error) {
-        console.log('⚠️ Matches fetch failed (possibly rate limited), continuing with other data...');
+        console.log('⚠️ Matches fetch failed (possibly rate limited or API disabled), continuing with other data...');
         await this.logEvent('WARNING', 'Matches fetch failed', { error: error.message });
       }
       
       // Try to fetch some players data
       try {
-        const teams = await teamsCollection.find({}).limit(2).toArray();
-        if (teams.length > 0) {
-          const teamIds = teams.map(team => team.id);
-          await this.fetchAndStorePlayers(teamIds);
+        if (this.apiDisabled) {
+          console.log('⏭️ Skipping players fetch: API disabled');
+        } else {
+          const teams = await teamsCollection.find({}).limit(2).toArray();
+          if (teams.length > 0) {
+            const teamIds = teams.map(team => team.id);
+            await this.fetchAndStorePlayers(teamIds);
+          }
         }
       } catch (error) {
         console.log('⚠️ Players fetch failed (possibly rate limited), continuing...');
