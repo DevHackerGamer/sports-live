@@ -1,0 +1,129 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{hyperref} % For clickable links
+\usepackage{geometry}
+\geometry{margin=1in}
+
+\title{Testing Documentation}
+\author{}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Overview}
+The \texttt{App} component handles \textbf{auth-gated routing} using the Clerk SDK. This test suite verifies that:
+\begin{itemize}
+    \item Users are routed correctly based on authentication state.
+    \item Proper behavior occurs when the Clerk publishable key is missing.
+    \item Loading states are rendered correctly.
+\end{itemize}
+
+The tests are implemented using \textbf{Jest} and \textbf{React Testing Library}.
+
+\section{Setup}
+
+\subsection{Environment Variable}
+The \texttt{App} component requires \texttt{REACT\_APP\_CLERK\_PUBLISHABLE\_KEY}. In the tests, it is set before importing \texttt{App}:
+
+\begin{verbatim}
+process.env.REACT_APP_CLERK_PUBLISHABLE_KEY = 'test_publishable_key';
+\end{verbatim}
+
+\subsection{Mocking Clerk SDK}
+The following hooks are mocked to control authentication state:
+
+\begin{verbatim}
+const mockUseAuth = jest.fn();
+const mockUseUser = jest.fn();
+
+jest.mock('@clerk/clerk-react', () => ({
+  ClerkProvider: ({ children }) => <div>{children}</div>,
+  useAuth: () => mockUseAuth(),
+  useUser: () => mockUseUser(),
+}));
+\end{verbatim}
+
+\subsection{Mocking Child Pages}
+To isolate routing logic, child pages are mocked:
+
+\begin{verbatim}
+jest.mock('./components/auth/LoginPage', () => () => <div>LoginPage Component</div>);
+jest.mock('./components/dashboard/Dashboard', () => () => <div>Dashboard Component</div>);
+\end{verbatim}
+
+\section{Test Cases}
+
+\subsection{1. Shows LoginPage when user is not signed in}
+\textbf{Purpose:} Ensure unauthenticated users see the login page.  
+
+\textbf{Setup:}
+\begin{verbatim}
+mockUseAuth.mockReturnValue({ isSignedIn: false, isLoaded: true });
+mockUseUser.mockReturnValue({ user: null, isLoaded: true });
+\end{verbatim}
+
+\textbf{Expectation:}
+\begin{verbatim}
+expect(screen.getByText('LoginPage Component')).toBeInTheDocument();
+\end{verbatim}
+
+\subsection{2. Shows Dashboard when user is signed in}
+\textbf{Purpose:} Ensure authenticated users see the dashboard.  
+
+\textbf{Setup:}
+\begin{verbatim}
+mockUseAuth.mockReturnValue({ isSignedIn: true, isLoaded: true });
+mockUseUser.mockReturnValue({ user: { id: 'user_1' }, isLoaded: true });
+\end{verbatim}
+
+\textbf{Expectation:}
+\begin{verbatim}
+expect(screen.getByText('Dashboard Component')).toBeInTheDocument();
+\end{verbatim}
+
+\subsection{3. Throws error when publishable key is missing}
+\textbf{Purpose:} Ensure app fails if \texttt{REACT\_APP\_CLERK\_PUBLISHABLE\_KEY} is not set.  
+
+\textbf{Setup:}
+Temporarily unset the key and re-import the \texttt{App} module:
+\begin{verbatim}
+process.env.REACT_APP_CLERK_PUBLISHABLE_KEY = '';
+jest.resetModules();
+const FreshApp = require('./App').default;
+\end{verbatim}
+
+\textbf{Expectation:}
+\begin{verbatim}
+expect(() => render(<FreshApp />)).toThrow('Missing Publishable Key');
+\end{verbatim}
+
+\textbf{Cleanup:} Restore the original environment variable.
+
+\subsection{4. Shows Loading while Clerk is not yet loaded}
+\textbf{Purpose:} Ensure the app renders a loading state while authentication info is still loading.  
+
+\textbf{Setup:}
+\begin{verbatim}
+mockUseAuth.mockReturnValue({ isSignedIn: false, isLoaded: false });
+mockUseUser.mockReturnValue({ user: null, isLoaded: false });
+\end{verbatim}
+
+\textbf{Expectation:}
+\begin{verbatim}
+expect(screen.getByText(/Loading.../i)).toBeInTheDocument();
+\end{verbatim}
+
+\section{Notes}
+\begin{itemize}
+    \item \texttt{jest.clearAllMocks()} is called before each test to reset mocks.
+    \item Child components are mocked to isolate routing logic.
+    \item Environment variables must be set before importing \texttt{App} because it reads them at module load.
+    \item The suite verifies error handling, routing, and loading states comprehensively.
+\end{itemize}
+
+\end{document}
+
