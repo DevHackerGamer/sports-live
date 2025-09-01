@@ -1,19 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
+
 import '../../styles/EventFeed.css';
+const token = process.env.REACT_APP_FOOTBALL_API_TOKEN;
 
 // TODO : need to implement API integration later(back end people)
 const EventFeed = () => {
-  const [events, setEvents] = useState([
-    { id: 1, time: '00:00', type: 'match_start', description: 'Match started', team: null, player: null },
-    { id: 2, time: '23:15', type: 'goal', description: 'Left foot shot to bottom corner', team: 'FC Barcelona', player: 'Messi' },
-    { id: 3, time: '45+2', type: 'goal', description: 'Header from cross', team: 'Real Madrid', player: 'Benzema' },
-    { id: 4, time: '51:40', type: 'goal', description: 'Penalty kick', team: 'FC Barcelona', player: 'Suarez' },
-    { id: 5, time: '64:30', type: 'yellow_card', description: 'Professional foul', team: 'Real Madrid', player: 'Ramos' },
-    { id: 6, time: '67:23', type: 'substitution', description: 'Vinicius Jr. replaces Asensio', team: 'Real Madrid', player: 'Vinicius Jr.' },
-  ]);
-
+  const [events, setEvents] = useState([]);
   const [newEvent, setNewEvent] = useState({ time: '', type: 'goal', description: '', team: '', player: '' });
+  const eventsContainerRef = useRef(null);
 
+  // Fetch events from API
+  const fetchEvents = async () => {
+    try {
+      const response = await axios.get(`${API_URL}?limit=50`);
+      if (response.data.success) {
+        setEvents(response.data.events);
+      }
+    } catch (error) {
+      console.error('Error fetching events:', error);
+    }
+  };
+
+  // Scroll to bottom when events update
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
+  useEffect(() => {
+    if (eventsContainerRef.current) {
+      eventsContainerRef.current.scrollTop = eventsContainerRef.current.scrollHeight;
+    }
+  }, [events]);
 
   const addEvent = () => {
     if (newEvent.time && newEvent.description) {
@@ -53,7 +71,8 @@ const EventFeed = () => {
     <div className="event-feed">
       <h2>Live Event Feed</h2>
       
-      <div className="events-container">
+    <div className="events-container" ref={eventsContainerRef}>
+
         {events.map(event => (
           <div key={event.id} className={`event-item ${event.type}`}>
             <div className="event-time">{event.time}</div>

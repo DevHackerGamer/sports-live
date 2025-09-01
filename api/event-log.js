@@ -1,9 +1,12 @@
 // Event Log API endpoint
 const { getEventLogCollection } = require('../lib/mongodb');
+///
+const { ObjectId } = require('mongodb');
+
 
 async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
@@ -65,9 +68,28 @@ async function handler(req, res) {
       console.error('Error creating event log:', error);
       res.status(500).json({ error: 'Failed to create event log' });
     }
-  } else {
+  } 
+  ////////////////////////////////////////////////////////////////////////////////
+   else if (req.method === 'DELETE') { 
+    try {
+      const { id } = req.query;
+      if (!id) return res.status(400).json({ error: 'Event id required' });
+
+      const result = await eventLogCollection.deleteOne({ _id: new ObjectId(id) });
+      if (result.deletedCount === 0) return res.status(404).json({ error: 'Event not found' });
+
+      res.status(200).json({ success: true, message: 'Event deleted', eventId: id });
+    } catch (error) {
+      console.error('Error deleting event log:', error);
+      res.status(500).json({ error: 'Failed to delete event' });
+    }
+
+  }
+  ///////////////////////////////////////////////////////////
+  else {
     res.status(405).json({ error: 'Method not allowed' });
   }
+
 }
 
 module.exports = handler;

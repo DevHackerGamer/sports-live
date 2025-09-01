@@ -64,7 +64,8 @@ const LiveInput = ({ isAdmin: isAdminProp }) => {
         timestamp: new Date()
       };
       
-      setEvents([...events, event]);
+      //prev : setEvents([...events, event]);
+      setEvents([...events, { ...event, id: Date.now() }]); //now to update local state
       
       // Update score if it's a goal
       if (newEvent.type === 'goal') {
