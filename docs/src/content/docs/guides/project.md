@@ -81,7 +81,7 @@ We work in **two-week sprints**, providing enough time for meaningful progress w
 ---
 ## Proof of Agile in Action
 We maintain our project board in **Notion**:  
-📌 [View on Notion](https://www.notion.so/Sports-Live-Tracker-2025-25b7181e6705803aa7bdffa7190f8dfa?source=copy_link)
+📌 [View on Notion](https://www.notion.so/Sports-Live-Tracker-2025-25b7181e6705803aa7bdffa7190f8dfa?source=copy_link) 
 
 Includes:
 - Sprint backlog with priorities.
