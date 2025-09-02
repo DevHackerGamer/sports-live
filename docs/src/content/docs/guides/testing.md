@@ -1,6 +1,6 @@
 ---
 title: Testing Documentation
-description: Life
+description: This document provides a detailed overview of the testing strategy, tools, workflows, and user feedback process for the Sport Live Feeds project.  
 ---
 
 This document provides a detailed overview of the testing strategy, tools, workflows, and user feedback process for the **Sport Live Feeds** project.  
@@ -11,6 +11,8 @@ It ensures that our system is robust, reliable, and aligned with both stakeholde
 We are using:
 
 - **Jest** → for unit testing JavaScript functions and API logic. 
+- **React Testing Library** → for UI testing of React components.  
+- **Supertest** → for testing backend API endpoints. 
 
 ### Why we Chose Jest:
 
@@ -26,6 +28,8 @@ Given our project’s **React frontend** and **Node.js API layer**, Jest was the
 
 ### Setup
 - **Framework** → [Jest](https://jestjs.io/)  
+- **UI Testing** → [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/) 
+- **API Testing** → [Supertest](https://github.com/ladjs/supertest)  
 
 #### Installiation:
 **Install Jest:**
@@ -52,6 +56,35 @@ In the root of your project create:
 ```bash
 import '@testing-library/jest-dom'; 
 ```
+## How to Run Automated Tests:
+A small test by test description on how to run the automated tests for both frontend components and backend APIs. 
+### 1. Install Dependencies
+Make sure you have installed all project dependencies:
+```bash
+npm install
+```
+### 2. Run All Tests
+
+To run every test (React + API):
+```bash
+npm test
+```
+This will:
+
+- Discover all files ending with .test.js inside both src/ and api/.
+
+- Run them in parallel.
+
+- Display results in the terminal.
+
+### 3. Run Coverage Report
+
+To generate a code coverage report:
+```bash
+npm run test:coverage
+```
+The summary appears in the terminal.
+
 ## Testing Organization:
 We follow **consistent naming:**
 - All tests files end with .test.js
@@ -75,35 +108,29 @@ We aim for 80%+ coverage, with priority on:
 
 - Score Display & Dashboard
 
-## Testing
 
-Automated testing is planned for future development stages. The following tools are being considered:
+# UI Testing
 
-| Tool                  | Purpose                                                             |
-| --------------------- | ------------------------------------------------------------------- |
-| **Jest**              | Unit testing for React components and frontend logic.               |
-| **Firebase Test SDK** | Testing Firebase Cloud Functions and backend behavior in isolation. |
+We use **React Testing Library**to simulate user interactions:
 
-Currently, testing is performed manually for each feature during development and before merging pull requests.
+Rendering components correctly
 
----
+Testing form submissions (e.g., adding a live event)
 
-## CI and Future Integration
+Checking that the UI updates when events are added/removed
+Example Test:
+![teste1](/diagrams/teste1.png)
 
-In upcoming sprints, we plan to integrate continuous integration workflows that will:
+# API Testing
 
-- Automatically run linting and tests on pull requests
-- Reject code that fails formatting or test cases
-- Improve reliability and maintainability of the codebase
+We use **Supertest** to simulate API endpoints:
 
-CI tooling under consideration includes GitHub Actions or Firebase Hosting pre-deploy hooks.
 
----
+Example Test:
+![teste1](/diagrams/teste1.png)
 
-## Developer Guidelines
 
-- All new features must be manually tested before merge.
-- Linting errors must be resolved before committing.
-- Contributors are encouraged to write unit tests once testing infrastructure is in place.
 
-This ensures a stable, maintainable codebase as the application grows.
+
+
+
