@@ -1,148 +1,117 @@
-// src/components/dashboard/FavoritesPanel.test.js
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import FavoritesPanel from './FavoritesPanel';
 import { useUser } from '@clerk/clerk-react';
-import { db, ref, onValue, update } from '../../lib/firebase';
+import { apiClient } from '../../lib/api';
 
-// Mock Clerk useUser
 jest.mock('@clerk/clerk-react', () => ({
-  useUser: jest.fn(),
+  useUser: jest.fn()
 }));
 
-// Mock Firebase
-jest.mock('../../lib/firebase', () => ({
-  db: {},
-  ref: jest.fn(),
-  onValue: jest.fn(),
-  update: jest.fn(),
+jest.mock('../../lib/api', () => ({
+  apiClient: {
+    getMatchesByDate: jest.fn(),
+    getTeams: jest.fn(),
+    getUserFavorites: jest.fn(),
+    addUserFavorite: jest.fn(),
+    removeUserFavorite: jest.fn()
+  }
 }));
 
-describe('FavoritesPanel', () => {
+describe('FavoritesPanel Component', () => {
   const mockUser = { id: 'user123' };
+
+  const allTeamsMock = [
+    { name: 'TeamA', crest: 'crestA.png', shortName: 'TA', tla: 'TMA' },
+    { name: 'TeamB' },
+    'TeamC'
+  ];
+
+  const matchesMock = [
+    { id: 1, homeTeam: 'TeamA', awayTeam: 'TeamB', utcDate: new Date().toISOString(), status: 'scheduled', competition: 'Comp1' },
+    { id: 2, homeTeam: 'TeamC', awayTeam: 'TeamB', utcDate: new Date().toISOString(), status: 'live', competition: 'Comp2' }
+  ];
 
   beforeEach(() => {
     jest.clearAllMocks();
     useUser.mockReturnValue({ user: mockUser });
+    apiClient.getTeams.mockResolvedValue({ data: allTeamsMock });
+    apiClient.getUserFavorites.mockResolvedValue({ data: ['TeamA'] });
+    apiClient.getMatchesByDate.mockResolvedValue({ data: matchesMock });
   });
 
-//   also still need to fix this
-//   test('renders login message when no user', () => {
-//     useUser.mockReturnValue({ user: null });
-//     render(<FavoritesPanel />);
-//     expect(screen.getByTestId('no-user')).toBeInTheDocument();
-//   });
-
-  test('renders loading state initially', () => {
-    onValue.mockImplementation(() => jest.fn());
+  test('renders loading state when user not signed in', () => {
+    useUser.mockReturnValue({ user: null });
     render(<FavoritesPanel />);
-    expect(screen.getByTestId('loading')).toBeInTheDocument();
+    expect(screen.getByTestId('loading-user')).toBeInTheDocument();
   });
 
-  test('renders no favorites message', async () => {
-    onValue.mockImplementation((ref, callback) => {
-      callback({ val: () => [] }); // favorites
-      return jest.fn();
-    });
-
+  test('loads favorites, matches, and teams', async () => {
     render(<FavoritesPanel />);
-    expect(await screen.findByTestId('no-favorites')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/TeamA/i)).toBeInTheDocument());
+    expect(apiClient.getTeams).toHaveBeenCalled();
+    expect(apiClient.getUserFavorites).toHaveBeenCalledWith(mockUser.id);
+    expect(apiClient.getMatchesByDate).toHaveBeenCalled();
   });
 
-  test('renders favorite teams and matches', async () => {
-    const mockFavorites = ['Team A'];
-    const mockTeams = ['Team A', 'Team B'];
-    const mockMatches = {
-      1: {
-        id: 'm1',
-        homeTeam: 'Team A',
-        awayTeam: 'Team B',
-        status: 'scheduled',
-        utcDate: '2025-08-20T15:00:00Z',
-        minute: null,
-      },
-      2: {
-        id: 'm2',
-        homeTeam: 'Team B',
-        awayTeam: 'Team A',
-        status: 'live',
-        utcDate: '2025-08-20T17:00:00Z',
-        minute: 34,
-      },
-    };
-
-    let callCount = 0;
-    onValue.mockImplementation((ref, callback) => {
-      callCount++;
-      if (callCount === 1) callback({ val: () => mockFavorites });
-      if (callCount === 2) callback({ val: () => mockTeams });
-      if (callCount === 3) callback({ val: () => mockMatches });
-      return jest.fn();
-    });
-
+  test('displays upcoming matches for favorite teams', async () => {
     render(<FavoritesPanel />);
-
-    const favoriteItem = await screen.findByTestId('favorite-Team A');
-    expect(favoriteItem).toBeInTheDocument();
-
-    const matchesList = await screen.findByTestId('matches-Team A');
-    expect(matchesList).toBeInTheDocument();
-
-    const scheduledMatch = await screen.findByTestId('match-m1');
-    expect(scheduledMatch).toHaveTextContent('Team A vs Team B');
-
-    const liveMatch = await screen.findByTestId('live-m2');
-    expect(liveMatch).toHaveTextContent("LIVE 34'");
+    await waitFor(() => screen.getByTestId('favorites-list'));
+    const upcoming = screen.getByTestId('upcoming-list');
+    expect(upcoming).toBeInTheDocument();
+    expect(upcoming.children.length).toBeGreaterThan(0);
   });
 
-  test('adds a favorite team', async () => {
-    const mockFavorites = [];
-    const mockTeams = ['Team A', 'Team B'];
-    onValue.mockImplementation((ref, callback) => {
-      callback({ val: () => mockFavorites });
-      return jest.fn();
-    });
-
+  test('adds a favorite via input', async () => {
     render(<FavoritesPanel />);
+    await waitFor(() => screen.getByTestId('add-input'));
+    const input = screen.getByTestId('add-input');
+    fireEvent.change(input, { target: { value: 'TeamB' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
 
-    // Ensure "no favorites" message appears first
-    expect(await screen.findByTestId('no-favorites')).toBeInTheDocument();
-
-    // Select team
-    fireEvent.change(screen.getByTestId('team-select'), { target: { value: 'Team A' } });
-
-    // Mock update to simulate adding
-    update.mockImplementation(async (_ref, { favorites }) => {
-      mockFavorites.push(...favorites);
-    });
-
-    fireEvent.click(screen.getByTestId('add-favorite-btn'));
-
-    // After "update", the component should render the new favorite
-    // expect(await screen.findByTestId('favorite-Team A')).toBeInTheDocument(); also still need to fix this  !!
-    // expect(update).toHaveBeenCalledWith(expect.anything(), { favorites: ['Team A'] }); also still need to fix this
+    await waitFor(() => screen.getByText(/TeamB/i));
+    expect(apiClient.addUserFavorite).toHaveBeenCalledWith(mockUser.id, 'TeamB');
   });
 
-  test('removes a favorite team', async () => {
-    const mockFavorites = ['Team A'];
-    const mockTeams = ['Team A', 'Team B'];
-    onValue.mockImplementation((ref, callback) => {
-      callback({ val: () => mockFavorites });
-      return jest.fn();
-    });
-
+  test('adds a favorite via dropdown', async () => {
     render(<FavoritesPanel />);
+    await waitFor(() => screen.getByTestId('add-dropdown'));
+    const dropdown = screen.getByTestId('add-dropdown');
+    fireEvent.change(dropdown, { target: { value: 'TeamB' } });
 
-    expect(await screen.findByTestId('favorite-Team A')).toBeInTheDocument();
+    await waitFor(() => screen.getByText(/TeamB/i));
+    expect(apiClient.addUserFavorite).toHaveBeenCalledWith(mockUser.id, 'TeamB');
+  });
 
-    // Mock update to simulate removal
-    update.mockImplementation(async (_ref, { favorites }) => {
-      mockFavorites.length = 0;
-    });
+  test('removes a favorite', async () => {
+    render(<FavoritesPanel />);
+    await waitFor(() => screen.getByTestId('remove-favorite'));
+    const button = screen.getByTestId('remove-favorite');
+    apiClient.getUserFavorites.mockResolvedValueOnce({ data: [] });
+    fireEvent.click(button);
 
-    fireEvent.click(screen.getByTestId('remove-Team A'));
+    await waitFor(() => expect(screen.queryByText(/TeamA/i)).not.toBeInTheDocument());
+    expect(apiClient.removeUserFavorite).toHaveBeenCalledWith(mockUser.id, 'TeamA');
+  });
 
-    expect(await screen.findByTestId('no-favorites')).toBeInTheDocument();
-    // expect(update).toHaveBeenCalledWith(expect.anything(), { favorites: [] }); also still need to fix this !!
+  test('handles invalid team input gracefully', async () => {
+    render(<FavoritesPanel />);
+    const input = screen.getByTestId('add-input');
+    fireEvent.change(input, { target: { value: 'InvalidTeam' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => expect(screen.getByTestId('error')).toBeInTheDocument());
+  });
+
+  test('displays "no favorite teams" message when empty', async () => {
+    apiClient.getUserFavorites.mockResolvedValueOnce({ data: [] });
+    render(<FavoritesPanel />);
+    await waitFor(() => expect(screen.getByTestId('no-favorites')).toBeInTheDocument());
+  });
+
+  test('renders upcoming matches count correctly', async () => {
+    render(<FavoritesPanel />);
+    await waitFor(() => screen.getByText(/Upcoming Matches:/i));
+    expect(screen.getByText(/Upcoming Matches: 1/i)).toBeInTheDocument();
   });
 });

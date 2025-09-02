@@ -32,6 +32,7 @@
     "start:react": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
+    "test:api": "jest api",
     "test:coverage": "react-scripts test --coverage --watchAll=false",
     "eject": "react-scripts eject",
     "start:prod": "node server.js",
@@ -74,6 +75,7 @@
   "jest": {
     "collectCoverageFrom": [
       "src/**/*.{js,jsx}",
+       "api/**/*.{js,ts}",
       "!src/**/*.test.{js,jsx}",
       "!src/**/__tests__/**",
       "!src/index.js",

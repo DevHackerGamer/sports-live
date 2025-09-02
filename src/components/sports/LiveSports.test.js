@@ -1,95 +1,58 @@
-// src/components/sports/LiveSports.test.js
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import LiveSports from './LiveSports';
-import { onValue } from '../../lib/firebase';
+import { useLiveSports } from '../../hooks/useLiveSports';
 
-// Mock Firebase imports
-jest.mock('../../lib/firebase', () => ({
-  db: {},
-  ref: jest.fn(),
-  onValue: jest.fn(),
-}));
+// Mock the hook
+jest.mock('../../hooks/useLiveSports');
 
-describe('LiveSports component', () => {
+const mockGames = [
+  {
+    id: '1',
+    competition: 'Premier League',
+    competitionCode: 'EPL',
+    homeTeam: { name: 'Team A', crest: 'home.png' },
+    awayTeam: { name: 'Team B', crest: 'away.png' },
+    homeScore: 1,
+    awayScore: 2,
+    status: 'live',
+    utcDate: new Date().toISOString(),
+    minute: 55,
+    matchday: 1,
+    venue: 'Stadium 1',
+  },
+];
+
+describe('LiveSports Component', () => {
+  const refreshMock = jest.fn();
+  const onSelectMock = jest.fn();
+
   beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  test('shows loading state initially', () => {
-    // Return an unsubscribe function to prevent errors
-    onValue.mockImplementation(() => jest.fn());
-    render(<LiveSports />);
-    expect(screen.getByTestId('loading')).toBeInTheDocument();
-  });
-
-  test('shows error state if Firebase callback fails', () => {
-    onValue.mockImplementation((_ref, _callback, errorCallback) => {
-      errorCallback(new Error('Failed to fetch'));
-      return jest.fn();
+    useLiveSports.mockReturnValue({
+      sportsData: { games: mockGames, totalMatches: 1, source: 'API' },
+      isConnected: true,
+      error: null,
+      lastUpdated: new Date(),
+      refreshData: refreshMock,
     });
-
-    render(<LiveSports />);
-    expect(screen.getByTestId('error')).toHaveTextContent('Failed to load matches');
   });
 
-  test('shows empty state if no matches', () => {
-    onValue.mockImplementation((_ref, callback) => {
-      callback({ val: () => ({}) });
-      return jest.fn();
-    });
-
-    render(<LiveSports />);
-    expect(screen.getByTestId('empty')).toHaveTextContent('No matches available');
+  it('renders without crashing and shows match', () => {
+    render(<LiveSports onMatchSelect={onSelectMock} />);
+    expect(screen.getByText(/Live Football/i)).toBeInTheDocument();
+    expect(screen.getByText(/Premier League/i)).toBeInTheDocument();
+    expect(screen.getByText(/Team A/i)).toBeInTheDocument();
   });
 
-  test('renders matches when data is present', () => {
-    const mockData = {
-      1: {
-        id: 1,
-        homeTeam: 'Team A',
-        awayTeam: 'Team B',
-        homeScore: 2,
-        awayScore: 1,
-        status: 'live',
-        competition: 'Premier League',
-        venue: 'Stadium A',
-        utcDate: '2025-08-18T15:00:00Z',
-      },
-      2: {
-        id: 2,
-        homeTeam: 'Team C',
-        awayTeam: 'Team D',
-        homeScore: 'TBA',
-        awayScore: 'TBA',
-        status: 'scheduled',
-        competition: 'Premier League',
-        venue: 'TBD',
-        utcDate: 'TBA',
-      },
-    };
+  it('calls onMatchSelect when match card clicked', () => {
+    render(<LiveSports onMatchSelect={onSelectMock} />);
+    fireEvent.click(screen.getByTestId('match-1'));
+    expect(onSelectMock).toHaveBeenCalledWith(mockGames[0]);
+  });
 
-    onValue.mockImplementation((_ref, callback) => {
-      callback({ val: () => mockData });
-      return jest.fn();
-    });
-
-    render(<LiveSports />);
-
-    // Container
-    expect(screen.getByTestId('matches-container')).toBeInTheDocument();
-
-    // League
-    expect(screen.getByTestId('league-Premier League')).toBeInTheDocument();
-
-    // Match cards
-    expect(screen.getByTestId('match-1')).toHaveTextContent('Team A');
-    expect(screen.getByTestId('match-1')).toHaveTextContent('Team B');
-    expect(screen.getByTestId('match-2')).toHaveTextContent('Team C');
-    expect(screen.getByTestId('match-2')).toHaveTextContent('Team D');
-
-    // Status badges
-    expect(screen.getByTestId('status-live')).toHaveTextContent('LIVE');
-    expect(screen.getByTestId('status-scheduled')).toHaveTextContent('SCHEDULED');
+  it('calls refreshData on footer button click', () => {
+    render(<LiveSports onMatchSelect={onSelectMock} />);
+    fireEvent.click(screen.getByText(/Refresh Data/i));
+    expect(refreshMock).toHaveBeenCalled();
   });
 });
