@@ -1,6 +1,8 @@
+/* eslint-disable testing-library/no-container */
+/* eslint-disable testing-library/no-node-access */
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import LoginPage from './LoginPage';
+import LoginPage from '../auth/LoginPage';
 import { SignIn, SignUp } from '@clerk/clerk-react';
 import '@testing-library/jest-dom'; // Import jest-dom for extended matchers
 
@@ -55,6 +57,7 @@ describe('LoginPage', () => {
     const { container } = render(<LoginPage />);
     
     // Check for main container classes
+    // eslint-disable-next-line testing-library/no-container
     expect(container.querySelector('.login-container')).toBeInTheDocument();
     expect(container.querySelector('.branding-section')).toBeInTheDocument();
     expect(container.querySelector('.login-section')).toBeInTheDocument();

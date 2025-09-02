@@ -3,7 +3,7 @@ import React from 'react';
 import { useUser } from '@clerk/clerk-react';
 
 import { render, screen } from '@testing-library/react';
-import Dashboard from './Dashboard';
+import Dashboard from '../dashboard/Dashboard';
 
 // Mock Clerk hooks and components
 jest.mock('@clerk/clerk-react', () => ({

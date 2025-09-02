@@ -74,6 +74,7 @@ app.all('/api/display-state', delegate('./api/display-state.js'));
 app.all('/api/players', delegate('./api/players.js'));
 app.all('/api/favorite-teams', delegate('./api/favorite-teams.js'));
 app.all('/api/auth-me', delegate('./api/auth-me.js'));
+
 // to manage created matches
 // RESTful CRUD for createdMatches
 const createdMatchesHandler = delegate('./api/createdMatches.js');
