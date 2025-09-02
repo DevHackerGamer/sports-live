@@ -9,22 +9,22 @@ The Sports Live application provides several API endpoints for accessing sports 
 
 ### Sports Data
 
-**GET** `/api/sports-data`
+**GET** `/api/matches`
 - Fetches live and upcoming football match data
-- Returns JSON with game information including scores, teams, and status
+- Returns JSON with game information including scores, teams
+- Match Api: [https://sports-live.onrender.com/api/matches](https://sports-live.onrender.com/api/matches)  
 
-### System Status
 
-**GET** `/api/status`
-- Returns system health status
-- Used for monitoring and uptime checks
 
-**GET** `/api/uptime`
-- Provides system uptime and performance metrics
+**GET** `/api/Players`
+- Fetches Live PLayer data
+- Returns JSON with each player information
+- Players Api: [https://sports-live.onrender.com/api/players](https://sports-live.onrender.com/api/players)  
 
-### Example Endpoint
 
-**GET** `/api/joke`
-- Demo endpoint that returns a random programming joke
+**GET** `/api/teams`
+- Fetches Live Teams data
+- Provides team names.
+- Team Api: [https://sports-live.onrender.com/api/teams](https://sports-live.onrender.com/api/teams)  
 
-All endpoints are serverless functions deployed on Vercel.
+
