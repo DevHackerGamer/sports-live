@@ -75,6 +75,13 @@ app.all('/api/players', delegate('./api/players.js'));
 app.all('/api/favorite-teams', delegate('./api/favorite-teams.js'));
 app.all('/api/auth-me', delegate('./api/auth-me.js'));
 
+// to manage created matches
+// RESTful CRUD for createdMatches
+const createdMatchesHandler = delegate('./api/createdMatches.js');
+app.all('/api/createdMatches', createdMatchesHandler);
+app.all('/api/createdMatches/:id', createdMatchesHandler);
+
+
 // Admin utility: trigger on-demand matches refresh (development only)
 app.all('/api/admin-refresh-matches', async (req, res) => {
   try {
