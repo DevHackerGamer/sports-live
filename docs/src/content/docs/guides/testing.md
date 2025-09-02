@@ -124,13 +124,6 @@ Checking that the UI updates when events are added/removed
 Example Test:
 ![teste1](/diagrams/teste1.png)
 
-# API Testing
-
-We use **Supertest** to simulate API endpoints:
-
-
-Example Test:
-![teste1](/diagrams/teste1.png)
 
 
 
