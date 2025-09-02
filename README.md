@@ -1,169 +1,184 @@
-# Sports Feed Development Guide
+global.TextEncoder = require('util').TextEncoder;
+global.TextDecoder = require('util').TextDecoder;
 
-Welcome! Please follow these instructions when running the application locally:
+const handler = require('../../../api/matches');
+const { getMatchesCollection, getTeamsCollection } = require('../../../lib/mongodb');
+const { ObjectId } = require('mongodb');
 
-## Development Servers
+jest.mock('../../../lib/mongodb.js', () => ({
+  getMatchesCollection: jest.fn(),
+  getTeamsCollection: jest.fn(),
+}));
 
-### 1. Mock Server (No API Usage)
-To run the app with mock API calls (no real API usage):
+// ✅ Correct path for isAdmin
+jest.mock('../../../lib/auth', () => ({
+  isAdmin: jest.fn(),
+}));
+const { isAdmin } = require('../../../lib/auth');
 
-```bash
-npm start
-```
+// Utility to make a mock Express-like req/res
+function mockReqRes({ method = 'GET', url = '/api/matches', query = {}, body = {} } = {}) {
+  const json = jest.fn();
+  const end = jest.fn();
+  const status = jest.fn(() => ({ json, end }));
+  const setHeader = jest.fn();
+  const res = { status, setHeader, end, json };
+  const req = { method, url, query, body, headers: {} };
+  return { req, res, json, status, setHeader, end };
+}
 
-This will start a development server using mock data, which helps avoid unnecessary API requests during development.
+describe('matches API handler', () => {
+  let mockMatches, mockTeams;
 
-### 2. API Server (With Real API Calls)
-To run the app with real API calls:
+  beforeEach(() => {
+    mockMatches = {
+      find: jest.fn().mockReturnThis(),
+      sort: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      toArray: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn(),
+      updateOne: jest.fn(),
+    };
+    mockTeams = {
+      find: jest.fn().mockReturnThis(),
+      project: jest.fn().mockReturnThis(),
+      toArray: jest.fn().mockResolvedValue([]),
+    };
+    getMatchesCollection.mockResolvedValue(mockMatches);
+    getTeamsCollection.mockResolvedValue(mockTeams);
+    isAdmin.mockResolvedValue(true);
+  });
 
-```bash
-npx vercel dev
-```
+  afterEach(() => jest.clearAllMocks());
 
-This will start a development server that connects to the actual APIs.
+  test('OPTIONS returns 200', async () => {
+    const { req, res, end } = mockReqRes({ method: 'OPTIONS' });
+    await handler(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(end).toHaveBeenCalled();
+  });
 
-### 3. Combined Dev (React + Local API Proxy)
-To run React and a small local proxy that maps `/api/*` to the handlers in `api/`:
+  test('GET /api/matches returns enriched matches', async () => {
+    mockMatches.toArray.mockResolvedValue([
+      { id: 1, homeTeam: { id: 100 }, awayTeam: { name: 'Team A' } },
+    ]);
+    mockTeams.toArray.mockResolvedValue([
+      { id: 100, name: 'Home', crest: 'crest-home' },
+      { name: 'Team A', crest: 'crest-away' },
+    ]);
 
-```bash
-npm run dev
-```
+    const { req, res, json } = mockReqRes({
+      method: 'GET',
+      url: '/api/matches',
+      query: { limit: '1', competition: 'PL' },
+    });
+    await handler(req, res);
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({
+      success: true,
+      data: expect.any(Array),
+      count: 1,
+    }));
+    expect(mockMatches.find).toHaveBeenCalledWith(expect.objectContaining({
+      'competition.name': expect.any(RegExp),
+    }));
+    // Check crest enrichment
+    const result = json.mock.calls[0][0];
+    expect(result.data[0].homeTeam.crest).toBe('crest-home');
+    expect(result.data[0].awayTeam.crest).toBe('crest-away');
+  });
 
-This starts:
-- React dev server on http://localhost:3000
-- Express proxy on http://localhost:3001
+  test('GET /api/matches/:id returns match', async () => {
+    mockMatches.findOne.mockResolvedValue({ id: 2 });
+    const { req, res, json } = mockReqRes({ url: '/api/matches/2' });
+    await handler(req, res);
+    expect(mockMatches.findOne).toHaveBeenCalled();
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({ data: { id: 2 } }));
+  });
 
-You can call API endpoints via the React app at:
-- http://localhost:3000/api/joke
-- http://localhost:3000/api/sports-data
-- http://localhost:3000/api/status
-- http://localhost:3000/api/uptime
+  test('GET /api/matches/:id/events returns events', async () => {
+    mockMatches.findOne.mockResolvedValue({ id: 2, events: [{ id: 'e1' }] });
+    const { req, res, json } = mockReqRes({ url: '/api/matches/2/events' });
+    await handler(req, res);
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({
+      data: [{ id: 'e1' }],
+    }));
+  });
 
-Troubleshooting:
-- If you see `Cannot find module dev-proxy-server.js`, ensure the file exists in the repo root.
-- If port 3001 is in use, run `PROXY_PORT=4001 npm run dev` to use a different proxy port.
-- Requires Node 18+ for dynamic import used by the proxy.
+  test('GET returns 404 if match not found', async () => {
+    mockMatches.findOne.mockResolvedValue(null);
+    const { req, res, json } = mockReqRes({ url: '/api/matches/99' });
+    await handler(req, res);
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
+  });
 
-## Notes
+  test('POST /api/matches/:id/events adds event', async () => {
+    mockMatches.findOne.mockResolvedValue({ id: 2 });
+    mockMatches.updateOne.mockResolvedValue({ modifiedCount: 1 });
+    const { req, res, json } = mockReqRes({
+      method: 'POST',
+      url: '/api/matches/2/events',
+      body: { type: 'goal', team: 'Home' },
+    });
+    await handler(req, res);
+    expect(mockMatches.updateOne).toHaveBeenCalled();
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+  });
 
-- Use `npm start` for most development tasks to conserve API usage.
-- Only use `npx vercel dev` when you need to test with real API data.
+  test('POST forbidden if not admin', async () => {
+    isAdmin.mockResolvedValue(false);
+    const { req, res, json } = mockReqRes({ method: 'POST', url: '/api/matches/2/events' });
+    await handler(req, res);
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
+  });
 
-If you have any questions, please reach out to me (Josh).
+  test('PUT /api/matches/:id updates match', async () => {
+    mockMatches.updateOne.mockResolvedValue({ matchedCount: 1, modifiedCount: 1 });
+    const { req, res, json } = mockReqRes({
+      method: 'PUT',
+      url: '/api/matches/2',
+      body: { referee: 'John' },
+    });
+    await handler(req, res);
+    expect(mockMatches.updateOne).toHaveBeenCalled();
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+  });
 
-## Deploy to Azure (Container)
+  test('PUT /api/matches/:id/events/:eventId updates event', async () => {
+    mockMatches.updateOne.mockResolvedValue({ matchedCount: 1, modifiedCount: 1 });
+    const { req, res, json } = mockReqRes({
+      method: 'PUT',
+      url: '/api/matches/2/events/ev1',
+      body: { description: 'Update' },
+    });
+    await handler(req, res);
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+  });
 
-This app can run as a single container that serves the React build and the `/api/*` endpoints via an Express server.
+  test('DELETE /api/matches/:id/events/:eventId removes event', async () => {
+    mockMatches.updateOne.mockResolvedValue({ matchedCount: 1, modifiedCount: 1 });
+    const { req, res, json } = mockReqRes({
+      method: 'DELETE',
+      url: '/api/matches/2/events/ev1',
+    });
+    await handler(req, res);
+    expect(mockMatches.updateOne).toHaveBeenCalled();
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+  });
 
-Why this container? Azure Web App for Containers expects your app to listen on the `PORT` env var. Our server (`server.js`) serves the built React app and mounts the API handlers so everything runs in one container.
+  test('method not allowed returns 405', async () => {
+    const { req, res, json } = mockReqRes({ method: 'PATCH' });
+    await handler(req, res);
+    expect(res.status).toHaveBeenCalledWith(405);
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
+  });
 
-### Build locally
-
-Provide the Clerk publishable key at build time so React can inline it:
-
-```bash
-docker build \
-	-t sports-live:latest \
-	--build-arg REACT_APP_CLERK_PUBLISHABLE_KEY=pk_test_xxx \
-	.
-
-docker run --rm -p 8080:8080 \
-	-e FOOTBALL_API_TOKEN=your_football_api_token \
-	sports-live:latest
-```
-
-Then open http://localhost:8080.
-
-Notes:
-- Build-time: `REACT_APP_CLERK_PUBLISHABLE_KEY` is for client-side (public) use and is baked into the bundle.
-- Runtime: Set `FOOTBALL_API_TOKEN` (server-only) at container runtime or in Azure App Settings.
-
-### Push to Azure Container Registry (ACR) and deploy
-
-```bash
-# Create ACR if needed
-az acr create -g <resource-group> -n <acrName> --sku Basic
-az acr login -n <acrName>
-
-# Tag and push
-docker tag sports-live:latest <acrName>.azurecr.io/sports-live:latest
-docker push <acrName>.azurecr.io/sports-live:latest
-
-# Create Web App for Containers (Linux)
-az webapp create -g <resource-group> -p <appservice-plan> \
-	-n <app-name> --runtime "NODE:20-lts" --deployment-container-image-name <acrName>.azurecr.io/sports-live:latest
-
-# Configure container settings
-az webapp config container set -g <resource-group> -n <app-name> \
-	-i <acrName>.azurecr.io/sports-live:latest -r https://<acrName>.azurecr.io
-
-# App settings (runtime env)
-az webapp config appsettings set -g <resource-group> -n <app-name> \
-	--settings FOOTBALL_API_TOKEN=your_football_api_token
-```
-
-Azure will set `PORT` automatically; the server listens on that value (defaults to 8080 locally).
-
-## Deploy to Azure App Service (ZIP)
-
-If you prefer Azure App Service (Windows Free tier supported), deploy the Node server + built React assets via ZIP. We provide scripts that set app settings and package the right files.
-
-### Requirements
-- Azure CLI logged in (`az account show`)
-- Resource Group and App Service name
-- Env values:
-	- REACT_APP_CLERK_PUBLISHABLE_KEY (public, required at build-time)
-	- FOOTBALL_API_TOKEN (server-side, runtime)
-
-### 1) Provision App Service (Free F1, Windows, region example: centralindia)
-
-```bash
-./scripts/deploy-azure-appservice.sh <resourceGroup> <planName> <appName> \
-	--location <allowed-region> \
-	--sku F1 \
-	--clerk <publishableKey> \
-	--football <apiToken>
-```
-
-Notes:
-- Your subscription may restrict regions/SKUs. Use an allowed region (e.g., centralindia, uaenorth, southafricanorth, brazilsouth, brazilsoutheast).
-- On Windows App Service, `web.config` routes traffic to `server.js` via iisnode.
-
-### 2) Deploy via ZIP
-
-Option A — Build on Azure (simple, slower):
-```bash
-./scripts/deploy-azure-zip.sh <resourceGroup> <appName> \
-	--clerk <publishableKey> \
-	--football <apiToken>
-```
-
-Option B — Local build (recommended on Windows):
-```bash
-./scripts/deploy-azure-zip.sh <resourceGroup> <appName> \
-	--clerk <publishableKey> \
-	--football <apiToken> \
-	--local-build
-```
-
-What the script does:
-- Sets WEBSITE_NODE_DEFAULT_VERSION=~20 and SCM_DO_BUILD_DURING_DEPLOYMENT (when not local-build)
-- Ensures Clerk key is available for the CRA build
-- Packages server.js, api/, build/, package*.json, and web.config (with --local-build)
-
-### Verify
-
-```bash
-az webapp log tail -g <resourceGroup> -n <appName>
-```
-
-Open:
-- https://<appName>.azurewebsites.net/
-- https://<appName>.azurewebsites.net/api/status
-- https://<appName>.azurewebsites.net/api/sports-data
-
-### Troubleshooting
-- 404 on root/static assets (Windows): ensure `web.config` is deployed or use `--local-build` packaging.
-- App crashes on wildcard route: Express v5 requires regex fallback. We use `app.get(/^\/(?!api\/).*/, ...)`.
-- `Missing Publishable Key`: set REACT_APP_CLERK_PUBLISHABLE_KEY in App Settings (ZIP) or pass via `--clerk`.
-- `fetch is not defined`: ensure Node >=18. We set WEBSITE_NODE_DEFAULT_VERSION=~20.
+  test('internal error returns 500', async () => {
+    getMatchesCollection.mockRejectedValue(new Error('DB fail'));
+    const { req, res, json } = mockReqRes();
+    await handler(req, res);
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
+  });
+});
