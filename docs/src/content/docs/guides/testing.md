@@ -12,7 +12,7 @@ We are using:
 
 - **Jest** → for unit testing JavaScript functions and API logic. 
 - **React Testing Library** → for UI testing of React components.  
-- **Supertest** → for testing backend API endpoints. 
+
 
 ### Why we Chose Jest:
 
@@ -107,6 +107,9 @@ We aim for 80%+ coverage, with priority on:
 - Event logging
 
 - Score Display & Dashboard
+
+  # User Feedback: 
+  We use Google Forms to establish user feeback,as shown in the User Feedback section.
 
 
 # UI Testing
