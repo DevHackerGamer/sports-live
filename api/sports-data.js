@@ -178,26 +178,39 @@ async function handler(req, res) {
       ? allMatches.filter(m => (m.competition?.code || '').toUpperCase() === competitionFilter.toUpperCase())
       : allMatches;
 
+    // Helper to normalize objects to strings for React rendering
+    const normalizeText = (val, fallback = 'Unknown') => {
+      if (val == null) return fallback;
+      if (typeof val === 'string') return val;
+      if (typeof val === 'object') {
+        if (typeof val.en === 'string') return val.en;
+        if (typeof val.name === 'string') return val.name;
+        const first = Object.values(val).find(v => typeof v === 'string');
+        if (first) return first;
+      }
+      return fallback;
+    };
+
     const games = filtered
       .slice(0, limit)
       .map(m => ({
         id: m.id,
-        homeTeam: m.homeTeam?.name || m.homeTeam?.shortName,
-        awayTeam: m.awayTeam?.name || m.awayTeam?.shortName,
+        homeTeam: normalizeText(m.homeTeam?.name || m.homeTeam?.shortName),
+        awayTeam: normalizeText(m.awayTeam?.name || m.awayTeam?.shortName),
         homeScore: m.score?.fullTime?.home ?? m.score?.halfTime?.home ?? 0,
         awayScore: m.score?.fullTime?.away ?? m.score?.halfTime?.away ?? 0,
         status: m.status === 'IN_PLAY' ? 'live' :
                m.status === 'FINISHED' ? 'final' :
                (m.status === 'SCHEDULED' || m.status === 'TIMED') ? 'scheduled' : 'upcoming',
         sport: 'Football',
-        competition: m.competition?.name || m.competition?.code || 'Football',
+        competition: normalizeText(m.competition?.name || m.competition?.code, 'Football'),
         competitionCode: m.competition?.code,
-        venue: m.venue || 'TBD',
+        venue: normalizeText(m.venue, 'TBD'),
         minute: null,
         utcDate: m.utcDate,
         matchday: m.matchday,
         lastChanged: m.lastUpdated,
-        area: m.competition?.area?.name
+        area: normalizeText(m.competition?.area?.name)
       }));
 
     const payload = {

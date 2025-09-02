@@ -1,0 +1,193 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{longtable}
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{hyperref}
+\usepackage{tocloft} % for nicer table of contents
+
+\title{Database Documentation}
+\author{Kwezi Mudacumura}
+\date{\today}
+
+\begin{document}
+\section{Database Documentation}
+
+
+Database documentation
+
+
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Overview}
+This document describes the database schema for the \textbf{Sports Live} web application.  
+The database uses \textbf{MongoDB}, and the API manages access via role-based authentication (Clerk or dev headers).
+
+\section{Database: \texttt{sports\_live}}
+
+\subsection{Collections / Tables}
+
+\subsubsection{Users}
+Stores user accounts and metadata.
+
+\begin{longtable}{|p{3cm}|p{3cm}|p{7cm}|}
+\hline
+\textbf{Field} & \textbf{Type} & \textbf{Description} \\
+\hline
+\_id & ObjectId & Unique ID \\
+username & string & User display name \\
+email & string & User email \\
+privateMetadata & object & Private role/type info for Clerk auth \\
+publicMetadata & object & Public role/type info for Clerk auth \\
+createdAt & timestamp & Account creation date \\
+\hline
+\end{longtable}
+
+\textbf{Notes:} Roles are used for access control (admin, user, etc.). The API checks roles via the auth helper.
+
+\subsubsection{Match\_Info}
+Stores matches and scores.
+
+\begin{longtable}{|p{3cm}|p{3cm}|p{7cm}|}
+\hline
+\textbf{Field} & \textbf{Type} & \textbf{Description} \\
+\hline
+\_id & ObjectId & Unique match ID \\
+teamA & string & Name or ID of team A \\
+teamB & string & Name or ID of team B \\
+scoreA & number & Score of team A \\
+scoreB & number & Score of team B \\
+startTime & timestamp & Match start time \\
+status & string & Match status (upcoming, live, finished) \\
+\hline
+\end{longtable}
+
+\subsubsection{Teams}
+Stores information about teams.
+
+\begin{longtable}{|p{3cm}|p{3cm}|p{7cm}|}
+\hline
+\textbf{Field} & \textbf{Type} & \textbf{Description} \\
+\hline
+\_id & ObjectId & Unique team ID \\
+name & string & Team name \\
+city & string & Optional city/location \\
+logo & string & URL of team logo \\
+\hline
+\end{longtable}
+
+\subsubsection{Players}
+Stores information about players.
+
+\begin{longtable}{|p{3cm}|p{3cm}|p{7cm}|}
+\hline
+\textbf{Field} & \textbf{Type} & \textbf{Description} \\
+\hline
+\_id & ObjectId & Unique player ID \\
+name & string & Player name \\
+teamId & ObjectId & Reference to team (Teams.\_id) \\
+position & string & Player position \\
+stats & object & Optional performance stats \\
+\hline
+\end{longtable}
+
+\subsubsection{User\_Preferences}
+Stores user-specific preferences.
+
+\begin{longtable}{|p{3cm}|p{3cm}|p{7cm}|}
+\hline
+\textbf{Field} & \textbf{Type} & \textbf{Description} \\
+\hline
+\_id & ObjectId & Unique preference ID \\
+userId & ObjectId & Reference to Users.\_id \\
+settings & object & Preference data (notifications, theme, etc.) \\
+\hline
+\end{longtable}
+
+\subsubsection{Favorite\_Teams}
+Tracks users’ favorite teams.
+
+\begin{longtable}{|p{3cm}|p{3cm}|p{7cm}|}
+\hline
+\textbf{Field} & \textbf{Type} & \textbf{Description} \\
+\hline
+\_id & ObjectId & Unique ID \\
+userId & ObjectId & Reference to Users.\_id \\
+teamId & ObjectId & Reference to Teams.\_id \\
+\hline
+\end{longtable}
+
+\subsubsection{Display\_State}
+Stores UI or display state.
+
+\begin{longtable}{|p{3cm}|p{3cm}|p{7cm}|}
+\hline
+\textbf{Field} & \textbf{Type} & \textbf{Description} \\
+\hline
+\_id & ObjectId & Unique ID \\
+userId & ObjectId & Reference to Users.\_id \\
+state & object & UI state info (view preferences, filters, etc.) \\
+\hline
+\end{longtable}
+
+\subsubsection{Event\_Log}
+Logs events or actions in the system.
+
+\begin{longtable}{|p{3cm}|p{3cm}|p{7cm}|}
+\hline
+\textbf{Field} & \textbf{Type} & \textbf{Description} \\
+\hline
+\_id & ObjectId & Unique log ID \\
+userId & ObjectId & Optional reference to Users.\_id \\
+action & string & Action description \\
+timestamp & timestamp & Event timestamp \\
+\hline
+\end{longtable}
+
+\section{Relationships}
+\begin{itemize}
+    \item A \textbf{User} can have many \textbf{Favorite\_Teams}.
+    \item A \textbf{User} can have many \textbf{User\_Preferences}.
+    \item A \textbf{Match\_Info} links to two \textbf{Teams}.
+    \item A \textbf{Player} belongs to a \textbf{Team}.
+    \item Admin role can manage matches, teams, players, and event logs.
+\end{itemize}
+
+\section{Roles \& Authentication}
+\begin{itemize}
+    \item Users may have a role/type stored in \textbf{privateMetadata} or \textbf{publicMetadata} (Clerk).
+    \item Dev headers (\texttt{X-User-Type}, \texttt{X-User-Role}) are used for testing when Clerk is not configured.
+    \item API checks roles for sensitive endpoints (e.g., admin-only actions).
+\end{itemize}
+
+\section{Sample Queries}
+
+\subsection{Get all upcoming matches}
+\begin{verbatim}
+const matches = await getMatchesCollection().find({ status: 'upcoming' }).toArray();
+\end{verbatim}
+
+\subsection{Get all favorite teams for a user}
+\begin{verbatim}
+const favs = await getFavoriteTeamsCollection().find({ userId: userId }).toArray();
+\end{verbatim}
+
+\subsection{Check if a user is admin}
+\begin{verbatim}
+const admin = await isAdmin(req);
+\end{verbatim}
+
+\section{Deployment Notes}
+\begin{itemize}
+    \item Ensure MongoDB URI is set in environment variables: \texttt{MONGODB\_URI}.
+    \item Set the database name: \texttt{DATABASE\_NAME=sports\_live}.
+    \item Install dependencies: \texttt{npm install mongodb dotenv @clerk/express}.
+    \item Start the server: \texttt{node server.js} or your preferred method.
+    \item For production, make sure Clerk is configured and dev headers are disabled.
+\end{itemize}
+
+\end{document}
+
