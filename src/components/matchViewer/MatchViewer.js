@@ -54,19 +54,131 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
         const matchResponse = await apiClient.getMatchById(match.id || match._id);
         setMatchDetails(matchResponse.data);
         setMeta({ referee: matchResponse.data?.referee || '', venue: matchResponse.data?.venue || '' });
-        
         // If the API doesn't return any events, fetch them separately
+        const normalizeEvents = (raw = []) => {
+          const homeTeamName = (match.homeTeam?.name || match.homeTeam || '').toString();
+          const awayTeamName = (match.awayTeam?.name || match.awayTeam || '').toString();
+          return raw.map(ev => {
+            // Safely clone
+            const out = { ...ev };
+            // Derive minute (robust coercion)
+            let minute = out.minute;
+            if (minute != null && minute !== '') {
+              if (typeof minute === 'string') {
+                const parsed = parseInt(minute, 10);
+                minute = Number.isNaN(parsed) ? undefined : parsed;
+              } else if (typeof minute !== 'number') {
+                minute = undefined;
+              }
+            }
+            if ((minute == null || minute === '') && out.time) {
+              const m = parseInt(String(out.time).split(':')[0], 10);
+              minute = Number.isNaN(m) ? undefined : m;
+            }
+            // Team side detection
+            const rawTeamStr = (out.team || out.teamName || out.teamSide || '').toString();
+            const lcRaw = rawTeamStr.toLowerCase();
+            let side = '';
+            if (lcRaw === homeTeamName.toLowerCase()) side = 'home';
+            else if (lcRaw === awayTeamName.toLowerCase()) side = 'away';
+            else if (/^home$/.test(lcRaw)) side = 'home';
+            else if (/^away$/.test(lcRaw)) side = 'away';
+            else if (/home/.test(lcRaw) && !/away/.test(lcRaw)) side = 'home';
+            else if (/away/.test(lcRaw) && !/home/.test(lcRaw)) side = 'away';
+            // Fill team name if missing but side known
+            if ((!out.team || typeof out.team !== 'string' || out.team.trim()==='') && side) {
+              out.team = side === 'home' ? homeTeamName : awayTeamName;
+            }
+            // Canonical / inferred type
+            let rawType = out.type || out.eventType || out.kind;
+            if (!rawType || rawType === 'other') {
+              const desc = (out.description || '').toLowerCase();
+              if (/penalty/.test(desc)) rawType = 'penalty';
+              else if (/own goal|owngoal/.test(desc)) rawType = 'own_goal';
+              else if (/yellow card/.test(desc) && /second/.test(desc)) rawType = 'second_yellow';
+              else if (/yellow card|booking|cautioned/.test(desc)) rawType = 'yellow_card';
+              else if (/red card|sent off|dismissed/.test(desc)) rawType = 'red_card';
+              else if (/substitut|replaces|comes on|→/.test(desc)) rawType = 'substitution';
+              else if (/corner/.test(desc)) rawType = 'corner_kick';
+              else if (/free kick|freekick/.test(desc)) rawType = 'free_kick';
+              else if (/foul/.test(desc)) rawType = 'foul';
+              else if (/offside/.test(desc)) rawType = 'offside';
+              else if (/save/.test(desc)) rawType = 'save';
+              else if (/injury/.test(desc)) rawType = 'injury';
+              else if (/kick off|kick-off|kickoff/.test(desc)) rawType = 'match_start';
+              else if (/half time|halftime/.test(desc)) rawType = 'half_time';
+              else if (/full time|match end|ended/.test(desc)) rawType = 'match_end';
+              else if (/goal|scores|scored|header|shot/.test(desc)) rawType = 'goal';
+            }
+            out.type = canonicalEventType(rawType);
+            out.minute = (minute != null) ? minute : undefined;
+            out._side = side;
+            // Build description if missing
+            const hasDesc = !!(out.description && out.description.trim());
+            const playerOut = out.playerOut || out.subOut;
+            const playerIn = out.playerIn || out.subIn;
+            if (!hasDesc) {
+              let base = '';
+              const label = eventLabel(out.type);
+              base += label;
+              if (out.team) base += ` - ${out.team}`;
+              if (out.player) base += ` - ${out.player}`;
+              else if (playerOut || playerIn) base += ` - ${(playerOut||'')} ${playerOut&&playerIn?'→':''} ${(playerIn||'')}`;
+              out.description = base;
+            }
+            return out;
+          });
+        };
+        let mergedEvents = [];
         if (!matchResponse.data.events || matchResponse.data.events.length === 0) {
-          const eventsResponse = await apiClient.getMatchEvents(match.id || match._id);
-          setEvents(eventsResponse.data || []);
+          try {
+            const eventsResponse = await apiClient.getMatchEvents(match.id || match._id);
+            mergedEvents = normalizeEvents(eventsResponse.data || []);
+            // If still empty, pull from Event_Log using matchId
+            if (!mergedEvents.length) {
+              try {
+                const logRes = await apiClient.getEventLog({ matchId: match.id || match._id, limit: 200 });
+                const fromLog = (logRes.events || []).filter(e => e.type && e.data && (e.matchId === (match.id || match._id) || e.data.matchId === (match.id || match._id)) ).map(e => {
+                  const raw = { ...(e.data || {}), type: e.type, description: e.message };
+                  return raw;
+                });
+                if (fromLog.length) mergedEvents = normalizeEvents(fromLog);
+              } catch (_) {}
+            }
+          } catch {
+            mergedEvents = [];
+          }
         } else {
-          setEvents(matchResponse.data.events || []);
+          mergedEvents = normalizeEvents(matchResponse.data.events || []);
         }
+        setEvents(mergedEvents);
       } catch (apiError) {
         console.warn('Detailed match API failed:', apiError.message);
-        // If API fails, use the basic match data we already have
-        setMatchDetails(match);
-        setEvents([]);
+        // Fallback: keep passed-in match and attempt to fetch events directly
+        setMatchDetails(prev => prev || match);
+        try {
+          const eventsResponse = await apiClient.getMatchEvents(match.id || match._id);
+          const normalizeEvents = (raw = []) => raw.map(ev => {
+            const norm = { ...ev };
+            if (norm.minute == null && norm.time) {
+              const m = parseInt(String(norm.time).split(':')[0],10); norm.minute = Number.isNaN(m) ? undefined : m; }
+            else if (typeof norm.minute === 'string') {
+              const parsed = parseInt(norm.minute, 10); norm.minute = Number.isNaN(parsed) ? undefined : parsed; }
+            if (!norm.team && norm.teamSide && /^(home|away)$/i.test(norm.teamSide)) {
+              norm.team = norm.teamSide.toLowerCase() === 'home' ? (match.homeTeam?.name || match.homeTeam) : (match.awayTeam?.name || match.awayTeam);
+            }
+            norm.type = canonicalEventType(norm.type || norm.eventType);
+            if (!norm.description) {
+              const label = eventLabel(norm.type);
+              norm.description = [label, norm.team, norm.player].filter(Boolean).join(' - ');
+            }
+            return norm;
+          });
+          setEvents(normalizeEvents(eventsResponse.data || []));
+        } catch (evErr) {
+          console.warn('Events fetch after match 404 failed:', evErr.message);
+          setEvents([]);
+        }
       }
 
       // Fetch teams list and players to support admin editing
@@ -122,20 +234,49 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
     });
   };
 
-  const getEventIcon = (type) => {
-    switch(type) {
-      case 'goal': return '⚽';
-      case 'yellow_card': return '🟨';
-      case 'red_card': return '🟥';
-      case 'substitution': return '🔁';
-      case 'match_start': return '▶️';
-      case 'match_end': return '⏹️';
-      case 'half_time': return '⏸️';
-      case 'injury': return '🤕';
-      case 'penalty': return '🎯';
-      default: return '🔔';
+  const canonicalEventType = (raw) => {
+    if (!raw) return 'other';
+    const t = String(raw).toLowerCase();
+    const map = {
+      goal: 'goal', penalty: 'penalty', penaltygoal: 'penalty', 'penalty goal': 'penalty',
+      own_goal: 'own_goal', owngoal: 'own_goal',
+      yellow: 'yellow_card', yellowcard: 'yellow_card',
+      red: 'red_card', redcard: 'red_card',
+      yellowred: 'second_yellow', secondyellow: 'second_yellow', second_yellow: 'second_yellow',
+      substitution: 'substitution', sub: 'substitution',
+      foul: 'foul', freekick: 'free_kick', free_kick: 'free_kick',
+      corner: 'corner_kick', cornerkick: 'corner_kick',
+      injury: 'injury', offside: 'offside', save: 'save',
+      halftime: 'half_time', half_time: 'half_time',
+      match_start: 'match_start', kickoff: 'match_start',
+      match_end: 'match_end', matchend: 'match_end'
+    };
+    return map[t] || t || 'other';
+  };
+
+  const eventLabel = (type) => {
+    switch (canonicalEventType(type)) {
+      case 'goal': return 'Goal';
+      case 'penalty': return 'Penalty Goal';
+      case 'own_goal': return 'Own Goal';
+      case 'yellow_card': return 'Yellow Card';
+      case 'red_card': return 'Red Card';
+      case 'second_yellow': return 'Second Yellow';
+      case 'substitution': return 'Substitution';
+      case 'foul': return 'Foul';
+      case 'free_kick': return 'Free Kick';
+      case 'corner_kick': return 'Corner Kick';
+      case 'offside': return 'Offside';
+      case 'save': return 'Save';
+      case 'injury': return 'Injury';
+      case 'match_start': return 'Kick Off';
+      case 'half_time': return 'Half Time';
+      case 'match_end': return 'Full Time';
+      default: return 'Event';
     }
   };
+
+  // Removed emoji icons for events to keep UI minimal
 
   const handleCommentSubmit = (e) => {
     e.preventDefault();
@@ -194,6 +335,34 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
     };
     const rawStatus = (dm.status || '').toString();
     if (rawStatus === 'IN_PLAY') dm.status = 'live';
+    // Derive scores if not directly present
+    if (dm.homeScore == null) {
+      dm.homeScore = dm?.score?.fullTime?.home ?? dm?.score?.halfTime?.home ?? dm?.score?.regular?.home ?? 0;
+    }
+    if (dm.awayScore == null) {
+      dm.awayScore = dm?.score?.fullTime?.away ?? dm?.score?.halfTime?.away ?? dm?.score?.regular?.away ?? 0;
+    }
+    // If still nullish ensure numbers
+    dm.homeScore = typeof dm.homeScore === 'number' ? dm.homeScore : 0;
+    dm.awayScore = typeof dm.awayScore === 'number' ? dm.awayScore : 0;
+
+    // Derive current minute if live and missing
+    if (dm.status === 'live' && (dm.minute == null || dm.minute === '')) {
+      // Try latest event with a minute/time
+      const evs = (dm.events || events || []).slice().sort((a,b)=> (b.minute||0) - (a.minute||0));
+      if (evs.length && (evs[0].minute || evs[0].time)) {
+        const m = evs[0].minute || parseInt(String(evs[0].time).split(':')[0],10);
+        if (!isNaN(m)) dm.minute = m;
+      }
+      // Fallback: compute from scheduled start time
+      if (!dm.minute && dm.utcDate) {
+        const started = Date.parse(dm.utcDate);
+        if (!isNaN(started)) {
+          const diff = Math.floor((Date.now()-started)/60000);
+          if (diff >=0 && diff <= 130) dm.minute = diff; // allow extra time
+        }
+      }
+    }
     return dm;
   }, [displayMatchRaw]);
 
@@ -349,21 +518,68 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
           <h3>Match Events Timeline</h3>
           {events.length > 0 ? (
             <div className="events-timeline">
-              {events.map((event, index) => (
-                <div key={event.id || `event-${index}`} className={`event-item ${event.type}`}>
-                  <div className="event-time">{event.time || event.minute}'</div>
-                  <div className="event-icon">{getEventIcon(event.type)}</div>
-                  <div className="event-details">
-                    <div className="event-description">{event.description}</div>
-                    {event.player && (
-                      <div className="event-player">{event.player}</div>
-                    )}
-                    {event.team && (
-                      <div className="event-team">{event.team}</div>
-                    )}
-                  </div>
-                </div>
-              ))}
+              {events
+                .slice()
+                .sort((a,b) => {
+                  // Sort by minute then created/order (undefined minutes last)
+                  const ma = (a.minute === 0 || a.minute) ? a.minute : (a.time ? parseInt(String(a.time).split(':')[0],10) : undefined);
+                  const mb = (b.minute === 0 || b.minute) ? b.minute : (b.time ? parseInt(String(b.time).split(':')[0],10) : undefined);
+                  if (ma == null && mb == null) return 0;
+                  if (ma == null) return 1;
+                  if (mb == null) return -1;
+                  return ma - mb;
+                })
+                .map((event, index) => {
+                  const t = canonicalEventType(event.type);
+                  const label = eventLabel(t);
+                  // Derive minute but do NOT force 0 (empty instead) to avoid showing misleading 0'
+                  let minute;
+                  if (event.minute !== undefined && event.minute !== null && event.minute !== '') {
+                    if (typeof event.minute === 'number') minute = event.minute;
+                    else {
+                      const p = parseInt(String(event.minute), 10);
+                      minute = Number.isNaN(p) ? undefined : p;
+                    }
+                  } else if (event.time) {
+                    const m = parseInt(String(event.time).split(':')[0], 10);
+                    minute = Number.isNaN(m) ? undefined : m;
+                  }
+                  const minuteDisplay = (minute === 0 || minute == null) ? '' : minute; // hide 0'
+                  const isSub = t === 'substitution';
+                  const playerDisplay = isSub && (event.playerOut || event.playerIn)
+                    ? `${event.playerOut || ''}${event.playerOut && event.playerIn ? ' → ' : ''}${event.playerIn || ''}`
+                    : (event.player || '');
+                  // Derive team name even if only side stored
+                  const rawTeam = (event.team || event.teamName || '').toString();
+                  const side = /^(home|away)$/i.test(rawTeam)
+                    ? rawTeam.toLowerCase()
+                    : ((event.teamSide && /^(home|away)$/i.test(event.teamSide)) ? event.teamSide.toLowerCase() : '');
+                  const teamName = (/^(home|away)$/i.test(rawTeam) || !rawTeam)
+                    ? (side === 'home' ? (displayMatch.homeTeam || 'Home') : side === 'away' ? (displayMatch.awayTeam || 'Away') : rawTeam)
+                    : rawTeam;
+                  // Build a smart fallback description
+                  const fallbackPieces = [];
+                  if (!event.description) {
+                    fallbackPieces.push(label);
+                    if (teamName) fallbackPieces.push(teamName);
+                    if (playerDisplay) fallbackPieces.push(playerDisplay);
+                  }
+                  const descriptionText = event.description || fallbackPieces.join(' - ');
+                  return (
+                    <div key={event.id || `event-${index}`} className={`event-item ${t}`}>
+                      <div className="event-time" title="Match minute">{minuteDisplay !== '' ? `${minuteDisplay}'` : ''}</div>
+                      <div className="event-icon" title={label}>{label}</div>
+                      <div className="event-details">
+                        <div className="event-description">{descriptionText}</div>
+                        {!event.description && playerDisplay && teamName && (
+                          <div className="event-meta">{teamName} • {playerDisplay}</div>
+                        )}
+                        {event.description && playerDisplay && <div className="event-player">{playerDisplay}</div>}
+                        {event.description && teamName && <div className="event-team">{teamName}</div>}
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
           ) : (
             <div className="no-events">

@@ -214,6 +214,11 @@
   font-size: 0.85rem;
   color: #374151;
 }
+.event-meta {
+  font-size: 0.75rem;
+  color: #4b5563;
+  margin-top: 2px;
+}
 
 /* Comments */
 .event-comments {

@@ -254,6 +254,19 @@ const LiveSports = ({ onMatchSelect }) => {
 
 // Memoized heavy card to avoid unnecessary re-renders
 const MatchCard = React.memo(function MatchCard({ game, onSelect, getStatusBadge, formatDate, formatTime }) {
+  // Derive minute if live and missing
+  let displayMinute = game.minute;
+  const statusKey = (game.status || '').toLowerCase();
+  if ((statusKey === 'live' || statusKey === 'in_play' || statusKey === 'inplay') && (displayMinute == null || displayMinute === '')) {
+    // Try to compute from utcDate
+    if (game.utcDate) {
+      const startMs = Date.parse(game.utcDate);
+      if (!isNaN(startMs)) {
+        const diff = Math.floor((Date.now() - startMs) / 60000);
+        if (diff >= 0 && diff <= 130) displayMinute = diff;
+      }
+    }
+  }
   return (
     <div
       className="match-card clickable"
@@ -313,8 +326,8 @@ const MatchCard = React.memo(function MatchCard({ game, onSelect, getStatusBadge
           )}
         </div>
         <div className="meta-right">
-          {game.minute && ['live','in_play','inplay'].includes((game.status||'').toLowerCase()) && (
-            <span className="match-time">{game.minute}'</span>
+          {(['live','in_play','inplay'].includes(statusKey) && displayMinute != null && displayMinute !== '') && (
+            <span className="match-time">{displayMinute}'</span>
           )}
           {game.venue && game.venue !== 'TBD' && <span className="venue">{game.venue}</span>}
         </div>

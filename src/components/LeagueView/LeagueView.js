@@ -1,5 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import '../../styles/LeagueStandings.css';
+
+// Lightweight debug logger (enable by setting window.__DEBUG_STANDINGS__ = true in console)
+const dlog = (...args) => {
+  if (typeof window !== 'undefined' && window.__DEBUG_STANDINGS__) {
+    // eslint-disable-next-line no-console
+    console.log('[Standings]', ...args);
+  }
+};
 
 const competitions = [
   { code: "PL", name: "Premier League" },
@@ -16,44 +24,42 @@ const LeagueStandings = ({ initialLeague = "PL", onBack }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchStandings();
-  }, [competitionCode]);
-
-  const fetchStandings = async () => {
+  // Memoize fetchStandings so eslint hook rules are satisfied and we avoid redefining
+  const fetchStandings = useCallback(async () => {
     setLoading(true);
     setError('');
     setStandings([]);
     const season = '2025'; // Default season year
     try {
-      console.log('Fetching standings for:', competitionCode);
+      dlog('Fetching', { competitionCode });
       const res = await fetch(`/api/standings?competition=${competitionCode}&season=${season}`);
       const data = await res.json();
-      console.log('Data returned:', data.data.map(d => d._id));
+      dlog('Returned ids', Array.isArray(data.data) ? data.data.map(d => d._id) : data.data);
       let doc = null;
 
       if (Array.isArray(data.data) && data.data.length > 0) {
-        console.log("CompetitionCode:", competitionCode);
-        console.log("Raw API data:", data);
+        dlog('Raw length', data.data.length);
         doc = data.data.find(d => d._id === `${competitionCode}-${season}`);
            if (!doc) {
                 doc = data.data.find(d => d.competition?.code?.toUpperCase() === competitionCode.toUpperCase());
       }
       // fallback to first returned doc
       if (!doc) doc = data.data[0];
-    
-        console.log("Resolved doc:", doc);
-        console.log("Table for this doc:", doc?.standings?.[0]?.table);
+        dlog('Resolved doc id', doc?._id);
         const table = doc?.standings?.find(s => s.type === 'TOTAL')?.table || doc?.standings?.[0]?.table || [];
         setStandings(table);
       } 
     } catch (err) {
       setError('Failed to load standings. Please try again.');
-      console.error(err);
+      dlog('Error', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [competitionCode]);
+
+  useEffect(() => {
+    fetchStandings();
+  }, [fetchStandings]);
 
   return (
     <div className="league-standings">
@@ -72,11 +78,10 @@ const LeagueStandings = ({ initialLeague = "PL", onBack }) => {
         <label>Select League:</label>
         <select
           value={competitionCode}
-          onChange={(e) =>{
-             console.log('League selected:', e.target.value);
-              setCompetitionCode(e.target.value)}
-
-          }
+          onChange={(e) => {
+            setCompetitionCode(e.target.value);
+            dlog('League changed', e.target.value);
+          }}
             
           
           

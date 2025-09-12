@@ -1,6 +1,177 @@
 // API endpoint for matches - compatible with both Express and Vercel
-const { getMatchesCollection, getTeamsCollection } = require('../lib/mongodb');
+const { getMatchesCollection, getTeamsCollection, getDatabase } = require('../lib/mongodb');
 const { ObjectId } = require('mongodb');
+
+// Canonicalize event type strings to a controlled set
+function canonicalEventType(raw) {
+  if (!raw) return 'other';
+  const t = String(raw).toLowerCase().trim();
+  const map = {
+    goal: 'goal',
+    penalty: 'penalty',
+    penaltygoal: 'penalty',
+    'penalty goal': 'penalty',
+    owngoal: 'own_goal',
+    own_goal: 'own_goal',
+    yellow: 'yellow_card',
+    yellowcard: 'yellow_card',
+    red: 'red_card',
+    redcard: 'red_card',
+    yellowred: 'second_yellow',
+    secondyellow: 'second_yellow',
+    substitution: 'substitution',
+    sub: 'substitution',
+    injury: 'injury',
+    foul: 'foul',
+    corner: 'corner_kick',
+    cornerkick: 'corner_kick',
+    freekick: 'free_kick',
+    free_kick: 'free_kick',
+    offside: 'offside',
+    save: 'save',
+    halftime: 'half_time',
+    half_time: 'half_time',
+    match_end: 'match_end',
+    matchend: 'match_end',
+    match_start: 'match_start',
+    kickoff: 'match_start'
+  };
+  return map[t] || t || 'other';
+}
+
+// Determine if an event type affects the score (and how)
+function isScoringEvent(type) {
+  const t = canonicalEventType(type);
+  return t === 'goal' || t === 'penalty' || t === 'own_goal';
+}
+
+// Compute aggregate score from a list of normalized events
+function tallyScoreFromEvents(events = [], match) {
+  let home = 0;
+  let away = 0;
+  const homeName = (match?.homeTeam?.name || match?.homeTeam || '').toString().toLowerCase();
+  const awayName = (match?.awayTeam?.name || match?.awayTeam || '').toString().toLowerCase();
+  for (const ev of events) {
+    const base = canonicalEventType(ev.type || ev?.data?.type);
+    if (!isScoringEvent(base)) continue;
+    // teamSide may be on root or data
+    let side = ev.teamSide || ev?.data?.teamSide || '';
+    if (side !== 'home' && side !== 'away') {
+      const teamLc = (ev.team || ev?.data?.team || ev?.data?.teamName || '').toString().toLowerCase();
+      if (teamLc === 'home' || (homeName && teamLc === homeName)) side = 'home';
+      else if (teamLc === 'away' || (awayName && teamLc === awayName)) side = 'away';
+      else side = '';
+    }
+    if (!side) continue;
+    if (base === 'own_goal') {
+      if (side === 'home') away += 1; else home += 1;
+    } else {
+      if (side === 'home') home += 1; else away += 1;
+    }
+  }
+  return { home, away };
+}
+
+// Recompute and persist rolling scoreAfter on Event_Log for a given match
+async function recomputeEventLogScores(match, db) {
+  if (!db) db = await getDatabase();
+  const eventLog = db.collection('Event_Log');
+  const matchId = match.id || match._id?.toString();
+  if (!matchId) return;
+  const docs = await eventLog.find({ $or: [ { matchId }, { matchId: String(matchId) }, { 'data.matchId': matchId } ] })
+    .sort({ 'data.minute': 1, timestamp: 1 })
+    .toArray();
+  let rolling = { home: 0, away: 0 };
+  for (const doc of docs) {
+    const base = canonicalEventType(doc.type || doc?.data?.type);
+    if (isScoringEvent(base)) {
+      // Infer side
+      let side = doc?.data?.teamSide || '';
+      if (side !== 'home' && side !== 'away') {
+        const teamLc = (doc?.data?.team || doc?.data?.teamName || '').toString().toLowerCase();
+        const h = (match?.homeTeam?.name || match?.homeTeam || '').toString().toLowerCase();
+        const a = (match?.awayTeam?.name || match?.awayTeam || '').toString().toLowerCase();
+        if (teamLc === 'home' || (h && teamLc === h)) side = 'home';
+        else if (teamLc === 'away' || (a && teamLc === a)) side = 'away';
+        else side = '';
+      }
+      if (side) {
+        if (base === 'own_goal') {
+          if (side === 'home') rolling.away += 1; else rolling.home += 1;
+        } else {
+          if (side === 'home') rolling.home += 1; else rolling.away += 1;
+        }
+      }
+    }
+    // Persist a snapshot of score after this event
+    try {
+      await eventLog.updateOne({ _id: doc._id }, { $set: { scoreAfter: { home: rolling.home, away: rolling.away } } });
+    } catch (_) {}
+  }
+  // Update match document mirror for quick reads
+  const matchesCollection = await getMatchesCollection();
+  try {
+    await matchesCollection.updateOne(
+      { $or: [ { id: match.id }, { _id: match._id } ] },
+      { $set: { 'score.fullTime.home': rolling.home, 'score.fullTime.away': rolling.away, homeScore: rolling.home, awayScore: rolling.away, lastUpdated: new Date() } }
+    );
+  } catch (_) {}
+}
+
+function buildDescription(ev) {
+  if (ev.description) return ev.description;
+  const base = canonicalEventType(ev.type);
+  const labelMap = {
+    goal: 'Goal',
+    penalty: 'Penalty Goal',
+    own_goal: 'Own Goal',
+    yellow_card: 'Yellow Card',
+    red_card: 'Red Card',
+    second_yellow: 'Second Yellow',
+    substitution: 'Substitution',
+    injury: 'Injury',
+    foul: 'Foul',
+    corner_kick: 'Corner Kick',
+    free_kick: 'Free Kick',
+    offside: 'Offside',
+    save: 'Save',
+    half_time: 'Half Time',
+    match_end: 'Full Time',
+    match_start: 'Kick Off'
+  };
+  const label = labelMap[base] || 'Event';
+  const parts = [label];
+  if (ev.team) parts.push(ev.team);
+  if (ev.player) parts.push(ev.player);
+  return parts.join(' - ');
+}
+
+// Normalize an event object (both incoming and when returning to clients)
+function normalizeEvent(ev = {}) {
+  const out = { ...ev };
+  out.type = canonicalEventType(out.type || out.eventType || out.kind);
+  // minute inference
+  if ((out.minute == null || out.minute === '') && out.time) {
+    const m = parseInt(String(out.time).split(':')[0], 10);
+    if (!isNaN(m)) out.minute = m; else out.minute = 0;
+  }
+  if (out.minute == null && typeof out.time === 'string' && /^\d+$/.test(out.time)) {
+    out.minute = parseInt(out.time, 10);
+  }
+  if (typeof out.minute !== 'number') {
+    const num = parseInt(out.minute, 10);
+    out.minute = isNaN(num) ? 0 : num;
+  }
+  // ensure id & createdAt
+  out.id = out.id || `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  out.createdAt = out.createdAt || new Date().toISOString();
+  // substitution player formatting (keep original playerOut/In but provide player aggregate)
+  if (out.type === 'substitution' && !out.player && (out.playerOut || out.playerIn)) {
+    out.player = `${out.playerOut || ''}${out.playerOut && out.playerIn ? ' → ' : ''}${out.playerIn || ''}`;
+  }
+  out.description = buildDescription(out);
+  return out;
+}
 
 // GET /api/matches - Get all matches with optional filters
 async function getMatches(req, res) {
@@ -127,8 +298,8 @@ async function getMatches(req, res) {
             if (changed) {
               bulkUpdates.push({ updateOne: { filter: { id: m.id }, update: { $set: { status: m.status, minute: m.minute, lastUpdated: new Date() } } } });
             }
-          } else if (diffMin > 90 && diffMin < 130) { // simple finalize window
-            if (m.status !== 'FINISHED') {
+          } else if (diffMin > 90) {
+            if (m.status !== 'FINISHED' || m.minute !== 90) {
               m.status = 'FINISHED';
               m.minute = 90;
               bulkUpdates.push({ updateOne: { filter: { id: m.id }, update: { $set: { status: 'FINISHED', minute: 90, lastUpdated: new Date() } } } });
@@ -211,6 +382,64 @@ async function getMatches(req, res) {
       return out;
     });
 
+    // Derive scores from Event_Log when missing
+    try {
+      const needs = enriched.filter(m => (m?.score?.fullTime?.home ?? m?.homeScore) == null || (m?.score?.fullTime?.away ?? m?.awayScore) == null || m.homeScore === '-' || m.awayScore === '-');
+      if (needs.length) {
+        const ids = needs.map(m => m.id);
+        const idsStr = ids.map(v => (typeof v === 'string' ? v : String(v)));
+        const db = await getDatabase();
+        const eventLog = db.collection('Event_Log');
+        const goalTypes = ['goal','penalty','own_goal'];
+        const evs = await eventLog.find({
+          $and: [
+            { $or: [ { matchId: { $in: ids } }, { matchId: { $in: idsStr } }, { 'data.matchId': { $in: ids } }, { 'data.matchId': { $in: idsStr } } ] },
+            { $or: [ { type: { $in: goalTypes } }, { 'data.type': { $in: goalTypes } } ] }
+          ]
+        }).project({ matchId:1, type:1, data:1 }).toArray();
+        const byMatch = new Map();
+        const toKey = (x) => (typeof x === 'string' ? x : String(x));
+        for (const m of needs) byMatch.set(toKey(m.id), { home: 0, away: 0, ref: m });
+        const inferSide = (e, m) => {
+          const side = e?.data?.teamSide;
+          if (side === 'home' || side === 'away') return side;
+          const teamLc = (e?.data?.team || e?.data?.teamName || '').toString().toLowerCase();
+          const h = (m?.homeTeam?.name || m?.homeTeam || '').toString().toLowerCase();
+          const a = (m?.awayTeam?.name || m?.awayTeam || '').toString().toLowerCase();
+          if (teamLc === 'home' || (h && teamLc === h)) return 'home';
+          if (teamLc === 'away' || (a && teamLc === a)) return 'away';
+          return '';
+        };
+        for (const ev of evs) {
+          const key = toKey(ev.matchId || ev?.data?.matchId);
+          const agg = byMatch.get(key);
+          if (!agg) continue;
+          const base = canonicalEventType(ev.type || ev?.data?.type);
+          if (!['goal','penalty','own_goal'].includes(base)) continue;
+          const side = inferSide(ev, agg.ref);
+          if (!side) continue;
+          if (base === 'own_goal') {
+            if (side === 'home') agg.away += 1; else agg.home += 1;
+          } else {
+            if (side === 'home') agg.home += 1; else agg.away += 1;
+          }
+        }
+        for (const [_, agg] of byMatch) {
+          const m = agg.ref;
+          if (agg.home || agg.away) {
+            m.score = m.score || { fullTime: { home: null, away: null } };
+            m.score.fullTime = m.score.fullTime || { home: null, away: null };
+            m.score.fullTime.home = agg.home;
+            m.score.fullTime.away = agg.away;
+            m.homeScore = agg.home;
+            m.awayScore = agg.away;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Score derivation (list) failed:', e.message);
+    }
+
     res.status(200).json({
       success: true,
       data: enriched,
@@ -275,15 +504,81 @@ async function handler(req, res) {
 
       const orFilters = buildIdQueries(id);
       const finalFilter = orFilters.length === 1 ? orFilters[0] : { $or: orFilters };
+      if (process.env.NODE_ENV !== 'production') {
+        try { console.log('[matches] GET single id=%s filter=%j', id, finalFilter); } catch(_){ }
+      }
 
       if (sub === 'events') {
         const match = await matchesCollection.findOne(finalFilter);
         if (!match) return res.status(404).json({ success: false, error: 'Match not found' });
-        return res.status(200).json({ success: true, data: match.events || [] });
+        let list = Array.isArray(match.events) ? match.events : [];
+        if (!list.length) {
+          try {
+            const db = await getDatabase();
+            const eventLog = db.collection('Event_Log');
+            const mid = match.id || match._id?.toString();
+            const logs = await eventLog.find({ $or: [ { matchId: mid }, { 'data.matchId': mid } ] }).sort({ timestamp: 1 }).toArray();
+            list = logs.map(l => ({ ...l.data, type: l.type, description: l.message }));
+          } catch(_) {}
+        }
+        return res.status(200).json({ success: true, data: list });
       }
 
-      const match = await matchesCollection.findOne(finalFilter);
+  const match = await matchesCollection.findOne(finalFilter);
+      if (!match && process.env.NODE_ENV !== 'production') {
+        try {
+          const sample = await matchesCollection.find({ id: /a_/ }).project({ id:1 }).limit(5).toArray();
+          console.warn('[matches] GET not found id=%s existing sample ids=%j', id, sample.map(s=>s.id));
+        } catch(_){}
+      }
       if (!match) return res.status(404).json({ success: false, error: 'Match not found' });
+      // If scores are missing, derive from Event_Log
+      try {
+        const h = match?.score?.fullTime?.home ?? match?.homeScore;
+        const a = match?.score?.fullTime?.away ?? match?.awayScore;
+        if (h == null || h === '-' || a == null || a === '-') {
+          const db = await getDatabase();
+          const eventLog = db.collection('Event_Log');
+          const goalTypes = ['goal','penalty','own_goal'];
+          const evs = await eventLog.find({
+            $and: [
+              { $or: [ { matchId: match.id }, { matchId: String(match.id) }, { 'data.matchId': match.id }, { 'data.matchId': String(match.id) } ] },
+              { $or: [ { type: { $in: goalTypes } }, { 'data.type': { $in: goalTypes } } ] }
+            ]
+          }).project({ type:1, data:1 }).toArray();
+          let home = 0, away = 0;
+          const homeName = (match?.homeTeam?.name || match?.homeTeam || '').toString().toLowerCase();
+          const awayName = (match?.awayTeam?.name || match?.awayTeam || '').toString().toLowerCase();
+          for (const ev of evs) {
+            const base = canonicalEventType(ev.type || ev?.data?.type);
+            if (!goalTypes.includes(base)) continue;
+            let side = ev?.data?.teamSide;
+            if (side !== 'home' && side !== 'away') {
+              const teamLc = (ev?.data?.team || ev?.data?.teamName || '').toString().toLowerCase();
+              if (teamLc === 'home' || (homeName && teamLc === homeName)) side = 'home';
+              else if (teamLc === 'away' || (awayName && teamLc === awayName)) side = 'away';
+              else side = '';
+            }
+            if (!side) continue;
+            if (base === 'own_goal') {
+              if (side === 'home') away += 1; else home += 1;
+            } else {
+              if (side === 'home') home += 1; else away += 1;
+            }
+          }
+          if (home || away) {
+            match.score = match.score || { fullTime: { home: null, away: null } };
+            match.score.fullTime = match.score.fullTime || { home: null, away: null };
+            match.score.fullTime.home = home;
+            match.score.fullTime.away = away;
+            match.homeScore = home;
+            match.awayScore = away;
+          }
+        }
+      } catch (e) {
+        console.warn('Score derivation (single) failed:', e.message);
+      }
+
       if (match.createdByAdmin && (match.utcDate || (match.date && match.time))) {
         let startMs;
         if (match.date && match.time) {
@@ -299,8 +594,9 @@ async function handler(req, res) {
               if (match.status !== 'IN_PLAY') { match.status = 'IN_PLAY'; changed = true; }
               const newMinute = Math.max(1, diffMin + 1);
               if (match.minute !== newMinute) { match.minute = newMinute; changed = true; }
-            } else if (diffMin > 90 && diffMin < 130) {
-              if (match.status !== 'FINISHED') { match.status = 'FINISHED'; match.minute = 90; changed = true; }
+            } else if (diffMin > 90) {
+              // Always finalize once we've passed 90 minutes; cap minute at 90 to avoid misleading huge values
+              if (match.status !== 'FINISHED' || match.minute !== 90) { match.status = 'FINISHED'; match.minute = 90; changed = true; }
             }
           if (changed) {
             try { await matchesCollection.updateOne({ _id: match._id }, { $set: { status: match.status, minute: match.minute, lastUpdated: new Date() } }); } catch(e) {}
@@ -425,26 +721,82 @@ async function handler(req, res) {
         return res.status(201).json({ success: true, data: newMatch });
       }
   // POST /api/matches/:id/events -> add event
-      if (id && sub === 'events') {
+  if (id && sub === 'events') {
         const orFilters = buildIdQueries(id);
         const matchFilter = orFilters.length === 1 ? orFilters[0] : { $or: orFilters };
         const match = await matchesCollection.findOne(matchFilter);
         if (!match) return res.status(404).json({ success: false, error: 'Match not found' });
 
-        const event = req.body || {};
-        // Ensure required fields
-        const newEvent = {
-          id: event.id || `${Date.now()}`,
-          type: event.type || 'other',
-          time: event.time || event.minute || '',
-          minute: event.minute || undefined,
-          team: event.team || '',
-          player: event.player || '',
-          description: event.description || '',
-          createdAt: new Date().toISOString(),
+  const event = req.body || {};
+  // Lenient validation: coerce missing fields instead of rejecting to support admin quick-add
+  let rawType = (event.type || '').toString().trim();
+  const rawPlayer = (event.player || '').toString().trim();
+  let rawDesc = (event.description || '').toString().trim();
+  const rawTeam = (event.team || event.teamName || '').toString().trim();
+  if (!rawType) rawType = 'other';
+        // Derive a minute if absent using match minute (live) or fallback 0
+        let derivedMinute = event.minute;
+        if (derivedMinute == null) {
+          if (typeof match.minute === 'number' && match.minute > 0) derivedMinute = match.minute;
+          else if (event.time) {
+            const m = parseInt(String(event.time).split(':')[0],10); if (!isNaN(m)) derivedMinute = m; else derivedMinute = 0;
+          } else derivedMinute = 0;
+        }
+        const preliminary = {
+          id: event.id,
+          type: rawType || rawDesc, // may be refined in normalizeEvent
+          minute: derivedMinute,
+          time: event.time,
+          team: rawTeam,
+          teamSide: event.teamSide,
+          player: rawPlayer,
+          playerOut: event.playerOut,
+          playerIn: event.playerIn,
+          description: rawDesc
         };
-
+        if (!preliminary.description) {
+          // Synthesize a useful description if missing
+          preliminary.description = buildDescription({ type: preliminary.type, team: preliminary.team, player: preliminary.player });
+        }
+        const newEvent = normalizeEvent(preliminary);
         await matchesCollection.updateOne(matchFilter, { $push: { events: newEvent } });
+
+        // Also persist to Event_Log collection (canonical log)
+        try {
+          const db = await getDatabase();
+          const eventLog = db.collection('Event_Log');
+          // Compute a safer minute for log display (avoid 0 when possible)
+          let logMinute = newEvent.minute;
+          if ((logMinute == null || logMinute === 0) && match.utcDate) {
+            const startMs = Date.parse(match.utcDate);
+            if (!isNaN(startMs)) {
+              const diff = Math.floor((Date.now() - startMs)/60000);
+              if (diff > 0 && diff <= 130) logMinute = diff; // simple inference
+            }
+          }
+          // Compose base event log doc
+          const baseDoc = {
+            timestamp: new Date(),
+            type: newEvent.type,
+            message: newEvent.description,
+            data: { ...newEvent, displayMinute: logMinute, matchId: match.id || match._id?.toString() },
+            source: 'match_event_api',
+            matchId: match.id || match._id?.toString()
+          };
+          // If scoring, we will recompute snapshots after insert
+          const ins = await eventLog.insertOne(baseDoc);
+          if (isScoringEvent(newEvent.type)) {
+            await recomputeEventLogScores(match, db);
+          } else {
+            // For non-scoring events we still compute scoreAfter = current derived score
+            try {
+              const { home, away } = tallyScoreFromEvents([baseDoc], match);
+              await eventLog.updateOne({ _id: ins.insertedId }, { $set: { scoreAfter: { home, away } } });
+            } catch(_) {}
+          }
+        } catch(e) {
+          console.warn('Failed to insert into Event_Log:', e.message);
+        }
         return res.status(201).json({ success: true, data: newEvent });
       }
 
@@ -546,13 +898,26 @@ async function handler(req, res) {
         // PUT /api/matches/:id/events/:eventId -> update event
         const orFilters = buildIdQueries(id);
         const matchFilter = orFilters.length === 1 ? orFilters[0] : { $or: orFilters };
+        const match = await matchesCollection.findOne(matchFilter);
+        if (!match) return res.status(404).json({ success: false, error: 'Match not found' });
         const updates = req.body || {};
         const updateFields = {};
-        for (const k of ['type', 'time', 'minute', 'team', 'player', 'description']) {
+        for (const k of ['type', 'time', 'minute', 'team', 'teamSide', 'player', 'playerOut', 'playerIn', 'description']) {
           if (updates[k] !== undefined) updateFields[`events.$.${k}`] = updates[k];
         }
         const result = await matchesCollection.updateOne({ ...matchFilter, 'events.id': eventId }, { $set: updateFields });
         if (!result.matchedCount) return res.status(404).json({ success: false, error: 'Event or match not found' });
+        // Mirror to Event_Log and recompute scores
+        try {
+          const db = await getDatabase();
+          const eventLog = db.collection('Event_Log');
+          const matchId = match.id || match._id?.toString();
+          await eventLog.updateMany({ $and: [
+            { $or: [ { matchId }, { matchId: String(matchId) } ] },
+            { $or: [ { 'data.id': eventId }, { 'data.eventId': eventId } ] }
+          ] }, { $set: { ...(updates.type ? { type: canonicalEventType(updates.type) } : {}), 'data': { ...updates, id: eventId, matchId } } });
+          await recomputeEventLogScores(match, db);
+        } catch (_) {}
         return res.status(200).json({ success: true, modified: result.modifiedCount > 0 });
       }
 
@@ -580,8 +945,21 @@ async function handler(req, res) {
         // DELETE /api/matches/:id/events/:eventId
         const orFilters = buildIdQueries(id);
         const matchFilter = orFilters.length === 1 ? orFilters[0] : { $or: orFilters };
+        const match = await matchesCollection.findOne(matchFilter);
+        if (!match) return res.status(404).json({ success: false, error: 'Match not found' });
         const result = await matchesCollection.updateOne(matchFilter, { $pull: { events: { id: eventId } } });
         if (!result.matchedCount) return res.status(404).json({ success: false, error: 'Match not found' });
+        // Also remove from Event_Log and recompute
+        try {
+          const db = await getDatabase();
+          const eventLog = db.collection('Event_Log');
+          const matchId = match.id || match._id?.toString();
+          await eventLog.deleteMany({ $and: [
+            { $or: [ { matchId }, { matchId: String(matchId) } ] },
+            { $or: [ { 'data.id': eventId }, { 'data.eventId': eventId } ] }
+          ] });
+          await recomputeEventLogScores(match, db);
+        } catch(_) {}
         return res.status(200).json({ success: true, deleted: result.modifiedCount > 0 });
       }
       if (id && !sub) {
