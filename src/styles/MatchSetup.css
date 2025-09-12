@@ -119,6 +119,24 @@
   transition: all 0.2s ease;
 }
 
+.match-item[data-optimistic="true"] {
+  opacity: 0.6;
+  position: relative;
+}
+
+.match-item[data-optimistic="true"]::after {
+  content: 'Saving...';
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 0.65rem;
+  background: #1a1a1a;
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
 .match-item:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);

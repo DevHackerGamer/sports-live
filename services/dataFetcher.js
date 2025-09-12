@@ -327,7 +327,8 @@ async fetchAndStoreStandings() {
 
         // Now remove any matches before today (strict requirement: don't keep past matches)
         try {
-          const prunePast = await matchInfoCollection.deleteMany({ utcDate: { $lt: startOfTodayUTC.toISOString() } });
+          // Do not prune admin-created matches (keep historical admin entries)
+          const prunePast = await matchInfoCollection.deleteMany({ utcDate: { $lt: startOfTodayUTC.toISOString() }, createdByAdmin: { $ne: true } });
           if (prunePast.deletedCount) {
             console.log(`🧹 Removed ${prunePast.deletedCount} matches before today`);
             await this.logEvent('INFO', 'Removed matches before today', { deleted: prunePast.deletedCount });
@@ -341,7 +342,8 @@ async fetchAndStoreStandings() {
           const returnedIds = matches.map(m => m.id);
           const windowFilter = {
             utcDate: { $gte: startOfTodayUTC.toISOString(), $lte: endOfWindowUTC.toISOString() },
-            id: { $nin: returnedIds }
+            id: { $nin: returnedIds },
+            createdByAdmin: { $ne: true } // never delete admin-created inside active window
           };
           const stale = await matchInfoCollection.deleteMany(windowFilter);
           if (stale.deletedCount) {

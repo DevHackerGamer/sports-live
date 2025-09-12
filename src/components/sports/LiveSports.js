@@ -107,7 +107,7 @@ const LiveSports = ({ onMatchSelect }) => {
 
   const formatTime = (date) => {
     if (!date) return '';
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
   };
 
   const formatDate = (dateString) => {
@@ -272,13 +272,13 @@ const MatchCard = React.memo(function MatchCard({ game, onSelect, getStatusBadge
         <div className="comp-right">{getStatusBadge(game.status)}</div>
       </div>
 
-      <div className="match-teams">
+  <div className="match-teams">
         <div className="team">
           {game.homeTeam?.crest && (
             <img className="team-crest" alt="home crest" src={game.homeTeam.crest} />
           )}
           <span className="team-name">{game.homeTeam?.name || game.homeTeam}</span>
-          <span className="team-score">{game.homeScore}</span>
+          <span className="team-score">{(['live','in_play','inplay'].includes((game.status||'').toLowerCase()) && game.homeScore === '-') ? 0 : game.homeScore}</span>
         </div>
 
         <div className="match-separator">vs</div>
@@ -288,21 +288,32 @@ const MatchCard = React.memo(function MatchCard({ game, onSelect, getStatusBadge
             <img className="team-crest" alt="away crest" src={game.awayTeam.crest} />
           )}
           <span className="team-name">{game.awayTeam?.name || game.awayTeam}</span>
-          <span className="team-score">{game.awayScore}</span>
+          <span className="team-score">{(['live','in_play','inplay'].includes((game.status||'').toLowerCase()) && game.awayScore === '-') ? 0 : game.awayScore}</span>
         </div>
-      </div>
-
-      <div className="match-details">
+  </div>
+  <div className="card-divider" aria-hidden="true"></div>
+  <div className="match-details">
         <div className="meta-left">
           {game.utcDate && (
             <span className="scheduled-time">
-              {formatDate(game.utcDate)} • {formatTime(new Date(game.utcDate))}
+              {(() => {
+                // Single unified formatting: always show localized weekday/month/day and 24h time derived from utcDate baseline
+                // For admin matches with exact entered time, prefer their given time string.
+                const baseDate = new Date(game.utcDate);
+                const dateLabel = baseDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+                const timeLabel = (game.createdByAdmin && game.time) ? game.time : formatTime(baseDate);
+                return `${dateLabel} • ${timeLabel}`;
+              })()}
             </span>
           )}
-          {game.matchday && <span className="matchday">MD {game.matchday}</span>}
+          {game.matchday ? (
+            <span className="matchday">MD {game.matchday}</span>
+          ) : game.createdByAdmin && (
+            <span className="matchday matchday-placeholder" title="Admin match has no official matchday yet">MD -</span>
+          )}
         </div>
         <div className="meta-right">
-          {game.minute && (game.status || '').toLowerCase() === 'live' && (
+          {game.minute && ['live','in_play','inplay'].includes((game.status||'').toLowerCase()) && (
             <span className="match-time">{game.minute}'</span>
           )}
           {game.venue && game.venue !== 'TBD' && <span className="venue">{game.venue}</span>}

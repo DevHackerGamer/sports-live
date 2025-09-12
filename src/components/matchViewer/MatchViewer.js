@@ -8,11 +8,13 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
   const isAdmin = (user?.privateMetadata?.type === 'admin');
   const [matchDetails, setMatchDetails] = useState(null);
   const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(false);
+  // removed unused loading state (was only set, not rendered)
+  // const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [activeSection, setActiveSection] = useState(initialSection); // 'details', 'stats', 'events', 'update'
   const [comment, setComment] = useState('');
-  const [teamsList, setTeamsList] = useState([]);
+  // removed unused teamsList (never read)
+  // const [teamsList, setTeamsList] = useState([]);
   const [homeTeamPlayers, setHomeTeamPlayers] = useState([]);
   const [awayTeamPlayers, setAwayTeamPlayers] = useState([]);
   // Admin form state
@@ -23,17 +25,19 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
     if (match) {
       fetchMatchDetails();
     } else {
-      // If no match is passed, show empty state
       setMatchDetails(null);
       setEvents([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match]);
 
+  // Only react when the initialSection prop itself changes; do NOT include activeSection
+  // in dependencies or user navigation will be immediately overwritten back to the prop value.
   useEffect(() => {
-    // If admin by default, show update section on mount
-    if (initialSection && initialSection !== activeSection) {
+    if (initialSection) {
       setActiveSection(initialSection);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialSection]);
 
   // Header loader removed to avoid layout shifts pushing action buttons
@@ -41,7 +45,7 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
   const fetchMatchDetails = async () => {
     if (!match) return;
     
-    setLoading(true);
+  // loading indicator removed
     setError('');
     
     try {
@@ -67,9 +71,8 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
 
       // Fetch teams list and players to support admin editing
       try {
-        const teamsRes = await apiClient.getTeams();
-        const teams = teamsRes.data || [];
-        setTeamsList(teams);
+  const teamsRes = await apiClient.getTeams();
+  const teams = teamsRes.data || [];
         // Try to find team IDs by name
         const homeTeamName = (match.homeTeam?.name || match.homeTeam || '').toString();
         const awayTeamName = (match.awayTeam?.name || match.awayTeam || '').toString();
@@ -102,15 +105,11 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
       console.error('Error fetching match details:', err);
       setError(err.message);
     } finally {
-      setLoading(false);
+      // loading indicator removed
     }
   };
 
-  const formatTime = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  // removed unused formatTime helper (not referenced in render)
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
@@ -186,12 +185,17 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
 
   // Compute display match fields before any conditional returns to satisfy hooks rules
   const displayMatchRaw = matchDetails || match;
-  const displayMatch = useMemo(() => ({
-    ...displayMatchRaw,
-    homeTeam: displayMatchRaw?.homeTeam?.name || displayMatchRaw?.homeTeam || '',
-    awayTeam: displayMatchRaw?.awayTeam?.name || displayMatchRaw?.awayTeam || '',
-    competition: displayMatchRaw?.competition?.name || displayMatchRaw?.competition || '',
-  }), [displayMatchRaw]);
+  const displayMatch = useMemo(() => {
+    const dm = {
+      ...displayMatchRaw,
+      homeTeam: displayMatchRaw?.homeTeam?.name || displayMatchRaw?.homeTeam || '',
+      awayTeam: displayMatchRaw?.awayTeam?.name || displayMatchRaw?.awayTeam || '',
+      competition: displayMatchRaw?.competition?.name || displayMatchRaw?.competition || '',
+    };
+    const rawStatus = (dm.status || '').toString();
+    if (rawStatus === 'IN_PLAY') dm.status = 'live';
+    return dm;
+  }, [displayMatchRaw]);
 
   if (!match) {
     return (
@@ -275,12 +279,11 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
             </div>
             
             <div className="match-status">
-              {displayMatch.status === 'live' && displayMatch.minute && (
-                <div className="live-minute">{displayMatch.minute}'</div>
+              {displayMatch.status === 'live' && displayMatch.minute ? (
+                <div className="live-minute" title="Current minute">{displayMatch.minute}'</div>
+              ) : (
+                <div className="match-result">{displayMatch.status.toUpperCase()}</div>
               )}
-              <div className="match-result">
-                {displayMatch.status.toUpperCase()}
-              </div>
               {displayMatch.utcDate && (
                 <div className="match-date">
                   {formatDate(displayMatch.utcDate)}
