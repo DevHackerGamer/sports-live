@@ -1,14 +1,17 @@
+// Deprecated legacy endpoint kept temporarily for backward compatibility.
+// Now proxies admin-created match CRUD operations into the primary matches collection
+// so that newly created matches appear in the live sports feed (Match_Info collection).
 const { ObjectId } = require('mongodb');
-const { getAdminMatchesCollection } = require('../lib/mongodb');
+const { getMatchesCollection } = require('../lib/mongodb');
 
 module.exports = async function handler(req, res) {
   try {
-    const collection = await getAdminMatchesCollection();
+  const collection = await getMatchesCollection();
     const { id } = req.query; // get id from query
 
-    // GET all admin-created matches
+    // GET all admin-created matches (now stored inside main matches collection)
     if (req.method === 'GET' && !id) {
-      const matches = await collection.find({ createdByAdmin: true }).toArray();
+      const matches = await collection.find({ createdByAdmin: true }).sort({ utcDate: 1 }).toArray();
       const transformed = matches.map(m => ({
         ...m,
         teamA: m.homeTeam?.name?.en || 'Unnamed Team',
@@ -25,11 +28,10 @@ module.exports = async function handler(req, res) {
       return res.status(200).json(match);
     }
 
-    // POST new admin-created match
+    // POST new admin-created match (writes into main matches collection)
     if (req.method === 'POST' && !id) {
-      let { homeTeam, awayTeam, date, time, competition } = req.body;
+      let { homeTeam, awayTeam, date, time, competition } = req.body || {};
 
-      // Validate required fields
       if (!homeTeam || !awayTeam || !date || !time) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
@@ -40,27 +42,29 @@ module.exports = async function handler(req, res) {
       if (!competition) competition = { id: 'unknown', name: { en: 'Unknown Competition' } };
       else if (typeof competition === 'string') competition = { id: competition, name: { en: competition } };
 
+      const now = new Date();
+      // Interpret provided date/time as local and convert to UTC ISO
+      const localStart = new Date(`${date}T${time}`);
+      const utcDate = new Date(localStart.getTime() - localStart.getTimezoneOffset()*60000).toISOString();
       const newMatch = {
-        id: new ObjectId().toString(),
+        id: `a_${new ObjectId().toString()}`, // prefix to avoid collision with numeric API IDs
         homeTeam,
         awayTeam,
         competition,
-        teamA: homeTeam.name.en,
-        teamB: awayTeam.name.en,
-        competitionName: competition.name.en,
-        utcDate: new Date(`${date}T${time}`).toISOString(),
+        utcDate,
         date,
         time,
         status: 'TIMED',
         stage: 'REGULAR_SEASON',
         matchday: null,
         group: null,
-        score: {},
+        score: { fullTime: { home: null, away: null } },
         odds: {},
         referees: [],
-        createdByAdmin: true, // mark this as admin-created
-        lastUpdated: new Date(),
-        createdAt: new Date(),
+        createdByAdmin: true,
+        lastUpdated: now.toISOString(),
+        createdAt: now.toISOString(),
+        source: 'admin'
       };
 
       await collection.insertOne(newMatch);

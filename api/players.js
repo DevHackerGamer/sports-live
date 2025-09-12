@@ -14,10 +14,28 @@ async function handler(req, res) {
 
   if (req.method === 'GET') {
     try {
-      const { teamId, position, nationality, limit = 50, offset = 0 } = req.query;
-      
+      const { teamId, teamName, position, nationality, limit = 50, offset = 0 } = req.query;
+
+      let resolvedTeamId = teamId;
+      // If no teamId but teamName provided, attempt to resolve via Teams collection
+      if (!resolvedTeamId && teamName) {
+        try {
+          const { getTeamsCollection } = require('../lib/mongodb');
+          const teamsCol = await getTeamsCollection();
+          const teamDoc = await teamsCol.findOne({ name: { $regex: `^${teamName}$`, $options: 'i' } });
+          if (teamDoc && (teamDoc.id || teamDoc._id)) {
+            resolvedTeamId = teamDoc.id || teamDoc._id;
+          }
+        } catch (e) {
+          console.warn('teamName resolution failed', e.message);
+        }
+      }
+
       let filter = {};
-      if (teamId) filter.teamId = parseInt(teamId);
+      if (resolvedTeamId) {
+        const numeric = parseInt(resolvedTeamId);
+        filter.teamId = isNaN(numeric) ? resolvedTeamId : numeric;
+      }
       if (position) filter.position = new RegExp(position, 'i');
       if (nationality) filter.nationality = new RegExp(nationality, 'i');
 

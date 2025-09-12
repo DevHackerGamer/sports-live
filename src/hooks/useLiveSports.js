@@ -14,7 +14,9 @@ export const useLiveSports = (updateInterval = 120000) => {
   const fetchSportsData = useCallback(async () => {
     try {
       setError(null);
-      console.log('Fetching sports data from MongoDB API...');
+      if (process.env.NODE_ENV !== 'production' && process.env.DEBUG_LIVE_SPORTS) {
+        console.log('[liveSports] fetching window');
+      }
       
       try {
   // Fetch a rolling 14-day window (today -> +13 days)
@@ -39,17 +41,34 @@ export const useLiveSports = (updateInterval = 120000) => {
               };
             };
 
+            const isAdmin = !!match.createdByAdmin;
+            // If utcDate exists we trust backend canonical UTC; avoid recomputing from date/time to prevent shift.
+            // Fallback: if missing utcDate but have date+time, build from local then toISOString
+            let displayUtc = match.utcDate;
+            if (!displayUtc && isAdmin && match.date && match.time) {
+              displayUtc = new Date(`${match.date}T${match.time}`).toISOString();
+            }
+            const rawStatus = match.status || 'scheduled';
+            let canonicalStatus = rawStatus.toUpperCase() === 'IN_PLAY' ? 'live' : rawStatus.toLowerCase();
+            if (canonicalStatus === 'timed') canonicalStatus = 'scheduled';
             return {
               id: match.id || match._id,
               homeTeam: normalizeTeam(match.homeTeam),
               awayTeam: normalizeTeam(match.awayTeam),
-              homeScore: match.score?.fullTime?.home ?? match.homeScore ?? '-',
-              awayScore: match.score?.fullTime?.away ?? match.awayScore ?? '-',
-              status: match.status || 'scheduled',
+              homeScore: (['IN_PLAY','live','in_play'].includes((match.status||'').toUpperCase())
+                ? (match.score?.fullTime?.home ?? match.homeScore ?? 0)
+                : (match.score?.fullTime?.home ?? match.homeScore ?? '-')),
+              awayScore: (['IN_PLAY','live','in_play'].includes((match.status||'').toUpperCase())
+                ? (match.score?.fullTime?.away ?? match.awayScore ?? 0)
+                : (match.score?.fullTime?.away ?? match.awayScore ?? '-')),
+              status: canonicalStatus,
               competition: match.competition?.name || match.competition || 'Unknown',
               competitionCode: match.competition?.code || match.competitionCode,
               venue: match.venue || 'TBD',
-              utcDate: match.utcDate || match.startTime,
+              utcDate: displayUtc || match.startTime,
+              createdByAdmin: !!match.createdByAdmin,
+              date: match.date,
+              time: match.time,
               minute: match.minute,
               matchday: match.matchday
             };
@@ -72,12 +91,14 @@ export const useLiveSports = (updateInterval = 120000) => {
             setLastUpdated(new Date());
             setIsConnected(true);
             lastPayloadRef.current = payloadKey;
-            console.log('MongoDB API data updated successfully');
+            if (process.env.NODE_ENV !== 'production' && process.env.DEBUG_LIVE_SPORTS) {
+              console.log('[liveSports] data updated', transformedGames.length);
+            }
           }
         }
         
       } catch (apiError) {
-        console.warn('MongoDB API request failed:', apiError.message);
+  if (process.env.NODE_ENV !== 'production') console.warn('[liveSports] primary fetch failed:', apiError.message);
         
         // Try fallback to sports-data API
         try {
@@ -93,10 +114,10 @@ export const useLiveSports = (updateInterval = 120000) => {
             setSportsData(fallbackData);
             setLastUpdated(new Date());
             setIsConnected(true);
-            console.log('Fallback sports-data API used successfully');
+            if (process.env.NODE_ENV !== 'production' && process.env.DEBUG_LIVE_SPORTS) console.log('[liveSports] fallback api used');
           }
         } catch (fallbackError) {
-          console.warn('Fallback API also failed:', fallbackError.message);
+          if (process.env.NODE_ENV !== 'production') console.warn('[liveSports] secondary fallback failed:', fallbackError.message);
           
           // Final fallback to ensure app doesn't break
           const finalFallbackData = {
@@ -122,7 +143,7 @@ export const useLiveSports = (updateInterval = 120000) => {
             setSportsData(finalFallbackData);
             setLastUpdated(new Date());
             setIsConnected(false);
-            console.log('Using final fallback data - APIs temporarily unavailable');
+            if (process.env.NODE_ENV !== 'production') console.log('[liveSports] final static fallback');
           }
         }
       }

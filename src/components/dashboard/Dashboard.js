@@ -5,6 +5,7 @@ import FavoritesPanel from '../favouritespanel/FavoritesPanel';
 import MatchViewer from '../matchViewer/MatchViewer';
 import MatchSetup from '../matchsetup/MatchSetup';
 import LiveInput from '../liveInput/LiveInput';
+import LeagueView from '../LeagueView/LeagueView';
 import { isAdminFromUser, getUserRoles } from '../../lib/roles';
 import '../../styles/Dashboard.css';
 
@@ -18,7 +19,7 @@ const Dashboard = () => {
   // Keep isAdmin in sync with Clerk metadata on user change
   useEffect(() => {
     setIsAdmin(isAdminFromUser(user));
-  }, [user?.id, user?.privateMetadata?.type, user?.publicMetadata?.type]);
+  }, [user, user?.id, user?.privateMetadata?.type, user?.publicMetadata?.type]);
   // Resolve role from backend to honor Clerk private metadata
   useEffect(() => {
     let cancelled = false;
@@ -46,7 +47,7 @@ const Dashboard = () => {
       }
     })();
     return () => { cancelled = true; };
-  }, [user?.id, isSignedIn, getToken, user?.privateMetadata?.type, user?.publicMetadata?.type]);
+  }, [user, user?.id, isSignedIn, getToken, user?.privateMetadata?.type, user?.publicMetadata?.type]);
   const [activeTab, setActiveTab] = useState('liveSports');
   const [selectedMatch, setSelectedMatch] = useState(null);
 
@@ -80,7 +81,9 @@ const Dashboard = () => {
       case 'matchSetup':
         return <MatchSetup isAdmin={isAdmin} />;
       case 'liveInput':
-        return <LiveInput isAdmin={isAdmin} />;
+        return <LiveInput isAdmin={isAdmin} match={selectedMatch} onBackToMatch={() => setActiveTab('liveSports')} />;
+          case 'leagueStandings':
+      return <LeagueView initialLeague="PL" onBack={() => setActiveTab('liveSports')} />
       case 'liveSports':
       default:
         return selectedMatch ? (
@@ -126,6 +129,14 @@ const Dashboard = () => {
         >
           Live Sports
         </button>
+         {/* League Standings visible to all users */}
+         <button 
+           className={activeTab === 'leagueStandings' ? 'nav-btn active' : 'nav-btn'}
+          onClick={() => setActiveTab('leagueStandings')}
+  >
+    League Standings
+  </button>
+
   {/* Match Viewer is now contextual; no persistent tab */}
         {isAdmin && (
           <>
@@ -135,12 +146,16 @@ const Dashboard = () => {
             >
               Match Setup
             </button>
-            <button 
-              className={activeTab === 'liveInput' ? 'nav-btn active' : 'nav-btn'}
-              onClick={() => setActiveTab('liveInput')}
-            >
-              Live Input
-            </button>
+            {selectedMatch && (
+              <button 
+                className={activeTab === 'liveInput' ? 'nav-btn active' : 'nav-btn'}
+                onClick={() => setActiveTab('liveInput')}
+                title={!selectedMatch ? 'Select a match first' : 'Enter live input for selected match'}
+              >
+                Live Input
+              </button>
+            )}
+           
           </>
         )}
       </nav>

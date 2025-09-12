@@ -6,10 +6,10 @@ const { ObjectId } = require('mongodb');
 
 // Mock MongoDB helpers
 jest.mock('../../../lib/mongodb.js', () => ({
-  getAdminMatchesCollection: jest.fn(),
+  getMatchesCollection: jest.fn(),
 }));
 
-const { getAdminMatchesCollection } = require('../../../lib/mongodb');
+const { getMatchesCollection } = require('../../../lib/mongodb');
 const handler = require('../../../api/createdMatches'); // adjust path
 
 // Helper to create mock response object
@@ -33,24 +33,28 @@ describe('createdMatches API', () => {
   let mockCollection;
 
   beforeEach(() => {
+    const cursor = { toArray: jest.fn() };
     mockCollection = {
-      find: jest.fn(),
-      toArray: jest.fn(),
+      find: jest.fn(() => cursor),
       findOne: jest.fn(),
       insertOne: jest.fn(),
       deleteOne: jest.fn(),
+      sort: jest.fn(() => cursor)
     };
-    getAdminMatchesCollection.mockResolvedValue(mockCollection);
+    getMatchesCollection.mockResolvedValue(mockCollection);
+    // Provide cursor reference for chaining find().sort().toArray()
+    cursor.sort = jest.fn(() => cursor);
+    cursor.toArray = jest.fn();
   });
 
   afterEach(() => jest.clearAllMocks());
 
   // ---------------- GET all matches ----------------
-  it('GET all matches', async () => {
+  it('GET all admin-created matches (proxied)', async () => {
     const fakeMatches = [
-      { homeTeam: { name: { en: 'TeamA' } }, awayTeam: { name: { en: 'TeamB' } }, competition: { name: { en: 'Comp' } }, createdByAdmin: true },
+      { homeTeam: { name: { en: 'TeamA' } }, awayTeam: { name: { en: 'TeamB' } }, competition: { name: { en: 'Comp' } }, createdByAdmin: true, utcDate: new Date().toISOString() },
     ];
-    mockCollection.find.mockReturnValue({ toArray: () => fakeMatches });
+    mockCollection.find.mockReturnValue({ sort: () => ({ toArray: () => fakeMatches }) });
 
     const res = await runHandler({ method: 'GET', query: {} });
 
@@ -63,7 +67,7 @@ describe('createdMatches API', () => {
   // ---------------- GET single match ----------------
   it('GET single match', async () => {
     const match = { id: '123', createdByAdmin: true };
-    mockCollection.findOne.mockResolvedValue(match);
+  mockCollection.findOne.mockResolvedValue(match);
 
     const res = await runHandler({ method: 'GET', query: { id: '123' } });
     expect(res.status).toHaveBeenCalledWith(200);
@@ -71,7 +75,7 @@ describe('createdMatches API', () => {
   });
 
   it('GET single match wrong id -> error checker', async () => {
-    mockCollection.findOne.mockResolvedValue(null);
+  mockCollection.findOne.mockResolvedValue(null);
 
     const res = await runHandler({ method: 'GET', query: { id: '999' } });
     expect(res.status).toHaveBeenCalledWith(404);
@@ -85,7 +89,7 @@ describe('createdMatches API', () => {
       query: {},
       body: { homeTeam: 'TeamA', awayTeam: 'TeamB', date: '2025-09-01', time: '18:00', competition: 'League' },
     };
-    mockCollection.insertOne.mockResolvedValue({});
+  mockCollection.insertOne.mockResolvedValue({});
 
     const res = await runHandler(req);
 
@@ -93,7 +97,11 @@ describe('createdMatches API', () => {
     const created = res.json.mock.calls[0][0];
     expect(created.homeTeam.name.en).toBe('TeamA');
     expect(created.awayTeam.name.en).toBe('TeamB');
-    expect(created.competitionName).toBe('League');
+    // competitionName legacy field removed; now competition.name (could be string or nested)
+    const compName = typeof created.competition.name === 'string'
+      ? created.competition.name
+      : created.competition.name?.en;
+    expect(compName).toBe('League');
     expect(created.createdByAdmin).toBe(true);
   });
 
@@ -111,7 +119,7 @@ describe('createdMatches API', () => {
       query: {},
       body: { homeTeam: { id: 'h1', name: { en: 'HomeTeam' } }, awayTeam: { id: 'a1', name: { en: 'AwayTeam' } }, date: '2025-09-01', time: '20:00' },
     };
-    mockCollection.insertOne.mockResolvedValue({});
+  mockCollection.insertOne.mockResolvedValue({});
 
     const res = await runHandler(req);
     expect(res.status).toHaveBeenCalledWith(201);
@@ -122,7 +130,7 @@ describe('createdMatches API', () => {
 
   // ---------------- DELETE match ----------------
   it('DELETE success from th admin created matches', async () => {
-    mockCollection.deleteOne.mockResolvedValue({ deletedCount: 1 });
+  mockCollection.deleteOne.mockResolvedValue({ deletedCount: 1 });
     const res = await runHandler({ method: 'DELETE', query: { id: new ObjectId().toString() } });
 
     expect(res.status).toHaveBeenCalledWith(200);
@@ -136,7 +144,7 @@ describe('createdMatches API', () => {
   });
 
   it('DELETE not found', async () => {
-    mockCollection.deleteOne.mockResolvedValue({ deletedCount: 0 });
+  mockCollection.deleteOne.mockResolvedValue({ deletedCount: 0 });
     const res = await runHandler({ method: 'DELETE', query: { id: new ObjectId().toString() } });
 
     expect(res.status).toHaveBeenCalledWith(404);
@@ -155,7 +163,7 @@ describe('createdMatches API', () => {
 
   // ---------------- Internal server error ----------------
   it('Handles internal server error', async () => {
-    getAdminMatchesCollection.mockRejectedValue(new Error('DB down'));
+  getMatchesCollection.mockRejectedValue(new Error('DB down'));
     const req = { method: 'GET', query: {} };
     const res = await runHandler(req);
 

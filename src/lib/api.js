@@ -60,30 +60,35 @@ class ApiClient {
     return this.request(`/api/matches/${id}/events`);
   }
   
-  async addMatchEvent(id, event) {
-  return this.request(`/api/matches/${id}/events`, {
+  async addMatchEvent(id, event, options = {}) {
+    return this.request(`/api/matches/${id}/events`, {
       method: 'POST',
       body: event,
+      ...options,
     });
   }
   
-  async updateMatchEvent(id, eventId, updates) {
-  return this.request(`/api/matches/${id}/events/${eventId}`, {
+  async updateMatchEvent(id, eventId, updates, options = {}) {
+    return this.request(`/api/matches/${id}/events/${eventId}`, {
       method: 'PUT',
       body: updates,
+      ...options,
     });
   }
   
-  async deleteMatchEvent(id, eventId) {
-  return this.request(`/api/matches/${id}/events/${eventId}`, {
+  async deleteMatchEvent(id, eventId, options = {}) {
+    return this.request(`/api/matches/${id}/events/${eventId}`, {
       method: 'DELETE',
+      ...options,
     });
   }
   
-  async updateMatch(id, updates) {
-  return this.request(`/api/matches/${id}`, {
+  // Update a match (accepts optional fetch options like headers)
+  async updateMatch(id, updates, options = {}) {
+    return this.request(`/api/matches/${id}`, {
       method: 'PUT',
       body: updates,
+      ...options,
     });
   }
 
@@ -94,12 +99,7 @@ class ApiClient {
     });
   }
 
-  async updateMatch(id, data) {
-    return this.request(`/api/matches/${id}`, {
-      method: 'PUT',
-      body: data,
-    });
-  }
+  // (Legacy duplicate removed – single updateMatch above handles this)
 
   async deleteMatch(id) {
     return this.request(`/api/matches/${id}`, {
@@ -117,6 +117,23 @@ class ApiClient {
       method: 'POST',
       body: { teams },
     });
+  }
+  //standings API
+
+  // Standings API
+    async getStandings({ competition, season, type, stage, limit = 20 } = {}) {
+    const params = new URLSearchParams();
+    if (competition) params.append('competition', competition);
+    if (season) params.append('season', season);
+    if (type) params.append('type', type);
+    if (stage) params.append('stage', stage);
+    params.append('limit', limit);
+
+    return this.request(`/api/standings?${params.toString()}`);
+  }
+
+  async getStandingById(id) {
+    return this.request(`/api/standings/${id}`);
   }
 
   // Users API
@@ -143,6 +160,17 @@ class ApiClient {
       method: 'PUT',
       body: { favorites },
     });
+  }
+
+  async getEventLog(params = {}) {
+    const qs = new URLSearchParams();
+    if (params.limit) qs.append('limit', String(params.limit));
+    if (params.type) qs.append('type', params.type);
+    if (params.matchId) qs.append('matchId', params.matchId);
+    if (params.startDate) qs.append('startDate', params.startDate);
+    if (params.endDate) qs.append('endDate', params.endDate);
+    const query = qs.toString();
+    return this.request(`/api/event-log${query ? '?' + query : ''}`);
   }
 }
 

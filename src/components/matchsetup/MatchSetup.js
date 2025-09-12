@@ -15,42 +15,55 @@ const MatchSetup = ({ isAdmin: isAdminProp }) => {
     teamB: {},
     date: '',
     time: '',
-    competition: ''
+  competition: '',
+  matchday: ''
   });
+  const [competitions, setCompetitions] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [loading,setLoading] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState(null);
 
   const isAdmin = typeof isAdminProp === 'boolean' ? isAdminProp : isAdminFromUser(user);
 
-  // fetch only admin-created matches using createdMatchs api
+  // fetch only admin-created matches now coming from /api/matches with filter client-side
   useEffect(() => {
     const fetchMatches = async () => {
       try {
-        const res = await fetch('/api/createdMatches');
-        const matchData = await res.json();
-
-        // Only upcoming matches
+        const res = await fetch('/api/matches?limit=500&range=30&includePast=1');
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'Failed to load matches');
         const now = new Date();
-        const upcomingMatches = [];
-
-        for (let match of matchData) {
-          const matchDate = new Date(`${match.date}T${match.time}`);
-          if (matchDate >= now) {
-            upcomingMatches.push(match);
-          } else {
-            // delete past matches automatically to scale db
-            await fetch(`/api/createdMatches?id=${match._id}`, { method: "DELETE" });
-          }
-        }
-
-        setMatches(upcomingMatches);
+        const cutoffPast = new Date(now.getTime() - 24 * 60 * 60 * 1000); // keep for 24h after start
+        const upcoming = (json.data || [])
+          .filter(m => m.createdByAdmin)
+          .filter(m => {
+            const start = new Date(m.utcDate || `${m.date}T${m.time}`);
+            return start >= cutoffPast; // include future + matches within last 24h
+          })
+          .sort((a,b) => new Date(a.utcDate) - new Date(b.utcDate));
+        setMatches(upcoming);
       } catch (err) {
-        console.error("Error fetching admin-created matches:", err);
+        console.error('Error fetching admin-created matches (unified collection):', err);
       }
     };
-
     fetchMatches();
+  }, []);
+
+  // Client minute refresher (doesn't hit API) to smoothly show ticking time for IN_PLAY matches
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMatches(ms => ms.map(m => {
+        if (m.createdByAdmin && m.status === 'IN_PLAY' && m.utcDate) {
+          const diffMin = Math.floor((Date.now() - Date.parse(m.utcDate)) / 60000);
+            if (diffMin >= 0 && diffMin <= 90) {
+              const minute = Math.max(1, diffMin + 1);
+              if (minute !== m.minute) return { ...m, minute };
+            }
+        }
+        return m;
+      }));
+    }, 60000); // update every minute
+    return () => clearInterval(interval);
   }, []);
 
   // fetch all teams for the dropdown input data also ensure valid teams are selected
@@ -72,6 +85,21 @@ const MatchSetup = ({ isAdmin: isAdminProp }) => {
     fetchTeams();
   }, []);
 
+  // fetch competitions for dropdown
+  useEffect(() => {
+    const fetchCompetitions = async () => {
+      try {
+        const res = await fetch('/api/competitions');
+        if (!res.ok) throw new Error('Failed to fetch competitions');
+        const json = await res.json();
+        if (json.success) setCompetitions(json.data);
+      } catch (e) {
+        console.error('Error fetching competitions:', e);
+      }
+    };
+    fetchCompetitions();
+  }, []);
+
   if (!isAdmin) {
     return (
       <div className="match-setup">
@@ -89,8 +117,12 @@ const MatchSetup = ({ isAdmin: isAdminProp }) => {
 
   // match validation
   const validateMatch = () => {
-    if(!newMatch.teamA.id || !newMatch.teamB.id || !newMatch.date || !newMatch.time){
+  if(!newMatch.teamA.id || !newMatch.teamB.id || !newMatch.date || !newMatch.time || newMatch.matchday === ''){
       alert('Fill in all required fields');
+      return false;
+    }
+    if(!newMatch.competition || !competitions.includes(newMatch.competition)){
+      alert('Select a valid competition');
       return false;
     }
     if(newMatch.teamA.id === newMatch.teamB.id){
@@ -104,31 +136,62 @@ const MatchSetup = ({ isAdmin: isAdminProp }) => {
   const addMatch = async () => {
     if(!validateMatch()) return;
     setLoading(true);
+    const optimisticId = `temp_${Date.now()}`;
+  // Treat entered date/time as local; convert to UTC ISO without shifting by appending Z incorrectly
+  const localStart = new Date(`${newMatch.date}T${newMatch.time}`); // interpret as local
+  // Convert local wall time to real UTC moment (subtract offset) so later formatting with toLocale* shows original local time
+  const utcDate = new Date(localStart.getTime() - localStart.getTimezoneOffset()*60000).toISOString();
+    const optimisticMatch = {
+      id: optimisticId,
+      homeTeam: { name: newMatch.teamA.name, id: newMatch.teamA.id },
+      awayTeam: { name: newMatch.teamB.name, id: newMatch.teamB.id },
+      competition: { name: newMatch.competition || 'Unknown Competition' },
+  utcDate,
+      date: newMatch.date,
+      time: newMatch.time,
+      status: 'TIMED',
+  matchday: newMatch.matchday ? Number(newMatch.matchday) : undefined,
+      createdByAdmin: true,
+      _optimistic: true
+    };
+    setMatches(prev => [...prev, optimisticMatch].sort((a,b)=> new Date(a.utcDate)-new Date(b.utcDate)));
     try {
-      const res = await fetch('/api/createdMatches', {
+      // Attempt to parse optional competition code if admin typed e.g. "Premier League [PL]"
+      let compPayload = newMatch.competition;
+      let compCode = undefined;
+      const codeMatch = /^(.*)\s*\[([A-Za-z0-9]+)\]$/.exec(newMatch.competition || '');
+      if (codeMatch) {
+        compPayload = codeMatch[1].trim();
+        compCode = codeMatch[2].trim();
+      }
+      const res = await fetch('/api/matches', {
         method: 'POST',
-        headers: {'Content-type':'application/json'},
+        headers: {
+          'Content-Type':'application/json',
+          ...(isAdmin ? { 'X-User-Type': 'admin' } : {})
+        },
         body: JSON.stringify({
           homeTeam: newMatch.teamA,
           awayTeam: newMatch.teamB,
           date: newMatch.date,
           time: newMatch.time,
-          competition: { id: 'unknown', name: { en: newMatch.competition || 'Unknown Competition' } }
+          competition: compPayload,
+          competitionCode: compCode,
+          matchday: newMatch.matchday ? Number(newMatch.matchday) : undefined
         })
       });
-      if(!res.ok){
-        const error = await res.json();
-        throw new Error(error.error || 'Failed to save match');
-      } else {
-        const matchRes = await fetch('/api/createdMatches');
-        const updatedMatches = await matchRes.json();
-        setMatches(updatedMatches);
-        setNewMatch({teamA:{},teamB:{},date:'',time:'',competition:''});
-        setShowForm(false);
+      const json = await res.json();
+  if(!res.ok || (!json.success && !json.id)){
+        throw new Error(json.error || 'Failed to save match');
       }
+      const saved = json.data || json; // createdMatches style fallback
+      setMatches(prev => prev.map(m => m.id === optimisticId ? saved : m).sort((a,b)=> new Date(a.utcDate)-new Date(b.utcDate)));
+  setNewMatch({teamA:{},teamB:{},date:'',time:'',competition:'',matchday:''});
+      setShowForm(false);
     } catch(error){
-      console.error('Error saving match',error);
-      alert('Failed to save match, check console for details');
+      console.error('Error saving match', error);
+      alert('Failed to save match, reverting');
+      setMatches(prev => prev.filter(m => m.id !== optimisticId));
     } finally {
       setLoading(false);
     }
@@ -136,17 +199,24 @@ const MatchSetup = ({ isAdmin: isAdminProp }) => {
 
   //Remove match from the AdminCreatedMatches collection in the db
   const removeMatch = async(id) => {
-    if(!window.confirm('Are you sure you want to remove this match?')) return;
+    if(!window.confirm('Remove this match?')) return;
+    const prev = matches;
+    setMatches(m => m.filter(mt => mt.id !== id && mt._id !== id));
     try {
-      const res = await fetch(`/api/createdMatches?id=${id}`, { method:'DELETE' });
-      if(!res.ok){
-        const error = await res.json();
-        throw new Error(error.error || 'Failed to delete match');
+      const res = await fetch(`/api/matches/${id}`, { 
+        method:'DELETE',
+        headers: {
+          ...(isAdmin ? { 'X-User-Type': 'admin' } : {})
+        }
+      });
+      const json = await res.json();
+      if(!res.ok || !json.success){
+        throw new Error(json.error || 'Delete failed');
       }
-      setMatches(matches.filter(m => m._id !== id));
     } catch(error){
       console.error('Error deleting match', error);
-      alert('Could not delete match, see console for details');
+      alert('Could not delete match; restoring');
+      setMatches(prev);
     }
   };
 
@@ -168,7 +238,7 @@ const MatchSetup = ({ isAdmin: isAdminProp }) => {
           <div className="header-row">
             <h2>Match Setup</h2>
             <button className="btn-primary" onClick={() => setShowForm(!showForm)}>
-              {showForm ? 'Cancel' : 'Create New Match'}
+              {showForm ? 'Close Form' : 'Create Match'}
             </button>
           </div>
 
@@ -211,11 +281,31 @@ const MatchSetup = ({ isAdmin: isAdminProp }) => {
                 </select>
               </div>
               <div className="form-row">
-                <input type="date" name="date" value={newMatch.date} onChange={handleInputChange}/>
+                <input 
+                  type="date" 
+                  name="date" 
+                  value={newMatch.date} 
+                  min={new Date().toISOString().slice(0,10)}
+                  onChange={handleInputChange}
+                />
                 <input type="time" name="time" value={newMatch.time} onChange={handleInputChange}/>
               </div>
               <div className="form-row">
-                <input type="text" name="competition" placeholder="Competition (e.g., Premier League)" value={newMatch.competition} onChange={handleInputChange}/>
+                <select name="competition" value={newMatch.competition} onChange={handleInputChange}>
+                  <option value="">Select Competition</option>
+                  {competitions.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  name="matchday"
+                  min="1"
+                  placeholder="Matchday"
+                  value={newMatch.matchday}
+                  onChange={handleInputChange}
+                  style={{ width: '140px' }}
+                />
               </div>
               <button className="btn-primary" onClick={addMatch} disabled={loading}>
                 {loading ? 'Saving...' : 'Create Match'}
@@ -230,10 +320,10 @@ const MatchSetup = ({ isAdmin: isAdminProp }) => {
             ) : (
               matches.map(match => (
                 <div 
-                  key={match._id} 
+                  key={match.id || match._id} 
                   className="match-item"
                   style={{ cursor: 'pointer' }}
-                  onClick={() => handleMatchSelect(match)}
+                    onClick={() => handleMatchSelect(match)}
                 >
                   <div className="match-info">
                     <div className="teams">
@@ -242,13 +332,16 @@ const MatchSetup = ({ isAdmin: isAdminProp }) => {
                       <span className="team">{match.awayTeam?.name?.en || match.awayTeam?.name || 'Unnamed Team'}</span>
                     </div>
                     <div className="match-details">
-                      <span className="competition">{match.competition?.name?.en || match.competitionName || 'Unknown Competition'}</span>
-                      <span className="datetime">{match.date} at {match.time}</span>
+                      <span className="competition">{match.competition?.name?.en || match.competition?.name || match.competitionName || 'Unknown Competition'}</span>
+                      <span className="datetime">
+                        {(match.utcDate || '').substring(0,10)} {match.time || (match.utcDate ? new Date(match.utcDate).toISOString().substring(11,16) : '')}
+                        {match.status === 'IN_PLAY' && typeof match.minute === 'number' ? ` | ${match.minute}'` : ''}
+                      </span>
                     </div>
                   </div>
                   <button 
                     className="btn-danger" 
-                    onClick={(e) => { e.stopPropagation(); removeMatch(match._id); }}
+                    onClick={(e) => { e.stopPropagation(); removeMatch(match.id || match._id); }}
                   >
                     Remove
                   </button>
