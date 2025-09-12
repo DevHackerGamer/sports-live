@@ -81,6 +81,11 @@ const createdMatchesHandler = delegate('./api/createdMatches.js');
 app.all('/api/createdMatches', createdMatchesHandler);
 app.all('/api/createdMatches/:id', createdMatchesHandler);
 
+// League Standings APIs
+app.all('/api/standings', delegate('./api/standings.js'));
+app.all('/api/standings/:id', delegate('./api/standings.js'));
+
+
 
 // Admin utility: trigger on-demand matches refresh (development only)
 app.all('/api/admin-refresh-matches', async (req, res) => {

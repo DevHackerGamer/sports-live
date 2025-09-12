@@ -5,6 +5,7 @@ import FavoritesPanel from '../favouritespanel/FavoritesPanel';
 import MatchViewer from '../matchViewer/MatchViewer';
 import MatchSetup from '../matchsetup/MatchSetup';
 import LiveInput from '../liveInput/LiveInput';
+import LeagueView from '../LeagueView/LeagueView';
 import { isAdminFromUser, getUserRoles } from '../../lib/roles';
 import '../../styles/Dashboard.css';
 
@@ -81,6 +82,8 @@ const Dashboard = () => {
         return <MatchSetup isAdmin={isAdmin} />;
       case 'liveInput':
         return <LiveInput isAdmin={isAdmin} />;
+          case 'leagueStandings':
+      return <LeagueView initialLeague="PL" onBack={() => setActiveTab('liveSports')} />
       case 'liveSports':
       default:
         return selectedMatch ? (
@@ -126,6 +129,14 @@ const Dashboard = () => {
         >
           Live Sports
         </button>
+         {/* League Standings visible to all users */}
+         <button 
+           className={activeTab === 'leagueStandings' ? 'nav-btn active' : 'nav-btn'}
+          onClick={() => setActiveTab('leagueStandings')}
+  >
+    League Standings
+  </button>
+
   {/* Match Viewer is now contextual; no persistent tab */}
         {isAdmin && (
           <>
@@ -141,6 +152,7 @@ const Dashboard = () => {
             >
               Live Input
             </button>
+           
           </>
         )}
       </nav>

@@ -1,0 +1,44 @@
+.league-standings {
+  padding: 1rem;
+}
+
+.league-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.league-selector {
+  margin: 1rem 0;
+}
+
+.standings-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.standings-table th, 
+.standings-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: center;
+}
+
+.standings-table th {
+  background: #f4f4f4;
+}
+
+.team-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.team-logo {
+  width: 20px;
+  height: 20px;
+}
+
+.points {
+  font-weight: bold;
+}

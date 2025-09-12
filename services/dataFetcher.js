@@ -183,6 +183,67 @@ class SportsDataFetcher {
       throw error;
     }
   }
+  // Fetch and store league standings
+async fetchAndStoreStandings() {
+  try {
+    await this.logEvent('INFO', 'Starting standings data fetch');
+
+    if (!this.apiToken || this.apiDisabled) {
+      throw new Error('Football API token not configured or API disabled');
+    }
+
+    const competitions = ['PL', 'SA', 'BL1', 'PD', 'FL1', 'CL']; // leagues you want
+
+    const standingsCollection = await require('../lib/mongodb').getStandingsCollection();
+    let totalStandings = 0;
+
+    for (const code of competitions) {
+      try {
+        const data = await this.makeApiRequest(`https://api.football-data.org/v4/competitions/${code}/standings`);
+        if (data.standings && Array.isArray(data.standings)) {
+          let seasonYear = '2025';
+          if (data.season?.startDate) {
+             seasonYear = new Date(data.season.startDate).getUTCFullYear().toString();
+               }    
+            else if (data.season?.endDate) {
+             seasonYear = new Date(data.season.endDate).getUTCFullYear().toString();
+       }
+          const doc = {
+            _id: `${code}-${seasonYear}`,
+            area: data.area,
+            competition: data.competition,
+            season: data.season,
+            standings: data.standings,
+            lastUpdated: new Date()
+          };
+
+
+          await standingsCollection.updateOne(
+            { _id: doc._id },
+            { $set: doc },
+            { upsert: true }
+          );
+
+          totalStandings++;
+        }
+        console.log("Fetched competition:", code, data.competition?.code, data.competition?.name);
+
+      } catch (err) {
+        console.warn(`Failed to fetch standings for ${code}:`, err.message);
+      }
+    }
+
+    await this.logEvent('SUCCESS', `Stored ${totalStandings} standings`, { count: totalStandings });
+    console.log(`✅ Stored ${totalStandings} standings in MongoDB`);
+    return totalStandings;
+
+  } catch (error) {
+    await this.logEvent('ERROR', 'Failed to fetch standings', { error: error.message });
+    console.error('Error in fetchAndStoreStandings:', error);
+    throw error;
+  }
+}
+
 
   // Fetch and store matches data
   async fetchAndStoreMatches() {
@@ -404,6 +465,17 @@ class SportsDataFetcher {
         console.log('⚠️ Matches fetch failed (possibly rate limited or API disabled), continuing with other data...');
         await this.logEvent('WARNING', 'Matches fetch failed', { error: error.message });
       }
+      // Fetch standings
+try {
+    if (!this.apiDisabled) {
+    await this.fetchAndStoreStandings();
+    }
+  } catch (error) {
+   console.log('⚠️ Standings fetch failed (possibly rate limited), continuing...');
+  await this.logEvent('WARNING', 'Standings fetch failed', { error: error.message });
+}
+
+
       
       // Try to fetch some players data
       try {

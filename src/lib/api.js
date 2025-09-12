@@ -118,6 +118,23 @@ class ApiClient {
       body: { teams },
     });
   }
+  //standings API
+
+  // Standings API
+    async getStandings({ competition, season, type, stage, limit = 20 } = {}) {
+    const params = new URLSearchParams();
+    if (competition) params.append('competition', competition);
+    if (season) params.append('season', season);
+    if (type) params.append('type', type);
+    if (stage) params.append('stage', stage);
+    params.append('limit', limit);
+
+    return this.request(`/api/standings?${params.toString()}`);
+  }
+
+  async getStandingById(id) {
+    return this.request(`/api/standings/${id}`);
+  }
 
   // Users API
   async getUserFavorites(userId) {

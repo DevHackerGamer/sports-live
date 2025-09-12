@@ -1,6 +1,8 @@
 import './styles/Dashboard.css';
 import LoginPage from './components/auth/LoginPage';
 import Dashboard from './components/dashboard/Dashboard';
+import LeagueView from './components/LeagueView/LeagueView';
+
 import { ClerkProvider, useAuth, useUser } from '@clerk/clerk-react';
 import { CLERK_PUBLISHABLE_KEY as PUBLISHABLE_KEY } from './config';
 
