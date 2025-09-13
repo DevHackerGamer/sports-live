@@ -6,6 +6,7 @@ import MatchViewer from '../matchViewer/MatchViewer';
 import MatchSetup from '../matchsetup/MatchSetup';
 import LiveInput from '../liveInput/LiveInput';
 import LeagueView from '../LeagueView/LeagueView';
+import ReportsPage from '../ReportsPage/ReportsPage' ;
 import { isAdminFromUser, getUserRoles } from '../../lib/roles';
 import '../../styles/Dashboard.css';
 
@@ -84,6 +85,8 @@ const Dashboard = () => {
         return <LiveInput isAdmin={isAdmin} match={selectedMatch} onBackToMatch={() => setActiveTab('liveSports')} />;
           case 'leagueStandings':
       return <LeagueView initialLeague="PL" onBack={() => setActiveTab('liveSports')} />
+      case 'reports':   
+      return <ReportsPage isAdmin={isAdmin} />;
       case 'liveSports':
       default:
         return selectedMatch ? (
@@ -155,6 +158,13 @@ const Dashboard = () => {
                 Live Input
               </button>
             )}
+              {/* === New Reports Tab === */}
+               <button
+              className={activeTab === 'reports' ? 'nav-btn active' : 'nav-btn'}
+               onClick={() => setActiveTab('reports')}
+              >
+              Reports
+             </button>
            
           </>
         )}

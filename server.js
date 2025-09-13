@@ -86,6 +86,11 @@ app.all('/api/createdMatches/:id', createdMatchesHandler);
 app.all('/api/standings', delegate('./api/standings.js'));
 app.all('/api/standings/:id', delegate('./api/standings.js'));
 
+// RESTful CRUD for Reports
+const reportsHandler = require('./api/reporting.js');
+app.all('/api/reporting', reportsHandler);
+app.all('/api/reporting/:id', reportsHandler);
+
 
 
 // Admin utility: trigger on-demand matches refresh (development only)
