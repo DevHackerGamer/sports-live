@@ -15,7 +15,6 @@ A modern web platform for tracking live sports feeds, scores, and stats. Built w
 - Frontend: [React App / Azure Static Web App]()
 - Backend API: [Azure Web App / API Endpoint]()
 - GitHub: [Repo Link](https://github.com/DevHackerGamer/sports-live)
-
 ---
 
 
