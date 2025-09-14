@@ -96,6 +96,7 @@ npm start
 
 ---
 
+
 ## 📋 Project Management Methodology
 - **Framework:** Agile (Scrum)  
 - **Sprint Length:** 2 weeks  
