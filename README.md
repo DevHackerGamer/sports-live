@@ -7,7 +7,6 @@ description: A modern web platform for tracking live sports feeds, scores, and s
 
 
 
-
 A modern web platform for tracking live sports feeds, scores, and stats. Built with **React**, **Node.js/Express**, and **Azure services** for real-time updates.
 
 ---
