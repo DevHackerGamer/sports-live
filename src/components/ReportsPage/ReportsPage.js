@@ -8,6 +8,8 @@ const ReportsPage = () => {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [matchDetails, setMatchDetails] = useState({});
+  const [eventDetails, setEventDetails] = useState({});
 
   // Fetch reports
   const fetchReports = async () => {
@@ -30,6 +32,36 @@ const ReportsPage = () => {
     const interval = setInterval(fetchReports, 10000); // optional polling
     return () => clearInterval(interval);
   }, []);
+useEffect(() => {
+  const fetchDetails = async () => {
+    try {
+      const matchIds = [...new Set(reports.map(r => r.matchId).filter(Boolean))];
+      const eventIds = [...new Set(reports.map(r => r.eventId).filter(Boolean))];
+
+      // Fetch matches
+      const matches = await Promise.all(matchIds.map(id => apiClient.getMatchById(id)));
+      const matchMap = {};
+      matches.forEach(match => { matchMap[match._id] = match; });
+      setMatchDetails(matchMap);
+
+      // Fetch events from the matches
+      const eventsArrays = await Promise.all(
+        matchIds.map(id => apiClient.getMatchEvents(id))
+      );
+
+      const eventMap = {};
+      eventsArrays.forEach(events => {
+        events.data.forEach(event => { eventMap[event._id] = event; });
+      });
+      setEventDetails(eventMap);
+
+    } catch (err) {
+      console.error('Failed to fetch match/event details', err);
+    }
+  };
+
+  if (reports.length) fetchDetails();
+}, [reports]);
 
   // Update report status
   const updateStatus = async (id, status) => {
@@ -119,8 +151,16 @@ const ReportsPage = () => {
               key={r._id}
               className={r.status !== 'resolved' ? 'unresolved-report' : 'resolved-report'}
             >
-              <td>{r.matchId || '-'}</td>
-              <td>{r.eventId || '-'}</td>
+              <td>
+  {matchDetails[r.matchId]
+    ? `${matchDetails[r.matchId].homeTeam} vs ${matchDetails[r.matchId].awayTeam}`
+    : r.matchId || '-'}
+</td>
+<td>
+  {eventDetails[r.eventId]
+    ? eventDetails[r.eventId].type // or .name depending on your event structure
+    : r.eventId || '-'}
+</td>
               <td>{r.title || '-'}</td>
               <td>{r.description || '-'}</td>
               <td>
