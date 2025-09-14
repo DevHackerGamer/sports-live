@@ -23,6 +23,7 @@ A modern web platform for tracking live sports feeds, scores, and stats. Built w
 - Filter by teams, leagues, and events
 - Admins can manage feeds and API connections
 - Mobile-friendly and responsive UI
+- 
 
 ---
 
