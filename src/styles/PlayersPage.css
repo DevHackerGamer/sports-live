@@ -20,6 +20,21 @@
   padding: 0.5rem;
   background: #fafafa;
 }
+.player-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.team-icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  vertical-align: middle;
+  margin-right: 6px;
+  border-radius: 50%; /* optional */
+}
+
 
 .pagination {
   margin-top: 1rem;
