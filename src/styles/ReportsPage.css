@@ -1,0 +1,131 @@
+/* ReportsPage.css */
+
+/* General page styling */
+.reports-page {
+  padding: 20px;
+  font-family: Arial, sans-serif;
+}
+
+.reports-page h2 {
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* New reports badge */
+.new-badge {
+  background-color: #ff4757; /* bright red */
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+
+/* Controls: filter, search, refresh button */
+.reports-controls {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.reports-controls select,
+.reports-controls input {
+  padding: 5px 10px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+}
+
+/* Refresh button styling */
+.reports-controls button {
+  padding: 5px 12px;
+  background-color: #3498db; /* blue */
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.reports-controls button:hover {
+  background-color: #2980b9;
+}
+
+.reports-controls button:active {
+  transform: scale(0.95);
+}
+
+/* Table styling */
+.reports-page table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.reports-page table th,
+.reports-page table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+}
+
+.reports-page table th {
+  background-color: #f4f4f4;
+  font-weight: bold;
+}
+
+/* Highlight unresolved reports */
+.unresolved-report {
+  background-color: #fff7f7; /* light red */
+}
+
+/* Highlight resolved reports */
+.resolved-report {
+  background-color: #e6f9e6; /* light green */
+}
+
+/* Highlight newly added reports */
+.new-report {
+  border-left: 4px solid #ff4757; /* bright red line on left */
+  animation: highlightNew 1s ease-in-out;
+}
+
+@keyframes highlightNew {
+  0% { background-color: #fff0f0; }
+  100% { background-color: #fff7f7; }
+}
+
+/* Delete button for reports */
+.reports-page .delete-btn {
+  background-color: #e74c3c; /* red */
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.reports-page .delete-btn:hover {
+  background-color: #c0392b; /* darker red on hover */
+}
+
+.reports-page .delete-btn:active {
+  transform: scale(0.95);
+}
+
+/* Center the actions column */
+.reports-page table th:last-child,
+.reports-page table td:last-child {
+  text-align: center;
+}
+
+/* Compact select dropdowns for status */
+.reports-page table select {
+  padding: 3px 6px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  cursor: pointer;
+}

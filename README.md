@@ -5,9 +5,6 @@ description: A modern web platform for tracking live sports feeds, scores, and s
 
 # ⚽ Sports Live Tracker
 
-
-
-
 A modern web platform for tracking live sports feeds, scores, and stats. Built with **React**, **Node.js/Express**, and **Azure services** for real-time updates.
 
 ---
@@ -16,16 +13,18 @@ A modern web platform for tracking live sports feeds, scores, and stats. Built w
 - Frontend: [React App / Azure Static Web App]()
 - Backend API: [Azure Web App / API Endpoint]()
 - GitHub: [Repo Link](https://github.com/DevHackerGamer/sports-live)
-
 ---
+
 
 ## 🚀 Project Overview
 - View live sports scores and stats
 - Filter by teams, leagues, and events
 - Admins can manage feeds and API connections
 - Mobile-friendly and responsive UI
+- 
 
 ---
+
 
 ## 🧰 Tech Stack
 - Backend: Node.js, Express, Axios for API requests
@@ -39,6 +38,8 @@ A modern web platform for tracking live sports feeds, scores, and stats. Built w
 - **Public Interface**: Live feed display & scoreboards, Filter by league/team/event, Mobile-friendly interface
 
 ---
+
+
 
 ## ⚙️ Setup Instructions
 ### 1. Clone the Repo
@@ -90,6 +91,7 @@ npm start
 - Code coverage tracked via Codecov
 
 ---
+
 
 ## 📋 Project Management Methodology
 - **Framework:** Agile (Scrum)  

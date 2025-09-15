@@ -106,6 +106,34 @@ class ApiClient {
       method: 'DELETE',
     });
   }
+  // Reports API - recognize change`
+async getReports(id) {
+  if (id) {
+    return this.request(`/api/reporting/${id}`);
+  }
+  return this.request('/api/reporting');
+}
+
+async createReport(report) {
+  return this.request('/api/reporting', {
+    method: 'POST',
+    body: report,
+  });
+}
+
+async updateReport(id, updates) {
+  return this.request(`/api/reporting/${id}`, {
+    method: 'PUT',
+    body: updates,
+  });
+}
+
+async deleteReport(id) {
+  return this.request(`/api/reporting/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 
   // Teams API
   async getTeams() {

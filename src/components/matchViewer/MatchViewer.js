@@ -20,6 +20,11 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
   // Admin form state
   const [newEvent, setNewEvent] = useState({ type: 'goal', time: '', team: '', player: '', description: '' });
   const [meta, setMeta] = useState({ referee: '', venue: '' });
+  const [showReportPanel, setShowReportPanel] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState('');
+  const [reportDescription, setReportDescription] = useState('');
+  const [reportTitle, setReportTitle] = useState('');
+
 
   useEffect(() => {
     if (match) {
@@ -275,18 +280,37 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
       default: return 'Event';
     }
   };
+const submitEventReport = async () => {
+  if (!reportTitle.trim()) {
+    alert("Please enter a title");
+    return;
+  }
+  if (!reportDescription.trim()) {
+    alert("Please enter a description");
+    return;
+  }
 
-  // Removed emoji icons for events to keep UI minimal
+  try {
+    const report = await apiClient.createReport({
+      matchId: match.id || match._id,
+      eventId: selectedEvent || null,
+      title: reportTitle,
+      description: reportDescription,
+    });
+    console.log('Report submitted:', report);
+    alert("Report submitted successfully!");
+    setReportTitle('');
+    setReportDescription('');
+    setSelectedEvent('');
+    setShowReportPanel(false);
 
-  const handleCommentSubmit = (e) => {
-    e.preventDefault();
-    if (comment.trim()) {
-      //TODO: Integrate with backend to submit comment(BAKEND PEOPLE!!)
-      console.log('Error report submitted:', comment);
-      alert('Thank you for your report. We will review it shortly.');
-      setComment('');
-    }
-  };
+     // Optional: refresh ReportsPage if it's open
+    window.dispatchEvent(new CustomEvent('reportsUpdated'));
+  } catch (err) {
+    console.error("Failed to submit report:", err);
+    alert("Failed to submit report");
+  }
+};
 
   // Admin actions
   const submitNewEvent = async () => {
@@ -593,15 +617,48 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
           <div className="event-comments">
             <h4>Report Event Error</h4>
             <p>See an error in the event timeline? Let us know!</p>
-            <form onSubmit={handleCommentSubmit}>
-              <textarea 
-                placeholder="Describe the issue you noticed..."
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                rows="3"
-              />
-              <button type="submit">Submit Report</button>
-            </form>
+
+               <button onClick={() => setShowReportPanel(!showReportPanel)}>
+                   {showReportPanel ? 'Hide Report Panel' : 'Report an Issue'}
+                  </button>
+            {showReportPanel && (
+          <div className="report-panel">
+           <h4>Report Event Issue</h4>
+             <label>Select Event</label>
+                      <select
+                   value={selectedEvent}
+                 onChange={(e) => setSelectedEvent(e.target.value)}
+                             >
+            <option value="">-- Choose Event --</option>
+           {events.map(ev => (
+         <option key={ev.id || ev._id} value={ev.id || ev._id}>
+              {ev.description || `Event ${ev.id || ev._id}`}
+        </option>
+      ))}
+    </select>
+    <label>Title</label>
+    <input
+     type="text"
+     placeholder="Brief title of the issue"
+    value={reportTitle}
+    onChange={(e) => setReportTitle(e.target.value)}
+    />
+
+    <label>Description</label>
+    <textarea
+      placeholder="Describe the issue..."
+      value={reportDescription}
+      onChange={(e) => setReportDescription(e.target.value)}
+      rows={3}
+    />
+
+    <div className="report-actions">
+      <button onClick={submitEventReport}>Submit</button>
+      <button onClick={() => setShowReportPanel(false)}>Cancel</button>
+    </div>
+  </div>
+)}
+          
           </div>
         </div>
       )}

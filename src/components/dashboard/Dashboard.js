@@ -6,6 +6,9 @@ import MatchViewer from '../matchViewer/MatchViewer';
 import MatchSetup from '../matchsetup/MatchSetup';
 import LiveInput from '../liveInput/LiveInput';
 import LeagueView from '../LeagueView/LeagueView';
+import ReportsPage from '../ReportsPage/ReportsPage' ;
+import PlayersPage from '../PlayersPage/PlayersPage';
+
 import { isAdminFromUser, getUserRoles } from '../../lib/roles';
 import '../../styles/Dashboard.css';
 
@@ -78,12 +81,16 @@ const Dashboard = () => {
 
   const renderContent = () => {
     switch(activeTab) {
+       case 'players':
+      return <PlayersPage />;
       case 'matchSetup':
         return <MatchSetup isAdmin={isAdmin} />;
       case 'liveInput':
         return <LiveInput isAdmin={isAdmin} match={selectedMatch} onBackToMatch={() => setActiveTab('liveSports')} />;
           case 'leagueStandings':
       return <LeagueView initialLeague="PL" onBack={() => setActiveTab('liveSports')} />
+      case 'reports':   
+      return <ReportsPage isAdmin={isAdmin} />;
       case 'liveSports':
       default:
         return selectedMatch ? (
@@ -129,6 +136,14 @@ const Dashboard = () => {
         >
           Live Sports
         </button>
+       {/* === New Players Tab === */}
+         <button 
+    className={activeTab === 'players' ? 'nav-btn active' : 'nav-btn'}
+    onClick={() => setActiveTab('players')}
+  >
+    Players
+  </button>
+
          {/* League Standings visible to all users */}
          <button 
            className={activeTab === 'leagueStandings' ? 'nav-btn active' : 'nav-btn'}
@@ -155,6 +170,13 @@ const Dashboard = () => {
                 Live Input
               </button>
             )}
+              {/* === New Reports Tab === */}
+               <button
+              className={activeTab === 'reports' ? 'nav-btn active' : 'nav-btn'}
+               onClick={() => setActiveTab('reports')}
+              >
+              Reports
+             </button>
            
           </>
         )}
