@@ -35,23 +35,29 @@ const ReportsPage = () => {
 useEffect(() => {
   const fetchDetails = async () => {
     try {
+      // Get unique match and event IDs
       const matchIds = [...new Set(reports.map(r => r.matchId).filter(Boolean))];
       const eventIds = [...new Set(reports.map(r => r.eventId).filter(Boolean))];
 
       // Fetch matches
-      const matches = await Promise.all(matchIds.map(id => apiClient.getMatchById(id)));
+      const matchResponses = await Promise.all(matchIds.map(id => apiClient.getMatchById(id)));
       const matchMap = {};
-      matches.forEach(match => { matchMap[match._id] = match; });
+      matchResponses.forEach(res => {
+        const match = res.data; // extract actual match object
+        if (!match) return;
+        const key = match._id || match.id;
+        if (key) matchMap[String(key)] = match;
+      });
       setMatchDetails(matchMap);
 
-      // Fetch events from the matches
-      const eventsArrays = await Promise.all(
-        matchIds.map(id => apiClient.getMatchEvents(id))
-      );
-
+      // Fetch events for all matches
+      const eventResponses = await Promise.all(matchIds.map(id => apiClient.getMatchEvents(id)));
       const eventMap = {};
-      eventsArrays.forEach(events => {
-        events.data.forEach(event => { eventMap[event._id] = event; });
+      eventResponses.forEach(res => {
+        res.data.forEach(event => {
+          const key = event._id || event.id;
+          if (key) eventMap[String(key)] = event;
+        });
       });
       setEventDetails(eventMap);
 
@@ -151,16 +157,22 @@ useEffect(() => {
               key={r._id}
               className={r.status !== 'resolved' ? 'unresolved-report' : 'resolved-report'}
             >
-              <td>
+           <td>
   {matchDetails[r.matchId]
-    ? `${matchDetails[r.matchId].homeTeam} vs ${matchDetails[r.matchId].awayTeam}`
-    : r.matchId || '-'}
+    ? `${matchDetails[r.matchId].homeTeam || 'Home'} vs ${matchDetails[r.matchId].awayTeam || 'Away'} (${new Date(matchDetails[r.matchId].date).toLocaleDateString()})`
+    : 'Unknown Match'}
 </td>
 <td>
-  {eventDetails[r.eventId]
-    ? eventDetails[r.eventId].type // or .name depending on your event structure
-    : r.eventId || '-'}
+  {eventDetails[r.eventId] ? (
+    <>
+      {eventDetails[r.eventId].minute ? `${eventDetails[r.eventId].minute}' ` : ''}
+      {eventDetails[r.eventId].type || 'Event'}
+      {eventDetails[r.eventId].player ? ` - ${eventDetails[r.eventId].player}` : ''}
+      {eventDetails[r.eventId].description ? ` (${eventDetails[r.eventId].description})` : ''}
+    </>
+  ) : 'Unknown Event'}
 </td>
+
               <td>{r.title || '-'}</td>
               <td>{r.description || '-'}</td>
               <td>
