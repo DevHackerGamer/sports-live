@@ -288,7 +288,17 @@ const MatchSetup = ({ isAdmin: isAdminProp }) => {
                   min={new Date().toISOString().slice(0,10)}
                   onChange={handleInputChange}
                 />
-                <input type="time" name="time" value={newMatch.time} onChange={handleInputChange}/>
+                  <input 
+    type="time" 
+    name="time" 
+    value={newMatch.time} 
+    min={
+      newMatch.date === new Date().toISOString().slice(0,10)
+        ? new Date().toISOString().substring(11,16) // current time HH:MM if today
+        : "00:00"
+    }
+    onChange={handleInputChange}
+  />
               </div>
               <div className="form-row">
                 <select name="competition" value={newMatch.competition} onChange={handleInputChange}>
