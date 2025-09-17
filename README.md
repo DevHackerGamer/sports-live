@@ -5,7 +5,7 @@ description: A modern web platform for tracking live sports feeds, scores, and s
 
 # ⚽ Sports Live Tracker
 
-A modern web platform for tracking live sports feeds, scores, and stats. Built with **React**, **Node.js/Express**, and **Azure services** for real-time updates.
+A modern web platform for tracking live sports feeds, scores, and stats. Built with **React**, **Node.js/Express**, and **MongoDB** for real-time updates and admin management
 
 ---
 
@@ -21,14 +21,14 @@ A modern web platform for tracking live sports feeds, scores, and stats. Built w
 - Filter by teams, leagues, and events
 - Admins can manage feeds and API connections
 - Mobile-friendly and responsive UI
-- 
+- Real-time score updates for live matches
 
 ---
 
 
 ## 🧰 Tech Stack
-- Backend: Node.js, Express, Axios for API requests
-- Frontend: React (functional components & hooks), Tailwind CSS
+- Backend: Node.js, Express,MongoDB,  Axios for API requests
+- Frontend: React (functional components & hooks)
 - Deployment & Dev Tools: Azure Web Apps / Container Registry, Docker, Git & GitHub, Notion (sprint boards), Discord (team communication)
 
 ---
@@ -52,28 +52,18 @@ cd sports-live
 ### 2. Install Dependencies (Backend + Frontend)
 
 ```bash
-cd backend
-npm install
-
-cd ../frontend
 npm install
 ```
 
-### 3. Run Backend Locally
 
-```bash
-cd backend
-npm run dev
-```
-
-### 4. Run Frontend Locally
+### 3. Run Frontend = Backend Locally
 
 ```bash
 cd frontend
 npm start
 ```
 
-> ⚠️ Ensure your `.env` is configured with valid `REACT_APP_CLERK_PUBLISHABLE_KEY`, Firebase, and Search API keys.
+> ⚠️ Ensure your `.env` is configured with valid `REACT_APP_CLERK_PUBLISHABLE_KEY`, MONGODB_URI, and Search API keys.
 
 ---
 
