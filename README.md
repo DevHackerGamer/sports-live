@@ -60,7 +60,7 @@ npm install
 
 ```bash
 cd frontend
-npm start
+npm run dev
 ```
 
 > ⚠️ Ensure your `.env` is configured with valid `REACT_APP_CLERK_PUBLISHABLE_KEY`, MONGODB_URI, and Search API keys.
@@ -107,7 +107,6 @@ npm start
 ## 📚 Resources
 - [React Documentation](https://reactjs.org/)  
 - [Tailwind CSS](https://tailwindcss.com/)  
-- [Azure Web Apps](https://learn.microsoft.com/en-us/azure/app-service/)
 
 # Folder Structure
 
