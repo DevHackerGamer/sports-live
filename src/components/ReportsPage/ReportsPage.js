@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState,useMemo } from 'react';
 import { apiClient } from '../../lib/api';
 import '../../styles/ReportsPage.css';
 
@@ -16,7 +16,6 @@ const ReportsPage = () => {
     setLoading(true);
     try {
       const res = await apiClient.getReports();
-      // API returns { success: true, data: [...] }
       setReports(res.data || []);
       setError('');
     } catch (err) {
@@ -29,53 +28,70 @@ const ReportsPage = () => {
 
   useEffect(() => {
     fetchReports();
-    const interval = setInterval(fetchReports, 10000); // optional polling
+    const interval = setInterval(fetchReports, 10000);
     return () => clearInterval(interval);
   }, []);
-useEffect(() => {
-  const fetchDetails = async () => {
-    try {
-      // Get unique match and event IDs
-      const matchIds = [...new Set(reports.map(r => r.matchId).filter(Boolean))];
-      const eventIds = [...new Set(reports.map(r => r.eventId).filter(Boolean))];
 
-      // Fetch matches
-      const matchResponses = await Promise.all(matchIds.map(id => apiClient.getMatchById(id)));
-      const matchMap = {};
-      matchResponses.forEach(res => {
-        const match = res.data; // extract actual match object
-        if (!match) return;
-        const key = match._id || match.id;
-        if (key) matchMap[String(key)] = match;
-      });
-      setMatchDetails(matchMap);
+  // Fetch match and event details
+  useEffect(() => {
+    const fetchDetails = async () => {
+      try {
+      const matchIds = [...new Set(reports.map(r => String(r.matchId)).filter(Boolean))];
+      const missingMatchIds = matchIds.filter(id => !matchDetails[id]);
 
-      // Fetch events for all matches
-      const eventResponses = await Promise.all(matchIds.map(id => apiClient.getMatchEvents(id)));
-      const eventMap = {};
-      eventResponses.forEach(res => {
-        res.data.forEach(event => {
-          const key = event._id || event.id;
-          if (key) eventMap[String(key)] = event;
+      if (matchIds.length > 0) {
+        const matchResponses = await Promise.all(
+          matchIds.map(id => apiClient.getMatchById(id))
+        );
+
+        const matchMap = {};
+        matchResponses.forEach(res => {
+          const match = res.data;
+          if (!match) return;
+
+          const key = String(match._id || match.id || match.matchId);
+          if (!key) return;
+
+          // Ensure homeTeam/awayTeam and date exist
+          const homeTeam = match.homeTeam?.name || match.homeTeam || 'Home';
+          const awayTeam = match.awayTeam?.name || match.awayTeam || 'Away';
+          const date = match.date || match.utcDate || match.matchDate || new Date().toISOString();
+
+          matchMap[key] = { ...match, homeTeam, awayTeam, date };
         });
-      });
-      setEventDetails(eventMap);
 
-    } catch (err) {
-      console.error('Failed to fetch match/event details', err);
-    }
-  };
+        // Merge with existing matches
+        setMatchDetails(prev => ({ ...prev, ...matchMap }));
+      }
 
-  if (reports.length) fetchDetails();
-}, [reports]);
+
+        // Fetch events for each match
+        const eventResponses = await Promise.all(
+          matchIds.map(id => apiClient.getMatchEvents(id))
+        );
+        const eventMap = {};
+        eventResponses.forEach(res => {
+          res.data.forEach(event => {
+            const key = String(event._id || event.id);
+            eventMap[key] = event;
+          });
+        });
+        setEventDetails(eventMap);
+      } catch (err) {
+        console.error('Failed to fetch match/event details', err);
+      }
+    };
+
+    if (reports.length) fetchDetails();
+  }, [reports]);
 
   // Update report status
   const updateStatus = async (id, status) => {
     if (!window.confirm(`Change report status to "${status}"?`)) return;
     try {
       await apiClient.updateReport(id, { status });
-      setReports((prev) =>
-        prev.map((r) =>
+      setReports(prev =>
+        prev.map(r =>
           r._id === id
             ? {
                 ...r,
@@ -92,38 +108,55 @@ useEffect(() => {
   };
 
   // Delete a report
-  const deleteReport = async (id) => {
+  const deleteReport = async id => {
     if (!window.confirm('Are you sure you want to delete this report?')) return;
     try {
       await apiClient.deleteReport(id);
-      setReports((prev) => prev.filter((r) => r._id !== id));
+      setReports(prev => prev.filter(r => r._id !== id));
     } catch (err) {
       console.error('Failed to delete report:', err);
       alert('Failed to delete report. Check console.');
     }
   };
 
+  // Reset filters
+  const clearFilters = () => {
+    setFilter('all');
+    setSearch('');
+  };
+
+  // 
   // Filter and search reports
-  const filteredReports = reports.filter((r) => {
+// Filter and search reports (title + description only)
+const filteredReports = useMemo(() => {
+  const searchLower = search.trim().toLowerCase();
+
+  return reports.filter(r => {
     const matchesFilter = filter === 'all' || r.status === filter;
-    const matchesSearch =
-      r.matchId?.toString().includes(search) ||
-      (r.eventId?.toString() || '').includes(search) ||
-      (r.title?.toLowerCase().includes(search.toLowerCase()) || false);
-    return matchesFilter && matchesSearch;
+
+    // Only check title + description
+    const searchable = [
+      r.title || '',
+      r.description || ''
+    ].join(' ').toLowerCase();
+
+    if (!searchLower) return matchesFilter;
+    return matchesFilter && searchable.includes(searchLower);
   });
+}, [reports, filter, search]);
+
+
 
   // Render states
   if (loading) return <p>Loading reports...</p>;
   if (error) return <p className="error">{error}</p>;
-  if (!filteredReports.length) return <p>No reports found.</p>;
 
   return (
     <div className="reports-page">
       <h2>Bug Reports</h2>
 
       <div className="reports-controls">
-        <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+        <select value={filter} onChange={e => setFilter(e.target.value)}>
           <option value="all">All</option>
           <option value="open">Open</option>
           <option value="in-review">In Progress</option>
@@ -132,10 +165,14 @@ useEffect(() => {
 
         <input
           type="text"
-          placeholder="Search by Match ID, Event ID, or Title"
+          placeholder="Search by Title or Description"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={e => setSearch(e.target.value)}
         />
+
+        <button onClick={clearFilters} className="clear-btn">
+          Clear Filters
+        </button>
       </div>
 
       <table>
@@ -146,51 +183,61 @@ useEffect(() => {
             <th>Title</th>
             <th>Description</th>
             <th>Status</th>
-            <th>Reported By</th>
             <th>Created At</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {filteredReports.map((r) => (
-            <tr
-              key={r._id}
-              className={r.status !== 'resolved' ? 'unresolved-report' : 'resolved-report'}
-            >
-           <td>
-  {matchDetails[r.matchId]
-    ? `${matchDetails[r.matchId].homeTeam || 'Home'} vs ${matchDetails[r.matchId].awayTeam || 'Away'} (${new Date(matchDetails[r.matchId].date).toLocaleDateString()})`
-    : 'Unknown Match'}
-</td>
-<td>
-  {eventDetails[r.eventId] ? (
-    <>
-      {eventDetails[r.eventId].minute ? `${eventDetails[r.eventId].minute}' ` : ''}
-      {eventDetails[r.eventId].type || 'Event'}
-      {eventDetails[r.eventId].player ? ` - ${eventDetails[r.eventId].player}` : ''}
-      {eventDetails[r.eventId].description ? ` (${eventDetails[r.eventId].description})` : ''}
-    </>
-  ) : 'Unknown Event'}
-</td>
-
-              <td>{r.title || '-'}</td>
-              <td>{r.description || '-'}</td>
-              <td>
-                <select value={r.status} onChange={(e) => updateStatus(r._id, e.target.value)}>
-                  <option value="open">Open</option>
-                  <option value="in-review">In Progress</option>
-                  <option value="resolved">Resolved</option>
-                </select>
-              </td>
-              <td>{r.reportedBy || 'Guest'}</td>
-              <td>{r.createdAt ? new Date(r.createdAt).toLocaleString() : '-'}</td>
-              <td>
-                <button className="delete-btn" onClick={() => deleteReport(r._id)}>
-                  Delete
-                </button>
+          {filteredReports.length === 0 ? (
+            <tr>
+              <td colSpan="7" style={{ textAlign: 'center' }}>
+                No reports found.
               </td>
             </tr>
-          ))}
+          ) : (
+            filteredReports.map(r => (
+              <tr
+                key={r._id}
+                className={r.status !== 'resolved' ? 'unresolved-report' : 'resolved-report'}
+              >
+                <td>
+  {matchDetails[String(r.matchId)]
+    ? (() => {
+        const m = matchDetails[String(r.matchId)];
+        return `${m.homeTeam} vs ${m.awayTeam} (${new Date(m.date).toLocaleDateString()})`;
+      })()
+    : 'Unknown Match'}
+</td>
+                <td>
+                  {eventDetails[String(r.eventId)]
+                    ? (() => {
+                        const e = eventDetails[String(r.eventId)];
+                        const type = e?.type || e?.eventType || 'Event';
+                        const minute = e?.minute ? `${e.minute}' ` : '';
+                        const player = e?.player ? ` - ${e.player}` : '';
+                        const desc = e?.description ? ` (${e.description})` : '';
+                        return `${minute}${type}${player}${desc}`;
+                      })()
+                    : 'Unknown Event'}
+                </td>
+                <td>{r.title || '-'}</td>
+                <td>{r.description || '-'}</td>
+                <td>
+                  <select value={r.status} onChange={e => updateStatus(r._id, e.target.value)}>
+                    <option value="open">Open</option>
+                    <option value="in-review">In Progress</option>
+                    <option value="resolved">Resolved</option>
+                  </select>
+                </td>
+                <td>{r.createdAt ? new Date(r.createdAt).toLocaleString() : '-'}</td>
+                <td>
+                  <button className="delete-btn" onClick={() => deleteReport(r._id)}>
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
     </div>
