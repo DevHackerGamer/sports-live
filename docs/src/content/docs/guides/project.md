@@ -17,9 +17,15 @@ We use the **Agile methodology**, following the **Scrum framework**, to ensure f
 - Encourages transparency, communication, and accountability.
 - Short iterations keep progress measurable and visible.
 
-
-We work in **two-week sprints**, providing enough time for meaningful progress while maintaining rapid feedback loops
+#### Why Scrum Instead of Alternatives?  
+- **Waterfall**: Sequential and rigid, not ideal since requirements evolved after stakeholder reviews.    
+- **Scrum**: Balanced approach—short sprints, clear roles, structured reviews, and room for continuous improvement.  
 ---
+Scrum therefore enabled us to deliver incremental value while adapting quickly to evolving feedback.  
+
+
+####  We work in **two-week sprints**, providing enough time for meaningful progress while maintaining rapid feedback loops
+
 
 ### Scrum Process
 
@@ -35,6 +41,13 @@ We work in **two-week sprints**, providing enough time for meaningful progress w
 4. **Sprint Retrospective** – Identify improvements for the next sprint.
 
 ---
+## Stakeholder Interaction  
+
+- **Tutor Reviews**: At the end of each sprint, we demoed progress to our tutor.  
+- **Example**: After Sprint 2, tutor feedback suggested enhancing database schema for better player/team linking. We adapted in Sprint 3.  
+- **Transparency**: Regular updates through Whatsapp messages,Discord Meetings and shared Notion boards ensured the tutor was always aware of project status.  
+
+---
 
 ## Workflow Diagram
 `Backlog → Sprint Planning → Development → Daily Standups → Sprint Review → Retrospective → Next Sprint`
@@ -42,11 +55,10 @@ We work in **two-week sprints**, providing enough time for meaningful progress w
 ---
 
 ## Tools Used
-- **React** – Frontend framework for building fast, responsive UI.
 - **Notion** – Central hub for sprint boards, backlog, and documentation.
 - **Discord** – Async communication, quick updates, and stakeholder coordination.
-- **Git & GitHub** – Version control and CI/CD deployment.
-- **VS Code** – Main IDE for coding and configuration.
+- **Whatsapp** – for easy and more frequent communication and updates
+
 
 ---
 
@@ -61,44 +73,45 @@ We work in **two-week sprints**, providing enough time for meaningful progress w
 | -------------------- | -------------------- | -------------------- | ---------------------------------------- |
 | **Sprint Planning**  | Every second Tuesday | In-person            | Plan the sprint, estimate tasks          |
 | **Sprint Check-ins** | 3x per week          | Discord              | Review progress, unblock teammates       |
-| **Sprint Review**    | Every Day            | In-person/Discord/Whatsapp  | Demo features, collect feedback          |
-
----
-
-## Definition of Done (DoD)  
-- Code reviewed and merged.  
-- Feature tested and passes QA.  
-- Documentation updated.  
-- Stakeholder acceptance obtained.  
-
----
-
-## Continuous Improvement  
-- Retrospective action items applied in next sprint.  
-- Regular evaluation of workflow and tools.  
-- Experimentation with new practices for efficiency.  
+| **Sprint Review**    | Every Day            | In-person/Discord/Whatsapp  | Discuss features, collect feedback          |
+ **Retrospective**    | End of sprint        | In-Person on Sprint Marking             | Reflect on process, define improvements  |
 
 ---
 ## Proof of Agile in Action
-We maintain our project board in **Notion**:  
+Below are real examples of how Agile was applied in our project:  
+
+### 1. We maintain our project board in **Notion**:  
 📌 [View on Notion](https://www.notion.so/Sports-Live-Tracker-2025-25b7181e6705803aa7bdffa7190f8dfa?source=copy_link) 
-
-Includes:
-- Sprint backlog with priorities.
-- Columns: `Backlog` → `To Do` → `In Progress` → `Review` → `Done`.
-- Assigned tasks with due dates.
-- Links to GitHub branches and PRs.
-- Sprint deliverable tags.
-
-Additional evidence:
-- Meeting notes from Sprint Planning.
-- Standup summaries in Discord.
-- Screenshots from Sprint Reviews.
-- Retrospective improvement notes.
+- Shows user stories, priorities, and tasks awaiting scheduling.  
+![Notion Board](/diagrams/notionboard.png)  
 
 ---
+### 2. Sprint Planning 
+- Estimate work, assign tasks, define sprint goals 
+![Sprint Planning](/diagrams/meeting.png) 
+
+![Product Backlog](/diagrams/productbacklog.png) 
+
+![User Stories](/diagrams/userstories.png) 
+
+
+### 3. Daily Standups
+- Our Daily check ins to report progress and make sure everyone is up to date with work
+![Daily Standups ](/diagrams/dailystandup.png)  
+
 ---
 
+### 4. Sprint Review(Stakeholder Interaction)
+- Demo completed features to stakeholder(tutor) and gather feedback.
+![Sprint Review](/diagrams/sholderlog.png)  
+
+---
+
+### 5. Retrospective
+- Identify what went well for this sprint and improvements for the next sprint
+![Sprint Retrospective](/diagrams/reterospective.png)   
+
+---
 ## Definition of Done (DoD)  
 - Code reviewed and merged.  
 - Feature tested and passes QA.  
@@ -114,45 +127,24 @@ Additional evidence:
 
 ---
 
-## Workflow Structure  
+## Review of Methodology  
+
+### What Worked Well
+- Short sprints kept progress visible and manageable.  
+- Notion and Discord made task tracking and communication effective.  
+- Regular reviews gave the tutor confidence in progress.  
+
+### Challenges Faced
+- Team sometimes struggled with sprint deadlines.  
+- Daily standups were occasionally missed due to scheduling conflicts.  
+- Scope creep when new features were suggested mid-sprint.  
+
+### Improvements for Future
+- Stronger sprint planning with clearer task estimates.  
+- Automating testing and deployments earlier.  
+-
 
 
-## **Architecture Overview**
-
-**Frontend** – **React**
-- Renders UI components for login, dashboard, preferences, match setup, and live input.
-- Fetches data from backend APIs and WebSockets for live updates.
-
-**Backend API** – Node.js + Express
-- RESTful endpoints for matches, events, and preferences.
-- WebSocket support for real-time updates.
-
-**Database** – PostgreSQL or MongoDB
-- Stores match info, events, player/team data, and user preferences.
-
-**Deployment** – GitHub Pages / Hosting via CI/CD
-- Automatic build and deploy from the `main` branch.
-
----
-
-## **Deployment Process**
-
-1. **Branching Strategy**
-   - Features: `feature/<name>`
-   - Fixes: `fix/<name>`
-   - Merge via pull requests to `main`.
-
-2. **Build & Test**
-   - `astro build` runs locally and in CI.
-   - Manual QA for dashboard, event feed, and live updates.
-
-3. **Deployment**
-   - Push to `main` triggers GitHub Actions.
-   - Astro build output deployed to GitHub Pages or hosting service.
-
-4. **Post-Deployment**
-   - Verify live environment against sprint goals.
-   - Perform smoke tests.
 
 ---
 

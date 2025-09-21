@@ -18,12 +18,40 @@ export default defineConfig({
         {
           label: "Introduction",
           items: [
-            // Each item here is one entry in the navigation menu.
+            // Each item here is one entry in the navigation menu..
             { label: "Getting Started", slug: "guides/started" },
-            { label: "Project set up", slug: "guides/installation" },
+            { label: "Project Set Up", slug: "guides/installation" },
             { label: "Overview", slug: "guides/overview" },
+            { label: "Team & Contributors", slug: "guides/teamandcontributors" },
           ],
         },
+        {
+          label: "Methodology & Planning",
+          items: [
+          
+            { label: "Git methodology", slug: "guides/git" },
+            {
+              label: "Project management methodology",
+              slug: "guides/project",
+            },
+            { label: "Project Design & Planning", slug: "guides/designplan" }
+           
+          ],
+        },
+         {
+          label: "Development",
+          items: [
+            // Each item here is one entry in the navigation menu.
+
+           
+            { label: "Development Guide", slug: "guides/development" },
+            { label: "Technology Stack", slug: "guides/stack" },
+            { label: "Database Documentation", slug: "guides/dbdoc" },
+            { label: "Third-Party Integrations", slug: "guides/third-party" },
+            { label: "Deployment & Integration", slug: "guides/deployment" }
+          ],
+        },
+       
         {
           label: "Usage Guides",
           items: [
@@ -31,21 +59,12 @@ export default defineConfig({
             { label: "Frontend ", slug: "guides/frontend" },
             { label: "Backend", slug: "guides/backend" },
             { label: "Authentication", slug: "guides/authentication" },
-            { label: "API Documentation", slug: "guides/endpoints" }
+            { label: "API Documentation", slug: "guides/endpoints" },
+            { label: "User Guide", slug: "guides/userguide" },
           ],
+
         },
-        {
-          label: "Development",
-          items: [
-            // Each item here is one entry in the navigation menu.
-          
-             { label: "Design & Development Plan", slug: "guides/designplan" },
-            { label: "Development Guide", slug: "guides/development" },
-            { label: "Technology Stack", slug: "guides/stack" },
-            { label: "Database Documentation", slug: "guides/dbdoc" },
-            { label: "Third-Party Integrations", slug: "guides/third-party" },
-          ],
-        },
+       
 
         {
           label: "Testing & Quality",
@@ -58,18 +77,29 @@ export default defineConfig({
            
           ],
         }, 
+     
         {
-          label: "Methodology",
+          label: "Project Evaluation & General Discussion",
           items: [
             // Each item here is one entry in the navigation menu.
-            { label: "Git methodology", slug: "guides/git" },
-            {
-              label: "Project management methodology",
-              slug: "guides/project",
-            },
-            //{ label: "API Documentation", slug: "guides/endpoints" },
+            { label: "General Discussion", slug: "guides/generaldiscussion"
+
+             },
+              { label: "Project Challenges", slug: "guides/challenges" },
+            { label: "Project Evaluation", slug: "guides/evaluation" },
+            { label: "Conclusion", slug: "guides/conclusion" }
+            
+            
           ],
         },
+        {
+           label: "Supporting Documents", 
+           items: [
+             { label: "Appendix", slug: "guides/appendix" }, 
+             { label: "Roadmap", slug: "guides/roadmap" }, 
+           ],
+         },
+
         {
           label: "Reference",
           autogenerate: { directory: "reference" },

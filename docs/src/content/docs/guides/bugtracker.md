@@ -1,5 +1,5 @@
 ---
-title:  Code Quality Tools
+title: Bug Tracking
 description: Tools and guidelines for maintaining code quality in the project.
 ---
 
@@ -84,3 +84,30 @@ Critical
 - Device: PC
 - Browser: Chrome for Windows
 - Backend API: Sprint 1 v1.0.0
+```
+<!-- 
+---
+
+## 4. Roles & Responsibilities
+| Role           | Responsibility                          |
+|----------------|----------------------------------------|
+| Reporter       | Submit bug with all required info       |
+| Developer      | Investigate, fix, and link commits      |
+| QA / Scrum Master | Verify fixes, close issues           |
+| Stakeholder    | Review critical bugs for prioritization |
+
+---
+
+## 5. Priority vs Severity Matrix
+| Severity  | Description                  | Priority Example                 |
+|-----------|------------------------------|--------------------------------|
+| Critical  | Blocks functionality          | Login not working               |
+| Major     | Affects core feature          | Scores not updating             |
+| Minor     | Cosmetic / non-critical      | UI misalignment, typo           |
+
+---
+-->
+---
+## References
+-  [GitHub IssuesDocs](https://docs.github.com/en/issues)  
+-  [Atlassian Bug Tracking](https://www.atlassian.com/software/jira/guides/use-cases/bug-tracking)  

@@ -20,8 +20,7 @@ Copy the following connection string, with the link to the database and the pass
 mongodb+srv://dybalasantiago15_db_user:<db_password>@sportslivetracker.8wemqpi.mongodb.net/?retryWrites=true&w=majority&appName=SportsLiveTracker
 
 ```
-user : dybalasantiago15_db_user
-password : theYYtiktoker
+
 
 ### 2.3 Enviroment Variables
 Store the full URI in the [.env]
@@ -52,70 +51,170 @@ export default connectDB;
 ```
 ## 3. Database Schema
 ### 3.1 Users
+Stores authentication + personalization data.
 ```bash
 {
-  "userID": "string (from Clerk)"
+  {
+  "_id": "68b1f9451da001bdf2c9aa2b",
+  "userId": "user_31A7bWsnnZJfbsVJLIGAwPPMyMq",
+  "favorites": ["Arsenal FC", "Liverpool FC", "Everton FC"],
+  "lastUpdated": "2025-09-20T00:30:30.681Z"
+}
+
 }
 
 ```
-### 3.2 Favourite Teams
+### 3.2 Teams
+Stores official team metadata.
 ```bash
 {
-  "favID": "string (UUID)",
-  "userID": "string (FK → Users.userID)",
-  "teamID": "string (FK → Teams.teamID)"
+  {
+  "_id": "68b1c9731da001bdf2c9a8f2",
+  "id": 1765,
+  "name": "Fluminense FC",
+  "shortName": "Fluminense",
+  "tla": "FLU",
+  "venue": "Estadio Jornalista Mário Filho",
+  "founded": 1902,
+  "clubColors": "Maroon / Green / White",
+  "crest": "https://crests.football-data.org/1765.png",
+  "competition": "Campeonato Brasileiro Série A",
+  "competitionCode": "BSA",
+  "address": "Rua Álvaro Chaves 41, Bairro Laranjeiras Rio de Janeiro, RJ 22231-220",
+  "website": "http://www.fluminense.com.br",
+  "lastUpdated": "2025-08-29T15:38:19.426Z"
+}
+
 }
 
 ```
-### 3.3 Match_Info
+### 3.3 Players
+Stores player details linked to a team.
 ```bash
 {
-  "matchID": "string (UUID)",
-  "startTime": "datetime",
-  "status": "string (scheduled, live, finished)",
-  "teamIDs": ["team1ID", "team2ID"]
+ {
+  "_id": "68b1c9791da001bdf2c9a970",
+  "id": 22815,
+  "name": "Gabriel Fuentes",
+  "dateOfBirth": "1997-02-09",
+  "position": "Defence",
+  "nationality": "Colombia",
+  "teamId": 1765,
+  "teamName": "Fluminense FC",
+  "lastUpdated": "2025-09-20T01:04:47.073Z"
+}
+
 }
 
 ```
-### 3.4 Event_Log
+### 3.4 Match_Info
 ```bash
 {
-  "eventID": "string (UUID)",
-  "matchID": "string (FK → MatchInfo.matchID)",
-  "timestamp": "datetime",
-  "type": "string (goal, foul, substitution, etc.)",
-  "description": "string"
+  {
+  "_id": "68b4f28a1da001bdf2c9aa8e",
+  "id": 535175,
+  "homeTeam": { "id": 64, "name": "Liverpool FC" },
+  "awayTeam": { "id": 61, "name": "Chelsea FC" },
+  "competition": { "id": 2021, "name": "Premier League" },
+  "matchday": 25,
+  "stage": "REGULAR_SEASON",
+  "status": "TIMED",
+  "utcDate": "2025-09-28T19:00:00Z",
+  "odds": {},
+  "referees": [],
+  "score": {},
+  "lastUpdated": "2025-09-20T01:04:32.017Z"
+}
+
 }
 
 ```
-### 3.5 Display_State
+### 3.5 Event_Log
+Stores live match events
 ```bash
 {
-  "displayID": "string (UUID)",
-  "matchID": "string (FK → MatchInfo.matchID)",
-  "homeScore": "int",
-  "awayScore": "int",
-  "possession": "string (teamID)",
-  "gamePhase": "string (1st Half, 2nd Half, OT)",
-  "clock": "string"
+  {
+  "_id": "68cd19d588417e618825acc4",
+  "matchId": 535965,
+  "timestamp": "2025-09-19T08:52:37.073Z",
+  "type": "goal",
+  "message": "Goal - CR Flamengo",
+  "data": {
+    "id": "1758271957073_ozb96kv54m",
+    "type": "goal",
+    "team": "CR Flamengo",
+    "teamSide": "home",
+    "player": "",
+    "description": "Goal - CR Flamengo"
+  },
+  "source": "external_feed",
+  "createdAt": "2025-09-19T08:52:37.073Z"
+}
+
+
+
+```
+### 3.6 League Standings
+Stores current league table.
+```bash
+{
+  {
+  "id": "PL-2025",
+  "area": {
+    "id": 2072,
+    "name": "England",
+    "code": "ENG",
+    "flag": "https://crests.football-data.org/770.svg"
+  },
+  "competition": {
+    "id": 2021,
+    "name": "Premier League",
+    "code": "PL",
+    "type": "LEAGUE",
+    "emblem": "https://crests.football-data.org/PL.png"
+  },
+  "season": {
+    "id": 2403,
+    "startDate": "2025-08-15",
+    "endDate": "2026-05-24",
+    "currentMatchday": 5,
+    "winner": null
+  },
+  "standings": [],
+  "lastUpdated": "2025-09-20T01:04:36.479Z"
+
 }
 
 ```
-### 3.6 Teams
+### 3.7 Reports
+User/admin-generated reports tied to matches/events.
 ```bash
 {
-  "teamID": "string (UUID)",
-  "name": "string"
+ {
+  "id": "68cc76fe12d588ead4c8e19e",
+  "matchId": 551965,
+  "eventId": "1758229386807_yj1gj01ii",
+  "title": "fgfg",
+  "description": "gfg",
+  "status": "pending",
+  "createdAt": "2025-09-18T21:17:50.513Z",
+  "updatedAt": "2025-09-18T21:17:50.513Z"
 }
 
+}
 ```
-### 3.7 Players
+### 3.8 Admin Matches
+Used internally to schedule and track matches for reporting & live input.
 ```bash
 {
-  "playerID": "string (UUID)",
-  "teamID": "string (FK → Teams.teamID)",
-  "name": "string",
-  "position": "string"
+ {
+  "homeTeam": "Manchester United",
+  "awayTeam": "Arsenal FC",
+  "competition": "Premier League",
+  "matchday": 10,
+  "utcDate": "2025-10-05T15:30:00Z"
+}
+
 }
 ```
 ##  4. Relationships
@@ -125,15 +224,19 @@ export default connectDB;
 - **Relationship type:** One-to-Many
 
 
-##### FAVORITE_TEAMS ↔ TEAMS
+##### TEAMS ↔ PLAYERS
 - **Many** `FAVORITE_TEAMS` entries can point to the **same** `TEAM`.
 - **Relationship type:** Many-to-One
+
+##### REPORTS ↔ MATCH_INFO / EVENT_LOG
+- A report may relate to a **match** or a specific **event** within that match.
+- **Relationship type:** Many-to-One  
 
 
 #####  MATCH_INFO ↔ TEAMS
 - Each `MATCH_INFO` document contains an **array of two `teamID`s**.
 - **Relationship type:** Many-to-Many
-
+League Standings → Teams: indirect relationship through competition ID.
 
 ##### MATCH_INFO ↔ EVENT_LOG
 - A single match can produce **many** events.
@@ -143,12 +246,14 @@ export default connectDB;
 - Each match has **one** live display state..
 - **Relationship type:** One-to-One
 
+##### ADMIN MATCHES ↔ TEAMS
+- Each Admin Can create **many ** live display state..
+- **Relationship type:** One-to-One
+
 
 ## 5 Entity Relationship Diagram(ERD)
- ![ERD](/diagrams/erd.png)
-- **Users** -> Favourite Teams ->Teams
-- **Teams** -> Players
-= **Match_Info** -> Event_Log + Display State 
+ ![ERD](/diagrams/finalerd.png)
+
 
 ## 6. References 
 - MongoDb Documentation: [https://www.mongodb.com/docs](https://www.mongodb.com/docs)  

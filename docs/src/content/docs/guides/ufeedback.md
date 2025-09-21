@@ -2,9 +2,13 @@
 title: User Feedback
 description: Tools and guidelines for maintaining code quality in the project.
 ---
-## 1. Feedback Collection Method
+## 1. Feedback Collection Process
 For Sprint 2, we implemented a **formal user feedback process** using **Google Forms**.  
 The survey was distributed to classmates,family members and early testers of the system.
+- **Google Form Link** [Google Form Link](https://docs.google.com/forms/d/e/1FAIpQLSdsmVo4ieYDYNuOySYeTuYOd8mSVJHRGRu1p079odEO8CoeDg/viewform?usp=sharing&ouid=107333351345523887718) 
+
+- **Google Form Sheet Summary** 
+  [Google Form Sheet Summary](https://docs.google.com/spreadsheets/d/1OJ0F0wF-90pgAndp-KFst93386JLO5qEc5jY44XFqcA/edit?resourcekey=&gid=1432161762#gid=1432161762)  
 
 The form included both **Scaled** and **Text** questions:
 
@@ -21,12 +25,12 @@ The form included both **Scaled** and **Text** questions:
 ---
 
 ## 2. Formal Feedback Collection Process
+
 - **Tool Used**: Google Forms  
 - **Distribution**: Shared via WhatsApp groups, email to familiy members/friends,
-- **Response Window**: Open for **still open** for Sprint 2.  
-- **Sample Size**: We got more than 5 respones  
+- **Response Window**: Open for **still open** for Sprint 3 
+- **Sample Size**: We got more than 20 respones  
 - **Data Export**: Responses exported to **Google Sheets** for structured analysis.  
-
 ---
 
 ## 3. Feedback Analysis
@@ -38,6 +42,17 @@ After reviewing all open-ended answers, we grouped feedback into key themes:
 
 ---
 
+<!-- ### 4.1 Scaled Question Summary
+
+| Question | Average Rating (1–5) |
+|-------------------------------------------|------------------|
+| Ease of using the event creation feature | 4.2              |
+| Application responsiveness during testing | 4.0              |
+| Clarity of event timeline visualisation   | 3.8              |
+
+> This table shows that the app is generally intuitive and responsive, but visual clarity could be improved.
+-->
+---
 ## 4. Evidence of Integration
 We integrated this feedback directly into Sprint 2 planning and development:
 
@@ -56,9 +71,6 @@ We integrated this feedback directly into Sprint 2 planning and development:
   - **After:** ![UI After](/diagrams/after.png)
 
 
-- ### 5.2 Links
-  - Google Form Link [https://docs.google.com/forms/d/e/1FAIpQLSdsmVo4ieYDYNuOySYeTuYOd8mSVJHRGRu1p079odEO8CoeDg/viewform?usp=sharing&ouid=107333351345523887718](https://docs.google.com/forms/d/e/1FAIpQLSdsmVo4ieYDYNuOySYeTuYOd8mSVJHRGRu1p079odEO8CoeDg/viewform?usp=sharing&ouid=107333351345523887718)  
-  - Google Form Sheet Summary [https://docs.google.com/spreadsheets/d/1OJ0F0wF-90pgAndp-KFst93386JLO5qEc5jY44XFqcA/edit?resourcekey=&gid=1432161762#gid=1432161762](https://docs.google.com/spreadsheets/d/1OJ0F0wF-90pgAndp-KFst93386JLO5qEc5jY44XFqcA/edit?resourcekey=&gid=1432161762#gid=1432161762)  
 
 ---
 

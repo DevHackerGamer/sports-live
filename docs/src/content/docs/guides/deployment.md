@@ -1,51 +1,95 @@
 ---
-title: Deployment Strategy
-description: What we used to deploy Sports Live and why
+title: Deployment
+description: Deployment strategy, platform choice, CI/CD workflow, and integration checks for Sports Live Tracker.
 ---
 
-## Overview
+## 1. Deployment Overview
 
-Sports Live runs as a single Node/Express server that serves a compiled React app and exposes `/api/*` endpoints in the same process. This keeps hosting simple: one entrypoint (`server.js`) listens on the platform-provided `PORT`, serves static files from `build/`, and handles API routes.
+This document outlines the **deployment strategy** for the Sports Live Tracker project. It covers **deployment platform choice**, **integration reviews**, and **CI/CD pipeline** setup.
 
-## Platform choice: Azure App Service (Windows) vs Containers (Linux)
+**Objectives:**
+- Ensure the application is accessible to end users.
+- Maintain stability and reliability in the live environment.
+- Automate deployments and tests to prevent broken releases.
+- Track versions and roll back if necessary.
 
-- Azure App Service (Windows, Free F1)
-	- Why used: the subscription and policy constraints (student/free tier and region restrictions) favored the Free F1 plan on Windows in allowed regions (e.g., centralindia). It requires zero container infra and is a low-friction way to host a Node service + static assets.
-	- How it works: IIS fronts the app; a `web.config` routes all requests to `server.js` via iisnode. Express serves the React build and mounts the API.
-	- Trade-offs: Windows adds IIS/iisnode specifics (e.g., needing `web.config`). It’s fine for small apps and free hosting, but less uniform than Linux.
+---
 
-- Azure Web App for Containers (Linux)
-	- Why keep it supported: containers give consistent runtime, simpler Node hosting (no `web.config`), and cleaner promotion across environments. Preferred when moving beyond Free tier, or when Linux-specific behaviors or scale are needed.
-	- How it works: multi-stage Dockerfile builds the React app and runs Express; Azure injects `PORT` and the server binds to it.
+## 2. Deployment Platform Choice
 
-## Build and deploy mechanism
+### Platform Selected: **Render**
+- **Reasoning**:
+  - Supports full-stack Node.js + React deployments.
+  - Easy GitHub integration for automatic builds.
+  - Free tier for testing and development.
+  - Built-in environment variable management.
+  - Provides logs for monitoring runtime errors.
 
-- ZIP deploy (App Service)
-	- Used for the Windows Free tier. Two modes exist: build-on-Azure (Kudu) or local-build packaging. We favor local-build on Windows to ensure the React bundle and `web.config` ship together and avoid build-time env gaps.
-	- Why: CRA needs the public Clerk key at build-time; packaging locally guarantees a deterministic client bundle and avoids relying on Kudu to find the right env.
 
-- Container deploy
-	- Recommended for consistent builds. The image bakes the public key at build-time and reads server-only tokens at runtime via App Settings. No IIS routing is needed.
 
-## Runtime details that shaped decisions
+> Screenshot placeholder: Deployment Platform Dashboard
+> ![Deployment Platform Dashboard](/diagrams/deployment_dashboard.png)
 
-- Express v5: wildcards changed; we use a regex SPA fallback (`/^\/(?!api\/).*/`) to avoid `path-to-regexp` errors. This makes the SPA router work reliably in production.
-- Static assets: Express serves `build/` directly; the SPA fallback covers non-API routes.
-- Environment variables:
-	- `REACT_APP_CLERK_PUBLISHABLE_KEY` (public, build-time only) is embedded into the client bundle.
-	- `FOOTBALL_API_TOKEN` (server-only) is injected at runtime via App Settings.
-- Node version: Node >= 18 for native `fetch` on the server; App Service is set to Node 20 to match local behavior.
+---
 
-## Why not static hosting or function-only models?
+## 3. Deployment Process
 
-- The app needs server-side API aggregation and will integrate with a real-time database (Firebase) that benefits from a long-lived server process (SSE/websockets) and server-side credentials (Admin SDK). A unified Express app keeps it straightforward.
+### 3.1 Branching & Versioning
+- Feature and fix branches (`feature/*`, `fix/*`) are merged into `main`.
+- Only `main` is deployed to the live environment.
+- Semantic versioning tags (v1.0.0, v1.1.0) mark release points.
 
-## Future evolution
+### 3.2 CI/CD Pipeline
+- Trigger: Push or merge into `main` branch.
+- **Steps:**
+  1. Pull latest code from `main`.
+  2. Install dependencies (`npm install`).
+  3. Run tests (`npm test`).
+  4. Build frontend (`npm run build`).
+  5. Deploy to Render environment.
+ 
+  
+> Screenshot placeholder: CI/CD Workflow
+> ![CI/CD Workflow](/diagrams/dCICD.png)
 
-- Move to Linux or Containers as the app grows (simplifies hosting and removes the Windows/IIS specifics).
-- Add Firebase Admin for real-time features. For SSE/websockets on App Service, enable websockets in configuration. Containers or Linux plans are a natural fit for long-lived connections.
-- Automate deployments (e.g., GitHub Actions) to build artifacts or images and push to Azure with environment-specific settings.
+### 3.3 Post-Deployment Checks
+- Verify live application matches sprint deliverables.
+- Check API endpoints using Postman or automated scripts.
+- Confirm database connectivity and authentication.
+- Monitor logs for runtime errors.
 
-## Where are the step-by-step instructions?
+> Screenshot placeholder: Deployment Logs
+> ![Deployment Logs](/diagrams/dCICD.png)
 
-- The root project `README.md` contains practical “how to deploy” steps (ZIP and Container), including environment requirements and troubleshooting tips.
+---
+
+## 4. Integration Review
+
+- Backend and frontend were tested in staging environment before production deployment.
+- User authentication flows verified after deployment.
+- Database CRUD operations confirmed via live environment.
+
+> Screenshot placeholder: Staging / Integration Testing
+> ![Integration Test](/diagrams/dCICD.png)
+
+---
+
+## 5. Rollback & Recovery
+
+- Each deployment is linked to a Git tag, allowing rollback if critical bugs appear.
+- Manual rollback steps:
+  1. Checkout previous stable commit: `git checkout v1.0.0`
+  2. Deploy to Render
+  3. Verify functionality
+
+> Screenshot placeholder: Version Tags / Rollback
+> ![Git Version Tags](/diagrams/dCICD.png)
+
+---
+
+## 6. References & Resources
+
+- Render Docs: [https://render.com/docs](https://render.com/docs)  
+- GitHub Actions: [https://docs.github.com/en/actions](https://docs.github.com/en/actions)  
+- CI/CD Best Practices: [https://www.atlassian.com/continuous-delivery](https://www.atlassian.com/continuous-delivery)  
+- Deployment Strategies: [https://martinfowler.com/bliki/DeploymentPipeline.html](https://martinfowler.com/bliki/DeploymentPipeline.html)  

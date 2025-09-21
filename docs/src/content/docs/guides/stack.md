@@ -22,9 +22,10 @@ This project is built using modern web technologies optimized for real-time resp
 
 | Technology                       | Rationale                                                                                                                                         |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Vercel Serverless Functions** | Auto-scaling serverless platform that handles traffic spikes automatically, perfect for processing live sports data and API requests.         |
-| **Node.js Runtime**              | JavaScript runtime supporting non-blocking, asynchronous operations essential for real-time data handling and API integrations.                            |
+| **Node.js + Express.js** | Non-blocking runtime ideal for handling live data streams and REST APIs.         |
+| **MongoDB**              |  Flexible NoSQL database for storing matches, teams, events, and user preferences in real time.                                 |
 | **Football-Data.org API**        | Professional sports data provider delivering live match data, scores, and statistics with reliable real-time updates. |
+| **Custom APIs**            | Purpose-built endpoints for match setup, event feeds, authentication, and integrations with the frontend.     |
 
 ---
 
@@ -32,9 +33,17 @@ This project is built using modern web technologies optimized for real-time resp
 
 | Platform                                | Rationale                                                                                                |
 | --------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| **Vercel (Main App)**                   | Serverless hosting with global CDN, automatic scaling, and excellent developer experience. Perfect for React apps with API functions. |
+| **Render (Main App + Backend APIs)**                      |  Full-stack deployment platform supporting both static sites and Node.js servers. Offers auto-deploy from Git, scalable resources, HTTPS, and custom domains. |
 | **Netlify (Documentation)**             | Simple deployment for the Astro documentation site with automatic builds from Git. |
 
+---
+## Testing & QA
+
+| Tool                 | Purpose                                                                                     |
+| -------------------  | ------------------------------------------------------------------------------------------- |
+| **Jest**             | Unit and integration testing for backend and frontend logic.                                 |
+| **React Testing Library** | Component testing to ensure UI renders and behaves correctly.                             |
+| **GitHub Actions / CI** | Automates tests on push/PR to ensure code quality before deployment.                        |
 ---
 
 ## Documentation Tooling
@@ -50,12 +59,24 @@ This project is built using modern web technologies optimized for real-time resp
 
 The technology stack was chosen to meet the following core project requirements:
 
-- **Real-time Performance**: Vercel's edge network and serverless functions provide fast, global response times
-- **Automatic Scaling**: Serverless architecture scales instantly with traffic spikes during major sports events
-- **Developer Experience**: Modern tooling with hot reloading, easy deployment, and excellent debugging
-- **Cost Effectiveness**: Pay-per-use serverless model keeps costs low while maintaining high performance
-- **Reliability**: Vercel's infrastructure provides 99.99% uptime with automatic failover
+- **Real-Time Performance**  
+  Node.js handles multiple concurrent match updates efficiently, while React’s virtual DOM ensures smooth, live updates to the user interface. MongoDB’s flexible schema allows instant updates to match stats and event logs.
 
-Vercel serverless functions provide excellent real-time capabilities through efficient polling and webhook support. React ensures high-performance rendering for live score updates. Astro and Starlight enable maintainable, fast documentation, while Git-based workflows and agile practices ensure efficient team collaboration.
+- **Scalability**  
+  Render automatically scales both the frontend and backend to handle traffic spikes, such as during popular matches. MongoDB Atlas provides horizontal scaling and global clusters to support fans worldwide.
 
-This stack delivers both technical performance and developer productivity for sports data applications.
+- **Developer Experience**  
+  Modern tool like React allows rapid development and prototyping with reusable components, and responsive UI design. Clerk simplifies authentication and user session management.
+
+- **Integration with External Data**  
+  Football-Data.org API delivers reliable live match data. Our backend APIs wrap these feeds, ensuring consistent formatting and allowing manual overrides when necessary.
+
+- **Reliability**  
+  Render and MongoDB Atlas offer monitoring, automatic failover, and high availability. Combined with version-controlled workflows and automated testing, this ensures the system is stable and maintainable.
+
+- **Cost Effectiveness**  
+  Using Render’s  hosting and Atlas cloud database minimizes operational costs while maintaining performance and reliability.
+
+## Architecture Overview
+
+*Coming soon: diagram illustrating how the frontend, backend, database, and external APIs interact.*

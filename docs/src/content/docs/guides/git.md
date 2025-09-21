@@ -24,16 +24,21 @@ We follow a **"one developer, one branch"** model:
 
 - Each developer creates a personal branch from `main`
 - Branches are named clearly based on the feature or the developer, e.g.:
-  mohau-auth-setup
   lebo-profile-page
 
-- Once work is complete and tested, the developer **merges their branch into `main`**
+- Once work is complete and tested, the developer **submits a PR to merge their branch into `main`**
 
-There is currently **no pull request (PR) review process** in place — developers merge directly when their work is finished.
+### Branch Naming Conventions
 
-## Pull Request (PR) Review Process (Planned / Implemented)
+Examples:
 
-To improve code quality and team collaboration, we plan to implement a **Pull Request (PR) review process**. This process ensures that every change merged into `main` is reviewed and approved by at least one other developer.
+- `feature/authentication-flow`  
+- `fix/player-stats-bug`  
+- `docs/git-methodology`  
+
+## Pull Request (PR) Review Process
+
+To improve code quality and team collaboration, we  implemented a **Pull Request (PR) review process**. This process ensures that every change merged into `main` is reviewed and approved by at least one other developer.
 
 ### Workflow:
 
@@ -92,29 +97,57 @@ We follow **semantic and descriptive commit messages** to make the project histo
 | fix:      | Bug fix                                   |
 | docs:     | Documentation updates                     |
 | style:    | Formatting or styling changes             |
-| refactor: | Code restructuring without functional changes |
+| test: | adding or updating tests|
 
 ## Versioning and GitHub Releases (Planned)
 
 The team has been advised to start using **GitHub Releases** to manage production-ready versions of the app.
 
 > A **GitHub Release** is a way to mark a specific commit in your history as a "release" (like `v1.0.0`) and attach notes or changelogs to it. This helps with:
->
 > - Tracking what features were added in each version
 > - Rolling back if something breaks
 > - Clear handover when deploying
 
 We plan to use **Semantic Versioning** in the future:
 
-v1.0.0 → Initial complete release
-v1.1.0 → Adds new features
-v1.1.1 → Fixes bugs
+- v1.0.1 → Initial complete release
+- v2.0.0 Adds new features
+- v3.0.1 → Fixes bugs
+---
 
-rust
-Copy
-Edit
+## Evidence of Git Methodology in Action
 
-More details will be added here once GitHub Releases are introduced into the team's workflow.
+### 1. Branching
+![GitHub Branches](/diagrams/branches.png)  
+*Screenshot showing multiple branches (`main`, `feature/*`, developer branches). This demonstrates how work is isolated per feature to avoid breaking the `main` branch.*
+
+---
+
+### 2. Commit Strategy
+![Commit History](/diagrams/commits.png)  
+*Screenshot of the commit history on GitHub. Semantic commits such as `feat: add login functionality` and `fix: correct player stats bug` prove that the team followed a structured commit strategy for traceability.*
+
+---
+
+### 3. Pull Request Workflow
+![Pull Request Example](/diagrams/pullrequest.png)  
+*Screenshot of an open pull request. The PR includes a title, description, linked issue, and reviewer comments. This shows how peer review was done before merging changes into `main`.*
+
+---
+
+
+<!--### 4. CI/CD Integration
+ ![GitHub Actions Checks](./screenshots/actions.png)  
+*Screenshot of GitHub Actions checks running. This proves that each PR was automatically tested and linted before merging, enforcing quality standards and preventing broken code from entering `main`.* -->
+
+---
+
+### 4. Release Management
+![GitHub Release](/diagrams/releases.png)  
+*Screenshot of a GitHub Releases . This shows how the team marked stable versions, attached changelogs, and followed semantic versioning to prepare for deployment.*
+
+
+
 ## References & Resources
 
 - Git Documentation: [https://git-scm.com/doc](https://git-scm.com/doc)  

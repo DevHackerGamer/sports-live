@@ -164,3 +164,31 @@ export default MatchCard;
 
 ### References 
 - React Docs: [https://react.dev](https://react.dev)  
+---
+## 8. Testing – Jest & React Testing Library
+### Justification
+
+We use Jest and React Testing Library for testing frontend and backend logic.
+
+**Benefits**
+- Unit + integration tests.
+- Encourages testing user behavior (not implementation).
+- CI/CD friendly.
+
+### Setup
+```bash
+npm install --save-dev jest @testing-library/react
+```
+```bash
+import { render, screen } from "@testing-library/react";
+import MatchCard from "./MatchCard";
+
+test("renders match info", () => {
+  render(<MatchCard teamA="Team A" teamB="Team B" score="2-1" />);
+  expect(screen.getByText(/Team A vs Team B/i)).toBeInTheDocument();
+});
+```
+
+### References
+- [Jest Docs](https://jestjs.io)
+- [React Testing Library](https://testing-library.com/docs/react-testing-library/intro)

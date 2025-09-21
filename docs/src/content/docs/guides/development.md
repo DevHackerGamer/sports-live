@@ -2,7 +2,7 @@
 title: "Development Guide"
 ---
 
-
+# Development Guide
 This guide explains how to set up and run the **Sports Live** project locally for development.  
 Follow these steps to ensure your environment is consistent with the rest of the team.
 
@@ -14,10 +14,11 @@ Before starting, make sure you have these tools installed:
 
 - **Git** (version control) → [Download](https://git-scm.com/downloads)  
 - **Node.js (LTS)** → [Download](https://nodejs.org/)  
-- **npm** (comes with Node.js) or **pnpm/yarn** as a package manager  
-- **Firebase CLI** → [Install](https://firebase.google.com/docs/cli)  
-- **VS Code** → [Download](https://code.visualstudio.com/)  
+- **npm** (comes with Node.js)  
+- **VS Code** (recommended IDE) → [Download](https://code.visualstudio.com/)  
+- **MongoDB Atlas** account for cloud database → [Sign Up](https://www.mongodb.com/atlas)  
 - **Docker** (optional, for containerized setup) → [Download](https://www.docker.com/)  
+
 
 ---
 
@@ -30,117 +31,63 @@ cd sports-live
 ---
 
 ---
-## 1. Development Servers
-
-### 1.1 Mock Server (No API Usage)
-
-Run the app with mock API calls (no real API usage):
-
+## Running the Project
+### Environment Variables
+Create a .env file in the root 
 ```bash
-npm start
-```
-Starts a development server using mock data.
-Helps avoid unnecessary API requests during development.
+MONGO_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/sports-live
+PORT=5000
+CLERK_SECRET_KEY=your_clerk_secret_key
+FOOTBALL_API_TOKEN=your_api_key
 
-### 1.2 API Server (With Real API Calls)
-
-Run the app connected to real APIs:
-```bash
-npx vercel dev
-```
-Starts a development server connecting to actual APIs.
-
-### 1.3 Combined Dev (React + Local API Proxy)
-
-Run React with a local proxy mapping /api/* to handlers in api/:
-```bash
-npm run dev
-```
-React dev server → http://localhost:3000
-Express proxy → http://localhost:3001
-
-
-### 2. Firebase Setup
-Login to Firebase CLI:
-```bash
-firebase login
 ```
 
-Initialize Firebase:
-```bash
-firebase init
-```
-Select Firestore for database
-Select Authentication for user management
+### Frontend (React) + Backend(Express + MongoDB)
 
-Add .env variables:
-```bash
-VITE_FIREBASE_API_KEY=<your_api_key>
-VITE_FIREBASE_AUTH_DOMAIN=<your_project>.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=<your_project>
-VITE_FIREBASE_STORAGE_BUCKET=<your_project>.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=<your_sender_id>
-VITE_FIREBASE_APP_ID=<your_app_id>
-```
-### 3. Backend Setup
 ```bash
 cd backend
 npm install
 npm run dev
+
 ```
+## Authentication
+Sports Live Uses **Clerk** for authentication
+- Login Page ->  `/LoginPage.js`
+- Protected routes → Reports, Players, and Admin pages
+- Clerk session tokens are automatically included in API requests
+---
+##  Deployment
 
-Backend runs at http://localhost:5000
+The app is deployed on **Render** with automatic builds from the GitHub repo.
 
-Firebase handles database and authentication.
-
-### 4. Frontend Setup
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-### 5. Authentication
-
-Sign up: /auth/signup
-
-Login: /auth/login → JWT or Firebase Auth token
-
-### 6. Testing
 ### Backend
-```bash
-npm run test
-```
+
+Type: Web Service
+
+Build Command: `npm install` && `npm run build`
+
+Start Command: `npm run start`
 
 ### Frontend
-```bash
-npm run test
-```
-Frontend runs at http://localhost:5173
 
-### 7. Deploy to Azure (Container)
-Build locally:
-7. Deploy to Azure (Container)
+Type: Static Site
 
-Build locally:
-```bash
-docker build \
-  -t sports-live:latest \
-  --build-arg REACT_APP_CLERK_PUBLISHABLE_KEY=pk_test_xxx .
-```
+Build Command: `npm install` && `npm run build`
 
-Run locally:
-```bash
-docker run --rm -p 8080:8080 \
-  -e FOOTBALL_API_TOKEN=your_football_api_token \
-  sports-live:latest
-```
+---
 
-Open http://localhost:8080
+## Continuous Improvement
 
-Notes:
+- Code is linted and formatted before commits (ESLint + Prettier).
 
-REACT_APP_CLERK_PUBLISHABLE_KEY → public client key
+- Pull requests require successful test runs before merging.
 
-
+- Sprint reviews collect feedback for improving dev workflows.
+---
+## References
+- Render Docs: [https://render.com/docs](https://render.com/docs)  
+- Express Docs: [https://expressjs.com](https://expressjs.com)  
+- Node.js Docs: [ttps://nodejs.org/docs](ttps://nodejs.org/docs
+- MongoDB Docs: [https://www.mongodb.com/docs](https://www.mongodb.com/docs)  
+- MongoDB Node.js Driver: [https://www.mongodb.com/docs/drivers/node/current](https://www.mongodb.com/docs/drivers/node/current)  
 

@@ -2,61 +2,70 @@
 title: Overview
 description: Purpose, goals, and features of the Sports Live Broadcasting & Viewer Experience Tool.
 ---
+## Problem Statement
 
+Sports fans and organizers face a gap in **accessible, real-time match tracking tools**.  
+Existing platforms are either:  
+- Too **expensive** for smaller organizations.  
+- Too **generic** with limited customization.  
+- Too **delayed** for live audience engagement.  
 
-
+---
 ## Purpose  
 The **Sports Live** system is a real-time sports broadcasting and viewer experience tool.  
 It enables fans, commentators, and organizers to track ongoing matches with **live updates, visualizations, and in-game statistics**.  
 
- 
-
 ---
 
 ## Goals  
--  Provide a **live match viewer** that displays scores, game clock, possession, and key events.  
--  Deliver an **interactive event timeline** with animations for substitutions, cards, and other milestones.  
--  Allow organizers to **set up matches** by creating teams, players, and schedules.  
--  Enable **manual input of match events** when automated data feeds are not available.  
--  Offer **APIs** for third-party systems to consume match data and integrate live updates.  
+- Provide a **live match viewer** that displays scores, game clock, possession, and key events.  
+- Deliver an **interactive event timeline** with animations for substitutions, cards, and other milestones.  
+- Allow organizers to **set up matches** by creating teams, players, and schedules.  
+- Enable **manual input of match events** when automated data feeds are not available.  
+- Offer **APIs** for third-party systems to consume match data and integrate live updates.  
 
 ---
 
 ## Features  
 
-###  Match Viewer  
-- View current score, game clock, possession, and in-game stats.  
-- Display structured data for fans, commentators, or organizers.  
+### Core Match Features  
+- **Match Viewer** – View current score, game clock, possession, and in-game stats.  
+- **Event Feed** – Timeline of in-game events with timestamps and descriptions.  
+- **Match Setup** – Create matches, add teams and players, define schedules.  
+- **Live Input** – Enter events and score changes manually when not connected to live feeds.  
+---
+### User Features  
+- **Favourite Teams** – Follow selected teams for quick access to their live matches and stats.  
+- **League Tables** – View standings, rankings, and results across tournaments.  
+---
+### Hidden Features  
+- **Error Reporting** – Users can flag incorrect or suspicious in-game events directly from the live feed during a live match  
+- **Data Export** – Export match data and event logs into a structured **JSON file** for reuse or analysis.  
 
-###  Event Feed  
-- Timeline of in-game events with timestamps and descriptions.  
-- Animated updates for key actions (e.g., substitutions, cards, goals).  
-
-###  Match Setup  
-- Create matches, add teams and players, define schedules.  
-- Edit metadata such as venue, timing, and roster information.  
-
-###  Live Input  
-- Enter events and score changes manually when not connected to live feeds.  
-- Pause/resume timeline or edit events as needed.  
-
-###  API Modules  
-- **Live Update API** – Receive and store stat events from external sources.  
-- **Feed API** – Retrieve current match state for front-end display.  
-- **Match Setup API** – CRUD operations for matches, teams, and scheduling.  
-- **Display API** – Serve structured game data for scoreboards and overlays.  
 
 ---
+##  Target Users
 
-## Database Entities  
-- **Match Info** – Match ID, start time, team IDs, current status.  
-- **Event Log** – Timestamped stat events (e.g., goal, foul, timeout).  
-- **Display State** – Current score, clock, possession, game phase.  
-- **Player & Team Data** – Synced or manually entered team rosters.  
+- **Fans** – follow live scores and stats.  
+- **Commentators** – narrate and track events in real time.  
+- **Organizers** – manage matches, input events, share data.  
+- **Developers** – consume match data through APIs.  
+ 
 
 ---
+ Future Scope
 
-👉 For more details on implementation, see:  
-- **[Usage Guides](#usage-guides)** – Frontend, Backend, Authentication, and API Reference.  
-- **[Development](#development)** – Technology stack, database documentation, and third-party integrations.  
-- **[Testing & Quality](#testing--quality)** – QA process, bug tracking, and user feedback cycle.  
+- **AI-driven** predictive match insights  
+- **Mobile app** for fans on the go.  
+- Advanced **visual dashboards** for broadcasters.  
+---
+
+> 👥 Curious who's behind the project? Meet the devs on the [Team & Contributors](/guides/teamandcontributors) page.
+
+<!-- > 🧭 Want to dive deeper into how it all works? Start with the [Usage Guides](/guides/frontend) covering Frontend, Backend, Authentication, and API documentation.
+
+> 🛠️ Interested in the architecture? Explore the [Development Section](/guides/stack) for the tech stack, database design, and third-party services.
+
+> 🧪 Learn how we test and improve quality in the [Testing & Quality](/guides/testing) section, including QA, bug tracking, and user feedback.
+
+-->
