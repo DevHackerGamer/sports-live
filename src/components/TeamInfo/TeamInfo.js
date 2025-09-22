@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../../lib/api'; 
+import TeamPlayers from './TeamPlayers';
+
 import '../../styles/TeamInfo.css';
 
 const TeamInfo = ({ team, onBack }) => {
-  const [activeTab, setActiveTab] = useState('players');
+  const [activeTab, setActiveTab] = useState('about');
   const [loading, setLoading] = useState(false);
   const [teamDetails, setTeamDetails] = useState(team);
 
@@ -88,8 +90,7 @@ const TeamInfo = ({ team, onBack }) => {
         {activeTab === 'players' && (
           <div className="tab-content">
             <h2>Team Players</h2>
-            <p>Player information will be displayed here.</p>
-            {/* TODO: Add players component */}
+            <TeamPlayers teamId={teamDetails.id} />
           </div>
         )}
       </div>
