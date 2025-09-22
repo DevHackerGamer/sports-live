@@ -120,23 +120,34 @@ const TeamInfo = ({ team, onBack }) => {
         {activeTab === 'matches' && (
           <div className="tab-content">
             <h2>Upcoming Matches</h2>
-             {loadingMatches ? (
-      <p>Loading upcoming matches...</p>
-    ) : nextMatches.length ? (
-      <ul className="team-next-matches">
-        {nextMatches.map(match => (
-          <li key={match.id} className="team-next-match ls-clickable" onClick={() => onBack(match)}>
-            <span className="match-date">{new Date(match.utcDate).toLocaleDateString([], { weekday:'short', month:'short', day:'numeric' })}</span>
-            <span className="match-teams">
-              {match.homeTeam?.name} vs {match.awayTeam?.name}
-            </span>
-            <span className="match-time">{new Date(match.utcDate).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })}</span>
-          </li>
-        ))}
-      </ul>
-    ) : (
-      <p>No upcoming matches scheduled for {teamDetails.name}.</p>
-    )}
+            {loadingMatches ? (
+  <p>Loading upcoming matches...</p>
+) : nextMatches.length ? (
+  <ul className="team-next-matches">
+    {nextMatches.map(match => (
+      <li key={match.id} className="team-next-match ls-clickable" onClick={() => onBack(match)}>
+        <span className="match-date">
+          {new Date(match.utcDate).toLocaleDateString([], { weekday:'short', month:'short', day:'numeric' })}
+        </span>
+        <span className="match-teams">
+          {match.homeTeam?.crest && (
+            <img src={match.homeTeam.crest} alt={`${match.homeTeam.name} crest`} className="team-crest" />
+          )}
+          {match.homeTeam?.name} vs {match.awayTeam?.name}
+          {match.awayTeam?.crest && (
+            <img src={match.awayTeam.crest} alt={`${match.awayTeam.name} crest`} className="team-crest" />
+          )}
+        </span>
+        <span className="match-time">
+          {new Date(match.utcDate).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })}
+        </span>
+      </li>
+    ))}
+  </ul>
+) : (
+  <p>No upcoming matches scheduled for {teamDetails.name}.</p>
+)}
+
           </div>
         )}
         
