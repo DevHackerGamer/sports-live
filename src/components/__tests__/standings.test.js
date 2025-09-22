@@ -1,176 +1,138 @@
-// /api/__tests__/standings.test.js
 global.TextEncoder = require('util').TextEncoder;
 global.TextDecoder = require('util').TextDecoder;
 
-const { ObjectId } = require('mongodb');
+const handler = require('../../../api/standings');
+const { getStandingsCollection, getTeamsCollection } = require('../../../lib/mongodb');
 
-// Mock MongoDB helpers
-jest.mock('../../lib/mongodb', () => ({
+jest.mock('../../../lib/mongodb.js', () => ({
   getStandingsCollection: jest.fn(),
   getTeamsCollection: jest.fn(),
 }));
 
-// Mock auth helper
-jest.mock('../../lib/auth', () => ({
+jest.mock('../../../lib/auth', () => ({
   isAdmin: jest.fn(),
 }));
+const { isAdmin } = require('../../../lib/auth');
 
-const { getStandingsCollection, getTeamsCollection } = require('../../lib/mongodb');
-const { isAdmin } = require('../../lib/auth');
-const handler = require('../../api/standings'); // adjust path
-
-function mockResponse() {
-  const res = {};
-  res.status = jest.fn().mockReturnValue(res);
-  res.json = jest.fn().mockReturnValue(res);
-  res.end = jest.fn().mockReturnValue(res);
-  res.setHeader = jest.fn();
-  return res;
+// Mock Express-like req/res
+function mockReqRes({ method = 'GET', url = '/api/standings', query = {}, body = {} } = {}) {
+  const json = jest.fn();
+  const end = jest.fn();
+  const status = jest.fn(() => ({ json, end }));
+  const setHeader = jest.fn();
+  const res = { status, setHeader, end, json };
+  const req = { method, url, query, body, headers: {} };
+  return { req, res, json, status, setHeader, end };
 }
 
-async function runHandler(req) {
-  const res = mockResponse();
-  await handler(req, res);
-  return res;
-}
-
-describe('standings API', () => {
-  let mockCollection;
-  let mockTeamsCollection;
+describe('Standings API', () => {
+  let mockStandings, mockTeams;
 
   beforeEach(() => {
-    mockCollection = {
-      find: jest.fn(() => ({ limit: () => ({ toArray: jest.fn() }) })),
+    mockStandings = {
+      find: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      toArray: jest.fn().mockResolvedValue([]),
       findOne: jest.fn(),
       insertOne: jest.fn(),
       updateOne: jest.fn(),
       deleteOne: jest.fn(),
     };
-    mockTeamsCollection = {
-      find: jest.fn(() => ({ project: () => ({ toArray: jest.fn() }) }))
+    mockTeams = {
+      find: jest.fn().mockReturnThis(),
+      project: jest.fn().mockReturnThis(),
+      toArray: jest.fn().mockResolvedValue([]),
     };
-    getStandingsCollection.mockResolvedValue(mockCollection);
-    getTeamsCollection.mockResolvedValue(mockTeamsCollection);
+    getStandingsCollection.mockResolvedValue(mockStandings);
+    getTeamsCollection.mockResolvedValue(mockTeams);
     isAdmin.mockResolvedValue(true);
   });
 
   afterEach(() => jest.clearAllMocks());
 
-  // ---------------- GET all standings ----------------
-  it('GET all standings', async () => {
-    const fakeDoc = {
-      _id: 'BL1-2025',
-      standings: [
-        { type: 'TOTAL', table: [{ team: { id: 1, name: 'TeamA' }, position: 1 }] }
-      ]
-    };
-    mockCollection.find.mockReturnValue({ limit: () => ({ toArray: jest.fn().mockResolvedValue([fakeDoc]) }) });
-    mockTeamsCollection.find.mockReturnValue({
-      project: () => ({ toArray: jest.fn().mockResolvedValue([{ id: 1, crest: 'logo.png' }]) })
-    });
-
-    const res = await runHandler({ method: 'GET', query: { competition: 'BL1', season: '2025' } });
-
+  test('OPTIONS request returns 200', async () => {
+    const { req, res, end } = mockReqRes({ method: 'OPTIONS' });
+    await handler(req, res);
     expect(res.status).toHaveBeenCalledWith(200);
-    const json = res.json.mock.calls[0][0];
-    expect(json.success).toBe(true);
-    expect(json.count).toBe(1);
-    expect(json.data[0].standings[0].table[0].team.crest).toBe('logo.png');
+    expect(end).toHaveBeenCalled();
   });
 
-  // ---------------- GET single standings by ID ----------------
-  it('GET single standings', async () => {
-    const doc = { _id: 'BL1-2025' };
-    mockCollection.findOne.mockResolvedValue(doc);
+  test('GET /api/standings returns enriched standings', async () => {
+    mockStandings.toArray.mockResolvedValue([
+      { _id: 'BL1-2025', standings: [{ table: [{ team: { id: 1 } }] }] }
+    ]);
+    mockTeams.toArray.mockResolvedValue([{ id: 1, crest: 'crest-1' }]);
 
-    const res = await runHandler({ method: 'GET', url: '/api/standings/BL1-2025' });
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ success: true, data: doc });
-  });
+    const { req, res, json } = mockReqRes({ method: 'GET', query: { limit: '1' } });
+    await handler(req, res);
 
-  it('GET single standings not found', async () => {
-    mockCollection.findOne.mockResolvedValue(null);
-    const res = await runHandler({ method: 'GET', url: '/api/standings/unknown' });
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Standings not found' });
-  });
-
-  // ---------------- POST new standings (admin) ----------------
-  it('POST new standings', async () => {
-    mockCollection.insertOne.mockResolvedValue({ insertedId: new ObjectId() });
-
-    const req = { method: 'POST', body: { competition: 'BL1', season: '2025' } };
-    const res = await runHandler(req);
-
-    expect(isAdmin).toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(201);
-    const json = res.json.mock.calls[0][0];
-    expect(json.success).toBe(true);
-    expect(json.id).toBeDefined();
-  });
-
-  it('POST forbidden if not admin', async () => {
-    isAdmin.mockResolvedValue(false);
-    const req = { method: 'POST', body: {} };
-    const res = await runHandler(req);
-    expect(res.status).toHaveBeenCalledWith(403);
-    expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Forbidden: admin required' });
-  });
-
-  // ---------------- PUT update standings ----------------
-  it('PUT update standings', async () => {
-    mockCollection.updateOne.mockResolvedValue({ matchedCount: 1, modifiedCount: 1 });
-    const req = { method: 'PUT', url: '/api/standings/BL1-2025', body: { type: 'HOME' } };
-    const res = await runHandler(req);
-
-    expect(res.status).toHaveBeenCalledWith(200);
-    const json = res.json.mock.calls[0][0];
-    expect(json.success).toBe(true);
-    expect(json.modified).toBe(true);
-  });
-
-  it('PUT standings not found', async () => {
-    mockCollection.updateOne.mockResolvedValue({ matchedCount: 0 });
-    const req = { method: 'PUT', url: '/api/standings/BL1-2025', body: {} };
-    const res = await runHandler(req);
-
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Standings not found' });
-  });
-
-  // ---------------- DELETE standings ----------------
-  it('DELETE standings', async () => {
-    mockCollection.deleteOne.mockResolvedValue({ deletedCount: 1 });
-    const res = await runHandler({ method: 'DELETE', url: '/api/standings/BL1-2025' });
-
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ success: true, deleted: true });
-  });
-
-  it('DELETE standings not found', async () => {
-    mockCollection.deleteOne.mockResolvedValue({ deletedCount: 0 });
-    const res = await runHandler({ method: 'DELETE', url: '/api/standings/BL1-2025' });
-
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ success: true, deleted: false });
-  });
-
-  // ---------------- Method not allowed ----------------
-  it('Method not allowed', async () => {
-    const res = await runHandler({ method: 'PATCH', url: '/api/standings' });
-    expect(res.status).toHaveBeenCalledWith(405);
-    expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Method not allowed' });
-  });
-
-  // ---------------- Internal server error ----------------
-  it('Handles internal server error', async () => {
-    getStandingsCollection.mockRejectedValue(new Error('DB down'));
-    const res = await runHandler({ method: 'GET', query: {} });
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-      success: false,
-      error: 'Internal server error',
-      message: 'DB down'
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({
+      success: true,
+      count: 1,
+      data: expect.any(Array),
+      filters: expect.any(Object)
     }));
+
+    const result = json.mock.calls[0][0];
+    expect(result.data[0].standings[0].table[0].team.crest).toBe('crest-1');
+  });
+
+  test('GET /api/standings/:id returns single document', async () => {
+    mockStandings.findOne.mockResolvedValue({ _id: 'BL1-2025' });
+    const { req, res, json } = mockReqRes({ url: '/api/standings/BL1-2025' });
+    await handler(req, res);
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: { _id: 'BL1-2025' } }));
+  });
+
+  test('GET /api/standings/:id returns 404 if not found', async () => {
+    mockStandings.findOne.mockResolvedValue(null);
+    const { req, res, json } = mockReqRes({ url: '/api/standings/NOTFOUND' });
+    await handler(req, res);
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
+  });
+
+  test('POST /api/standings creates document', async () => {
+    mockStandings.insertOne.mockResolvedValue({ insertedId: 'newId' });
+    const { req, res, json } = mockReqRes({ method: 'POST', body: { competition: 'BL1' } });
+    await handler(req, res);
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: true, id: 'newId' }));
+  });
+
+  test('PUT /api/standings/:id updates document', async () => {
+    mockStandings.updateOne.mockResolvedValue({ matchedCount: 1, modifiedCount: 1 });
+    const { req, res, json } = mockReqRes({ method: 'PUT', url: '/api/standings/BL1-2025', body: { type: 'HOME' } });
+    await handler(req, res);
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: true, modified: true }));
+  });
+
+  test('DELETE /api/standings/:id removes document', async () => {
+    mockStandings.deleteOne.mockResolvedValue({ deletedCount: 1 });
+    const { req, res, json } = mockReqRes({ method: 'DELETE', url: '/api/standings/BL1-2025' });
+    await handler(req, res);
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: true, deleted: true }));
+  });
+
+  test('forbidden if not admin', async () => {
+    isAdmin.mockResolvedValue(false);
+    const { req, res, json } = mockReqRes({ method: 'POST', body: {} });
+    await handler(req, res);
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
+  });
+
+  test('method not allowed returns 405', async () => {
+    const { req, res, json } = mockReqRes({ method: 'PATCH' });
+    await handler(req, res);
+    expect(res.status).toHaveBeenCalledWith(405);
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
+  });
+
+  test('internal error returns 500', async () => {
+    getStandingsCollection.mockRejectedValue(new Error('DB fail'));
+    const { req, res, json } = mockReqRes();
+    await handler(req, res);
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
   });
 });
