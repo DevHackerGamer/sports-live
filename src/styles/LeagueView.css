@@ -464,4 +464,17 @@ body, html {
     width: 70px;
     height: 70px;
   }
+
+  .league-view-match-teams {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.league-view-match-crest {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
 }

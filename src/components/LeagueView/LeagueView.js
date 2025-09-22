@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import '../../styles/LeagueView.css';
+import { apiClient } from '../../lib/api';
 
 // Debug logger
 const dlog = (...args) => {
@@ -7,6 +8,7 @@ const dlog = (...args) => {
     console.log('[Standings]', ...args);
   }
 };
+
 
 const leagueKeyToCode = {
   "PL": "PL",
@@ -35,6 +37,7 @@ const LeagueView = ({ initialLeague = "PL", onBack, onTeamSelect }) => {
   const [standings, setStandings] = useState([]);
   const [matches, setMatches] = useState([]);
   const [players, setPlayers] = useState([]);
+  const [loadingMatches, setLoadingMatches] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('Standings');
@@ -76,6 +79,48 @@ const LeagueView = ({ initialLeague = "PL", onBack, onTeamSelect }) => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const fetchLeagueMatches = useCallback(async () => {
+  setLoadingMatches(true);
+  setError('');
+  try {
+    const now = new Date();
+    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 30, 23, 59, 59, 999));
+
+    const toISODate = (d) =>
+      `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+
+    // Fetch all matches in this window
+    const res = await apiClient.getMatchesByDate(toISODate(start), toISODate(end), 1000);
+
+    // Filter by league code
+    const leagueMatches = (res.data || [])
+      .filter(m => m.competition?.code === competitionCode || m.competitionCode === competitionCode)
+      .map(m => ({
+        ...m,
+        homeTeam: m.homeTeam || { name: m.homeTeamName || m.home || 'Unknown', crest: m.homeTeam?.crest },
+        awayTeam: m.awayTeam || { name: m.awayTeamName || m.away || 'Unknown', crest: m.awayTeam?.crest },
+        competition: m.competition?.name || competitionCode
+      }))
+      .sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate));
+
+    setMatches(leagueMatches);
+  } catch (err) {
+    console.error('Error fetching league matches:', err);
+    setMatches([]);
+    setError('Failed to load upcoming matches.');
+  } finally {
+    setLoadingMatches(false);
+  }
+}, [competitionCode]);
+useEffect(() => {
+  if (activeTab === 'Matches') {
+    fetchLeagueMatches();
+  }
+}, [activeTab, competitionCode, fetchLeagueMatches]);
+
+
 
   const handleTeamClick = (team) => {
     if (onTeamSelect && team) onTeamSelect(team);
@@ -125,21 +170,32 @@ const LeagueView = ({ initialLeague = "PL", onBack, onTeamSelect }) => {
       </tbody>
     </table>
   );
-
-  const renderMatches = () => (
-    <div className="league-view-matches-list">
-      {matches.length > 0 ? (
-        matches.map((m) => (
-          <div key={m.id} className="league-view-match-card">
-            <span>{m.utcDate}</span>
-            <strong>{m.homeTeam.name}</strong> vs <strong>{m.awayTeam.name}</strong>
+const renderMatches = () => (
+  <div className="league-view-matches-list">
+    {loadingMatches ? (
+      <p>Loading upcoming matches...</p>
+    ) : matches.length > 0 ? (
+      matches.map((m) => (
+        <div key={m.id} className="league-view-match-card ls-clickable" onClick={() => handleTeamClick(m)}>
+          <div className="league-view-match-date">
+            {new Date(m.utcDate).toLocaleDateString([], { weekday:'short', month:'short', day:'numeric' })}
+            {' • '}
+            {new Date(m.utcDate).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })}
           </div>
-        ))
-      ) : (
-        <p>No upcoming matches.</p>
-      )}
-    </div>
-  );
+          <div className="league-view-match-teams">
+            {m.homeTeam?.crest && <img src={m.homeTeam.crest} alt={`${m.homeTeam.name} crest`} />}
+            <strong>{m.homeTeam?.name}</strong> vs <strong>{m.awayTeam?.name}</strong>
+            {m.awayTeam?.crest && <img src={m.awayTeam.crest} alt={`${m.awayTeam.name} crest`} />}
+          </div>
+          <div className="league-view-match-competition">{m.competition}</div>
+        </div>
+      ))
+    ) : (
+      <p>No upcoming matches scheduled for this league.</p>
+    )}
+  </div>
+);
+
 
   const renderPlayers = () => (
     <div className="league-view-players-list">
