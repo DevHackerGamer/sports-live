@@ -8,6 +8,8 @@ const TeamInfo = ({ team, onBack }) => {
   const [activeTab, setActiveTab] = useState('about');
   const [loading, setLoading] = useState(false);
   const [teamDetails, setTeamDetails] = useState(team);
+  const [nextMatches, setNextMatches] = useState([]);
+  const [loadingMatches, setLoadingMatches] = useState(false);
 
   useEffect(() => {
     const fetchTeam = async () => {
@@ -25,6 +27,36 @@ const TeamInfo = ({ team, onBack }) => {
 
     fetchTeam();
   }, [team]);
+
+  useEffect(() => {
+  const fetchTeamMatches = async () => {
+    if (!team?.id || activeTab !== 'matches') return;
+
+    setLoadingMatches(true);
+    try {
+      const now = new Date();
+      const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 30, 23, 59, 59, 999));
+      const toISODate = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+      
+      const res = await apiClient.getMatchesByDate(toISODate(start), toISODate(end), 1000);
+      const teamMatches = (res.data || []).filter(m =>
+        (m.homeTeam?.id === team.id || m.awayTeam?.id === team.id)
+      ).sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate));
+
+      setNextMatches(teamMatches);
+    } catch (err) {
+      console.error("Error fetching team matches:", err);
+      setNextMatches([]);
+    } finally {
+      setLoadingMatches(false);
+    }
+  };
+
+  fetchTeamMatches();
+}, [team, activeTab]);
+
+
 
   if (!teamDetails) return null;
 
@@ -78,21 +110,37 @@ const TeamInfo = ({ team, onBack }) => {
             </ul>
           </div>
         )}
-        
-        {activeTab === 'matches' && (
-          <div className="tab-content">
-            <h2>Upcoming Matches</h2>
-            <p>Next matches for {teamDetails.name} will be displayed here.</p>
-            {/* TODO: Add matches component */}
-          </div>
-        )}
-        
-        {activeTab === 'players' && (
+         {activeTab === 'players' && (
           <div className="tab-content">
             <h2>Team Players</h2>
             <TeamPlayers teamId={teamDetails.id} />
           </div>
         )}
+        
+        {activeTab === 'matches' && (
+          <div className="tab-content">
+            <h2>Upcoming Matches</h2>
+             {loadingMatches ? (
+      <p>Loading upcoming matches...</p>
+    ) : nextMatches.length ? (
+      <ul className="team-next-matches">
+        {nextMatches.map(match => (
+          <li key={match.id} className="team-next-match ls-clickable" onClick={() => onBack(match)}>
+            <span className="match-date">{new Date(match.utcDate).toLocaleDateString([], { weekday:'short', month:'short', day:'numeric' })}</span>
+            <span className="match-teams">
+              {match.homeTeam?.name} vs {match.awayTeam?.name}
+            </span>
+            <span className="match-time">{new Date(match.utcDate).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })}</span>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p>No upcoming matches scheduled for {teamDetails.name}.</p>
+    )}
+          </div>
+        )}
+        
+       
       </div>
     </div>
   );
