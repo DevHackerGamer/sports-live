@@ -8,23 +8,18 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
   const isAdmin = (user?.privateMetadata?.type === 'admin');
   const [matchDetails, setMatchDetails] = useState(null);
   const [events, setEvents] = useState([]);
-  // removed unused loading state (was only set, not rendered)
-  // const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [activeSection, setActiveSection] = useState(initialSection); // 'details', 'stats', 'events', 'update'
-  const [comment, setComment] = useState('');
-  // removed unused teamsList (never read)
-  // const [teamsList, setTeamsList] = useState([]);
+  const [activeSection, setActiveSection] = useState(initialSection);
   const [homeTeamPlayers, setHomeTeamPlayers] = useState([]);
   const [awayTeamPlayers, setAwayTeamPlayers] = useState([]);
-  // Admin form state
   const [newEvent, setNewEvent] = useState({ type: 'goal', time: '', team: '', player: '', description: '' });
   const [meta, setMeta] = useState({ referee: '', venue: '' });
   const [showReportPanel, setShowReportPanel] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState('');
   const [reportDescription, setReportDescription] = useState('');
   const [reportTitle, setReportTitle] = useState('');
-
+  const [isLoading, setIsLoading] = useState(false);
+  const [teamLogos, setTeamLogos] = useState({ home: '', away: '' });
 
   useEffect(() => {
     if (match) {
@@ -36,21 +31,16 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match]);
 
-  // Only react when the initialSection prop itself changes; do NOT include activeSection
-  // in dependencies or user navigation will be immediately overwritten back to the prop value.
   useEffect(() => {
     if (initialSection) {
       setActiveSection(initialSection);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialSection]);
-
-  // Header loader removed to avoid layout shifts pushing action buttons
 
   const fetchMatchDetails = async () => {
     if (!match) return;
     
-  // loading indicator removed
+    setIsLoading(true);
     setError('');
     
     try {
@@ -59,6 +49,15 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
         const matchResponse = await apiClient.getMatchById(match.id || match._id);
         setMatchDetails(matchResponse.data);
         setMeta({ referee: matchResponse.data?.referee || '', venue: matchResponse.data?.venue || '' });
+        
+        // Set team logos if available
+        if (matchResponse.data.homeTeam?.logo) {
+          setTeamLogos(prev => ({ ...prev, home: matchResponse.data.homeTeam.logo }));
+        }
+        if (matchResponse.data.awayTeam?.logo) {
+          setTeamLogos(prev => ({ ...prev, away: matchResponse.data.awayTeam.logo }));
+        }
+        
         // If the API doesn't return any events, fetch them separately
         const normalizeEvents = (raw = []) => {
           const homeTeamName = (match.homeTeam?.name || match.homeTeam || '').toString();
@@ -188,13 +187,22 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
 
       // Fetch teams list and players to support admin editing
       try {
-  const teamsRes = await apiClient.getTeams();
-  const teams = teamsRes.data || [];
+        const teamsRes = await apiClient.getTeams();
+        const teams = teamsRes.data || [];
         // Try to find team IDs by name
         const homeTeamName = (match.homeTeam?.name || match.homeTeam || '').toString();
         const awayTeamName = (match.awayTeam?.name || match.awayTeam || '').toString();
         const homeTeam = teams.find(t => (t.name || '').toLowerCase() === homeTeamName.toLowerCase());
         const awayTeam = teams.find(t => (t.name || '').toLowerCase() === awayTeamName.toLowerCase());
+        
+        // Set logos if available from teams data
+        if (homeTeam?.logo && !teamLogos.home) {
+          setTeamLogos(prev => ({ ...prev, home: homeTeam.logo }));
+        }
+        if (awayTeam?.logo && !teamLogos.away) {
+          setTeamLogos(prev => ({ ...prev, away: awayTeam.logo }));
+        }
+        
         if (homeTeam?.id || homeTeam?._id) {
           const teamId = homeTeam.id || homeTeam._id;
           try {
@@ -222,11 +230,9 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
       console.error('Error fetching match details:', err);
       setError(err.message);
     } finally {
-      // loading indicator removed
+      setIsLoading(false);
     }
   };
-
-  // removed unused formatTime helper (not referenced in render)
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
@@ -280,37 +286,36 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
       default: return 'Event';
     }
   };
-const submitEventReport = async () => {
-  if (!reportTitle.trim()) {
-    alert("Please enter a title");
-    return;
-  }
-  if (!reportDescription.trim()) {
-    alert("Please enter a description");
-    return;
-  }
 
-  try {
-    const report = await apiClient.createReport({
-      matchId: match.id || match._id,
-      eventId: selectedEvent || null,
-      title: reportTitle,
-      description: reportDescription,
-    });
-    console.log('Report submitted:', report);
-    alert("Report submitted successfully!");
-    setReportTitle('');
-    setReportDescription('');
-    setSelectedEvent('');
-    setShowReportPanel(false);
+  const submitEventReport = async () => {
+    if (!reportTitle.trim()) {
+      alert("Please enter a title");
+      return;
+    }
+    if (!reportDescription.trim()) {
+      alert("Please enter a description");
+      return;
+    }
 
-     // Optional: refresh ReportsPage if it's open
-    window.dispatchEvent(new CustomEvent('reportsUpdated'));
-  } catch (err) {
-    console.error("Failed to submit report:", err);
-    alert("Failed to submit report");
-  }
-};
+    try {
+      const report = await apiClient.createReport({
+        matchId: match.id || match._id,
+        eventId: selectedEvent || null,
+        title: reportTitle,
+        description: reportDescription,
+      });
+      console.log('Report submitted:', report);
+      alert("Report submitted successfully!");
+      setReportTitle('');
+      setReportDescription('');
+      setSelectedEvent('');
+      setShowReportPanel(false);
+      window.dispatchEvent(new CustomEvent('reportsUpdated'));
+    } catch (err) {
+      console.error("Failed to submit report:", err);
+      alert("Failed to submit report");
+    }
+  };
 
   // Admin actions
   const submitNewEvent = async () => {
@@ -388,7 +393,7 @@ const submitEventReport = async () => {
       }
     }
     return dm;
-  }, [displayMatchRaw]);
+  }, [displayMatchRaw, events]);
 
   if (!match) {
     return (
@@ -406,29 +411,35 @@ const submitEventReport = async () => {
     <div className="match-viewer">
       <div className="match-viewer-header">
         <h2>Match Overview</h2>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="header-actions">
           {onAddToWatchlist && match && (
             <button
               onClick={() => onAddToWatchlist(match)}
-              className="section-btn"
+              className="btn btn-primary"
               title="Add both teams to your favorites"
             >
               + Add to Watchlist
             </button>
           )}
           {onBack && (
-            <button onClick={onBack} className="section-btn" title="Back to matches">
+            <button onClick={onBack} className="btn btn-secondary" title="Back to matches">
               ← Back
             </button>
           )}
         </div>
-  {/* Loading indicator intentionally omitted from header to keep actions fixed at top-right */}
       </div>
+
+      {isLoading && (
+        <div className="loading-overlay">
+          <div className="loading-spinner"></div>
+          <p>Loading match details...</p>
+        </div>
+      )}
 
       {error && (
         <div className="error-message">
           <p>{error}</p>
-          <button onClick={fetchMatchDetails} className="retry-button">
+          <button onClick={fetchMatchDetails} className="btn btn-primary">
             Retry
           </button>
         </div>
@@ -436,26 +447,26 @@ const submitEventReport = async () => {
 
       <div className="match-sections-nav">
         <button 
-          className={activeSection === 'details' ? 'section-btn active' : 'section-btn'}
+          className={activeSection === 'details' ? 'nav-btn active' : 'nav-btn'}
           onClick={() => setActiveSection('details')}
         >
           Match Details
         </button>
         <button 
-          className={activeSection === 'stats' ? 'section-btn active' : 'section-btn'}
+          className={activeSection === 'stats' ? 'nav-btn active' : 'nav-btn'}
           onClick={() => setActiveSection('stats')}
         >
           Statistics
         </button>
         <button 
-          className={activeSection === 'events' ? 'section-btn active' : 'section-btn'}
+          className={activeSection === 'events' ? 'nav-btn active' : 'nav-btn'}
           onClick={() => setActiveSection('events')}
         >
           Event Timeline
         </button>
         {isAdmin && (
           <button 
-            className={activeSection === 'update' ? 'section-btn active' : 'section-btn'}
+            className={activeSection === 'update' ? 'nav-btn active' : 'nav-btn'}
             onClick={() => setActiveSection('update')}
           >
             Update Events
@@ -467,13 +478,25 @@ const submitEventReport = async () => {
         <div className="match-overview">
           <div className="match-teams">
             <div className="team home-team">
+              <div className="team-logo">
+                {teamLogos.home ? (
+                  <img src={teamLogos.home} alt={displayMatch.homeTeam} />
+                ) : (
+                  <div className="team-logo-placeholder">
+                    {displayMatch.homeTeam.charAt(0)}
+                  </div>
+                )}
+              </div>
               <div className="team-name">{displayMatch.homeTeam}</div>
               <div className="team-score">{displayMatch.homeScore}</div>
             </div>
             
             <div className="match-status">
               {displayMatch.status === 'live' && displayMatch.minute ? (
-                <div className="live-minute" title="Current minute">{displayMatch.minute}'</div>
+                <div className="live-indicator">
+                  <span className="live-dot"></span>
+                  <div className="live-minute" title="Current minute">{displayMatch.minute}'</div>
+                </div>
               ) : (
                 <div className="match-result">{displayMatch.status.toUpperCase()}</div>
               )}
@@ -482,9 +505,19 @@ const submitEventReport = async () => {
                   {formatDate(displayMatch.utcDate)}
                 </div>
               )}
+              <div className="match-vs">VS</div>
             </div>
             
             <div className="team away-team">
+              <div className="team-logo">
+                {teamLogos.away ? (
+                  <img src={teamLogos.away} alt={displayMatch.awayTeam} />
+                ) : (
+                  <div className="team-logo-placeholder">
+                    {displayMatch.awayTeam.charAt(0)}
+                  </div>
+                )}
+              </div>
               <div className="team-name">{displayMatch.awayTeam}</div>
               <div className="team-score">{displayMatch.awayScore}</div>
             </div>
@@ -525,7 +558,13 @@ const submitEventReport = async () => {
               {displayMatch.statistics.map((stat, index) => (
                 <div key={index} className="stat-item">
                   <span className="stat-label">{stat.type}:</span>
-                  <span className="stat-value">{stat.value}</span>
+                  <div className="stat-bar-container">
+                    <div 
+                      className="stat-bar" 
+                      style={{ width: `${stat.value}%` }}
+                    ></div>
+                  </div>
+                  <span className="stat-value">{stat.value}%</span>
                 </div>
               ))}
             </div>
@@ -618,47 +657,47 @@ const submitEventReport = async () => {
             <h4>Report Event Error</h4>
             <p>See an error in the event timeline? Let us know!</p>
 
-               <button onClick={() => setShowReportPanel(!showReportPanel)}>
-                   {showReportPanel ? 'Hide Report Panel' : 'Report an Issue'}
-                  </button>
+            <button onClick={() => setShowReportPanel(!showReportPanel)} className="btn btn-secondary">
+              {showReportPanel ? 'Hide Report Panel' : 'Report an Issue'}
+            </button>
+            
             {showReportPanel && (
-          <div className="report-panel">
-           <h4>Report Event Issue</h4>
-             <label>Select Event</label>
-                      <select
-                   value={selectedEvent}
-                 onChange={(e) => setSelectedEvent(e.target.value)}
-                             >
-            <option value="">-- Choose Event --</option>
-           {events.map(ev => (
-         <option key={ev.id || ev._id} value={ev.id || ev._id}>
-              {ev.description || `Event ${ev.id || ev._id}`}
-        </option>
-      ))}
-    </select>
-    <label>Title</label>
-    <input
-     type="text"
-     placeholder="Brief title of the issue"
-    value={reportTitle}
-    onChange={(e) => setReportTitle(e.target.value)}
-    />
+              <div className="report-panel">
+                <h4>Report Event Issue</h4>
+                <label>Select Event</label>
+                <select
+                  value={selectedEvent}
+                  onChange={(e) => setSelectedEvent(e.target.value)}
+                >
+                  <option value="">-- Choose Event --</option>
+                  {events.map(ev => (
+                    <option key={ev.id || ev._id} value={ev.id || ev._id}>
+                      {ev.description || `Event ${ev.id || ev._id}`}
+                    </option>
+                  ))}
+                </select>
+                <label>Title</label>
+                <input
+                  type="text"
+                  placeholder="Brief title of the issue"
+                  value={reportTitle}
+                  onChange={(e) => setReportTitle(e.target.value)}
+                />
 
-    <label>Description</label>
-    <textarea
-      placeholder="Describe the issue..."
-      value={reportDescription}
-      onChange={(e) => setReportDescription(e.target.value)}
-      rows={3}
-    />
+                <label>Description</label>
+                <textarea
+                  placeholder="Describe the issue..."
+                  value={reportDescription}
+                  onChange={(e) => setReportDescription(e.target.value)}
+                  rows={3}
+                />
 
-    <div className="report-actions">
-      <button onClick={submitEventReport}>Submit</button>
-      <button onClick={() => setShowReportPanel(false)}>Cancel</button>
-    </div>
-  </div>
-)}
-          
+                <div className="report-actions">
+                  <button onClick={submitEventReport} className="btn btn-primary">Submit</button>
+                  <button onClick={() => setShowReportPanel(false)} className="btn btn-secondary">Cancel</button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -680,7 +719,7 @@ const submitEventReport = async () => {
                 value={meta.venue}
                 onChange={(e) => setMeta(m => ({ ...m, venue: e.target.value }))}
               />
-              <button onClick={saveMatchMeta}>Save Match Info</button>
+              <button onClick={saveMatchMeta} className="btn btn-primary">Save Match Info</button>
             </div>
           </div>
           <div className="add-event-form">
@@ -723,7 +762,7 @@ const submitEventReport = async () => {
               value={newEvent.description}
               onChange={(e) => setNewEvent(ev => ({ ...ev, description: e.target.value }))}
             />
-            <button onClick={submitNewEvent}>Add Event</button>
+            <button onClick={submitNewEvent} className="btn btn-primary">Add Event</button>
           </div>
         </div>
       )}
