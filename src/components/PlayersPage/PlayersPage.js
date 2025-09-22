@@ -10,9 +10,10 @@ const PlayersPage = () => {
   const [teamName, setTeamName] = useState('');
   const [position, setPosition] = useState('');
   const [nationality, setNationality] = useState('');
-  const [sortBy, setSortBy] = useState('name');
 
   const [teamsMap, setTeamsMap] = useState({}); // Map teamId -> team data
+  const [currentPage, setCurrentPage] = useState(1);
+  const playersPerPage = 50;
 
   // Fetch all players once
   const fetchPlayers = async () => {
@@ -61,42 +62,36 @@ const PlayersPage = () => {
     setTeamName('');
     setPosition('');
     setNationality('');
+    setCurrentPage(1); // reset to first page
   };
 
   // Filter all players client-side
-  const filteredPlayers = players
-    .filter((p) => {
-      const team = teamsMap[p.teamId]?.name || '';
+  const filteredPlayers = players.filter((p) => {
+    const team = teamsMap[p.teamId]?.name || '';
 
-      const matchesPlayer = playerName
-        ? p.name?.toLowerCase().includes(playerName.toLowerCase())
-        : true;
+    const matchesPlayer = playerName
+      ? p.name?.toLowerCase().includes(playerName.toLowerCase())
+      : true;
 
-      const matchesTeam = teamName
-        ? team.toLowerCase().includes(teamName.toLowerCase())
-        : true;
+    const matchesTeam = teamName
+      ? team.toLowerCase().includes(teamName.toLowerCase())
+      : true;
 
-      const matchesPosition = position
-        ? p.position?.toLowerCase().includes(position.toLowerCase())
-        : true;
+    const matchesPosition = position
+      ? p.position?.toLowerCase().includes(position.toLowerCase())
+      : true;
 
-      const matchesNationality = nationality
-        ? p.nationality?.toLowerCase().includes(nationality.toLowerCase())
-        : true;
+    const matchesNationality = nationality
+      ? p.nationality?.toLowerCase().includes(nationality.toLowerCase())
+      : true;
 
-      return matchesPlayer && matchesTeam && matchesPosition && matchesNationality;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'name') return a.name.localeCompare(b.name);
-      if (sortBy === 'position') return a.position.localeCompare(b.position);
-      if (sortBy === 'teamName') {
-        const teamA = teamsMap[a.teamId]?.name || '';
-        const teamB = teamsMap[b.teamId]?.name || '';
-        return teamA.localeCompare(teamB);
-      }
-      if (sortBy === 'nationality') return a.nationality.localeCompare(b.nationality);
-      return 0;
-    });
+    return matchesPlayer && matchesTeam && matchesPosition && matchesNationality;
+  });
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredPlayers.length / playersPerPage);
+  const startIndex = (currentPage - 1) * playersPerPage;
+  const paginatedPlayers = filteredPlayers.slice(startIndex, startIndex + playersPerPage);
 
   return (
     <div className="players-page">
@@ -123,12 +118,6 @@ const PlayersPage = () => {
           value={nationality}
           onChange={(e) => setNationality(e.target.value)}
         />
-        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-          <option value="name">Sort by Name</option>
-          <option value="position">Sort by Position</option>
-          <option value="teamName">Sort by Team</option>
-          <option value="nationality">Sort by Nationality</option>
-        </select>
         <button onClick={resetFilters} className="reset-filters">
           Reset Filters
         </button>
@@ -137,36 +126,71 @@ const PlayersPage = () => {
       {loading ? (
         <p>Loading players...</p>
       ) : (
-        <div className="player-cards">
-          {filteredPlayers.map((p) => {
-            const team = teamsMap[p.teamId];
-            return (
-              <div className="player-card" key={p._id}>
-                <h3>{p.name}</h3>
-                <p>
-                  <strong>Team:</strong>{' '}
-                  {team?.crest && (
-                    <img
-                      src={team.crest}
-                      alt={team.name}
-                      className="team-icon"
-                    />
-                  )}
-                  {team?.name || 'Unknown'}
-                </p>
-                <p>
-                  <strong>Position:</strong> {p.position}
-                </p>
-                <p>
-                  <strong>Nationality:</strong> {p.nationality}
-                </p>
-                <p>
-                  <strong>Age:</strong> {calculateAge(p.dateOfBirth)}
-                </p>
-              </div>
-            );
-          })}
-        </div>
+        <>
+          <div className="player-cards">
+            {paginatedPlayers.map((p) => {
+              const team = teamsMap[p.teamId];
+              return (
+                <div className="player-card" key={p._id}>
+                  <h3>{p.name}</h3>
+                  <p>
+                    <strong>Team:</strong>{' '}
+                    {team?.crest && (
+                      <img
+                        src={team.crest}
+                        alt={team.name}
+                        className="team-icon"
+                      />
+                    )}
+                    {team?.name || 'Unknown'}
+                  </p>
+                  <p>
+                    <strong>Position:</strong> {p.position}
+                  </p>
+                  <p>
+                    <strong>Nationality:</strong> {p.nationality}
+                  </p>
+                  <p>
+                    <strong>Age:</strong> {calculateAge(p.dateOfBirth)}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="pagination">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => prev - 1)}
+              >
+                Previous
+              </button>
+
+              {/* Numbered buttons */}
+              {[...Array(totalPages)].map((_, idx) => {
+                const pageNum = idx + 1;
+                return (
+                  <button
+                    key={pageNum}
+                    className={currentPage === pageNum ? 'active' : ''}
+                    onClick={() => setCurrentPage(pageNum)}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => prev + 1)}
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
