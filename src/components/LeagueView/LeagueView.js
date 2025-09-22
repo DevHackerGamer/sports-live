@@ -5,7 +5,7 @@ import '../../styles/LeagueStandings.css';
 const dlog = (...args) => {
   if (typeof window !== 'undefined' && window.__DEBUG_STANDINGS__) {
     // eslint-disable-next-line no-console
-    console.log('[Standings]', ...args);
+   
   }
 };
 
