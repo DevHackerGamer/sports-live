@@ -1,149 +1,194 @@
+// /api/__tests__/users.test.js
 global.TextEncoder = require('util').TextEncoder;
 global.TextDecoder = require('util').TextDecoder;
-
-const handler = require('../../../api/userFavorites');
-const { getUsersCollection } = require('../../../lib/mongodb');
-const { ObjectId } = require('mongodb');
 
 jest.mock('../../../lib/mongodb.js', () => ({
   getUsersCollection: jest.fn(),
 }));
 
-// Mock Express-like req/res
-function mockReqRes({ method = 'GET', url = '/api/users/u1/favorites', query = {}, body = {} } = {}) {
-  const json = jest.fn();
-  const end = jest.fn();
-  const status = jest.fn(() => ({ json, end }));
-  const setHeader = jest.fn();
-  const res = { status, setHeader, end, json };
-  const req = { method, url, query, body, headers: {} };
-  return { req, res, json, status, setHeader, end };
+const { getUsersCollection } = require('../../../lib/mongodb');
+const handler = require('../../../api/users'); // adjust path
+
+function mockResponse() {
+  const res = {};
+  res.status = jest.fn().mockReturnValue(res);
+  res.json = jest.fn().mockReturnValue(res);
+  res.end = jest.fn().mockReturnValue(res);
+  res.setHeader = jest.fn();
+  return res;
 }
 
-describe('User Favorites API', () => {
-  let mockUsers;
+async function runHandler(req) {
+  const res = mockResponse();
+  await handler(req, res);
+  return res;
+}
+
+describe('users API - favorites', () => {
+  let mockUsersCol;
 
   beforeEach(() => {
-    mockUsers = {
+    mockUsersCol = {
       findOne: jest.fn(),
       updateOne: jest.fn(),
     };
-    getUsersCollection.mockResolvedValue(mockUsers);
+    getUsersCollection.mockResolvedValue(mockUsersCol);
   });
 
   afterEach(() => jest.clearAllMocks());
 
-  test('GET returns user favorites', async () => {
-    mockUsers.findOne.mockResolvedValue({ userId: 'u1', favorites: ['Team A', 'Team B'] });
-    const { req, res, json } = mockReqRes({ method: 'GET', url: '/api/users/u1/favorites' });
-    await handler(req, res);
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({
-      success: true,
-      data: ['Team A', 'Team B'],
-      userId: 'u1'
-    }));
+  // ---------------- OPTIONS ----------------
+  it('OPTIONS returns 200', async () => {
+    const res = await runHandler({ method: 'OPTIONS', url: '/api/users/123/favorites' });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.end).toHaveBeenCalled();
   });
 
-  test('GET returns empty array if user has no favorites', async () => {
-    mockUsers.findOne.mockResolvedValue({ userId: 'u2' });
-    const { req, res, json } = mockReqRes({ method: 'GET', url: '/api/users/u2/favorites' });
-    await handler(req, res);
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({
-      success: true,
-      data: [],
-      userId: 'u2'
-    }));
-  });
+  // ---------------- GET ----------------
+  it('GET user favorites success', async () => {
+    mockUsersCol.findOne.mockResolvedValue({ favorites: ['TeamA', 'TeamB'] });
+    const res = await runHandler({ method: 'GET', url: '/api/users/123/favorites' });
 
-  test('POST adds a favorite team', async () => {
-    mockUsers.updateOne.mockResolvedValue({ matchedCount: 1 });
-    const { req, res, json } = mockReqRes({
-      method: 'POST',
-      url: '/api/users/u1/favorites',
-      body: { teamName: 'Team X' }
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      data: ['TeamA', 'TeamB'],
+      userId: '123',
     });
-    await handler(req, res);
-    expect(mockUsers.updateOne).toHaveBeenCalledWith(
-      { userId: 'u1' },
-      expect.objectContaining({ $addToSet: { favorites: 'Team X' } }),
-      { upsert: true }
-    );
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({
+  });
+
+  it('GET user favorites error', async () => {
+    mockUsersCol.findOne.mockRejectedValue(new Error('DB fail'));
+    const res = await runHandler({ method: 'GET', url: '/api/users/123/favorites' });
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: false,
+      error: 'Failed to fetch user favorites',
+    }));
+  });
+
+  // ---------------- POST ----------------
+  it('POST add favorite team success', async () => {
+    mockUsersCol.updateOne.mockResolvedValue({ matchedCount: 1 });
+    const res = await runHandler({
+      method: 'POST',
+      url: '/api/users/123/favorites',
+      body: { teamName: 'TeamX' },
+    });
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
       success: true,
       message: 'Favorite team added successfully',
-      teamName: 'Team X'
-    }));
-  });
-
-  test('POST fails if teamName is missing', async () => {
-    const { req, res, json } = mockReqRes({ method: 'POST', url: '/api/users/u1/favorites', body: {} });
-    await handler(req, res);
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Team name is required' }));
-  });
-
-  test('DELETE removes a favorite team', async () => {
-    mockUsers.updateOne.mockResolvedValue({ matchedCount: 1 });
-    const { req, res, json } = mockReqRes({ method: 'DELETE', url: '/api/users/u1/favorites/Team%20X' });
-    await handler(req, res);
-    expect(mockUsers.updateOne).toHaveBeenCalledWith(
-      { userId: 'u1' },
-      expect.objectContaining({ $pull: { favorites: 'Team X' } })
-    );
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({
-      success: true,
-      message: 'Favorite team removed successfully',
-      teamName: 'Team X'
-    }));
-  });
-
-  test('DELETE returns 404 if user not found', async () => {
-    mockUsers.updateOne.mockResolvedValue({ matchedCount: 0 });
-    const { req, res, json } = mockReqRes({ method: 'DELETE', url: '/api/users/u99/favorites/Team%20X' });
-    await handler(req, res);
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({ error: 'User not found' }));
-  });
-
-  test('PUT updates user favorites', async () => {
-    mockUsers.updateOne.mockResolvedValue({ matchedCount: 1 });
-    const { req, res, json } = mockReqRes({
-      method: 'PUT',
-      url: '/api/users/u1/favorites',
-      body: { favorites: ['Team A', 'Team B'] }
+      teamName: 'TeamX',
     });
-    await handler(req, res);
-    expect(mockUsers.updateOne).toHaveBeenCalledWith(
-      { userId: 'u1' },
-      expect.objectContaining({ $set: expect.objectContaining({ favorites: ['Team A', 'Team B'] }) }),
-      { upsert: true }
-    );
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({
+  });
+
+  it('POST missing teamName', async () => {
+    const res = await runHandler({ method: 'POST', url: '/api/users/123/favorites', body: {} });
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      error: 'Team name is required',
+    });
+  });
+
+  it('POST error', async () => {
+    mockUsersCol.updateOne.mockRejectedValue(new Error('DB fail'));
+    const res = await runHandler({ method: 'POST', url: '/api/users/123/favorites', body: { teamName: 'X' } });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      error: 'Failed to add favorite team',
+    });
+  });
+
+  // ---------------- PUT ----------------
+  it('PUT update favorites success', async () => {
+    mockUsersCol.updateOne.mockResolvedValue({ matchedCount: 1 });
+    const res = await runHandler({
+      method: 'PUT',
+      url: '/api/users/123/favorites',
+      body: { favorites: ['TeamA', 'TeamB'] },
+    });
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
       success: true,
       message: 'User favorites updated successfully',
-      favorites: ['Team A', 'Team B']
-    }));
+      favorites: ['TeamA', 'TeamB'],
+    });
   });
 
-  test('PUT fails if favorites is not an array', async () => {
-    const { req, res, json } = mockReqRes({ method: 'PUT', url: '/api/users/u1/favorites', body: { favorites: 'Team A' } });
-    await handler(req, res);
+  it('PUT invalid favorites', async () => {
+    const res = await runHandler({ method: 'PUT', url: '/api/users/123/favorites', body: { favorites: 'not-array' } });
     expect(res.status).toHaveBeenCalledWith(400);
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Favorites must be an array' }));
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      error: 'Favorites must be an array',
+    });
   });
 
-  test('method not allowed returns 405', async () => {
-    const { req, res, end } = mockReqRes({ method: 'PATCH', url: '/api/users/u1/favorites' });
-    await handler(req, res);
-    expect(res.status).toHaveBeenCalledWith(405);
-    expect(end).toHaveBeenCalled();
-  });
-
-  test('internal error returns 500', async () => {
-    getUsersCollection.mockRejectedValue(new Error('DB fail'));
-    const { req, res, json } = mockReqRes({ method: 'GET', url: '/api/users/u1/favorites' });
-    await handler(req, res);
+  it('PUT error', async () => {
+    mockUsersCol.updateOne.mockRejectedValue(new Error('DB fail'));
+    const res = await runHandler({ method: 'PUT', url: '/api/users/123/favorites', body: { favorites: [] } });
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: false, error: 'Internal server error' }));
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      error: 'Failed to update user favorites',
+    });
+  });
+
+  // ---------------- DELETE ----------------
+  it('DELETE favorite success', async () => {
+    mockUsersCol.updateOne.mockResolvedValue({ matchedCount: 1 });
+    const res = await runHandler({ method: 'DELETE', url: '/api/users/123/favorites/TeamA' });
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      message: 'Favorite team removed successfully',
+      teamName: 'TeamA',
+    });
+  });
+
+  it('DELETE missing teamName', async () => {
+    const res = await runHandler({ method: 'DELETE', url: '/api/users/123/favorites' });
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      error: 'Team name is required for deletion',
+    });
+  });
+
+  it('DELETE user not found', async () => {
+    mockUsersCol.updateOne.mockResolvedValue({ matchedCount: 0 });
+    const res = await runHandler({ method: 'DELETE', url: '/api/users/123/favorites/TeamA' });
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      error: 'User not found',
+    });
+  });
+
+  it('DELETE error', async () => {
+    mockUsersCol.updateOne.mockRejectedValue(new Error('DB fail'));
+    const res = await runHandler({ method: 'DELETE', url: '/api/users/123/favorites/TeamA' });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      error: 'Failed to remove favorite team',
+    });
+  });
+
+  // ---------------- Method not allowed ----------------
+  it('Method not allowed', async () => {
+    const res = await runHandler({ method: 'PATCH', url: '/api/users/123/favorites' });
+    expect(res.status).toHaveBeenCalledWith(405);
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      error: 'Method not allowed',
+    });
   });
 });

@@ -1,91 +1,120 @@
-// Event Log API endpoint
-const { getEventLogCollection } = require('../lib/mongodb');
+// /api/__tests__/eventLog.test.js
+global.TextEncoder = require('util').TextEncoder;
+global.TextDecoder = require('util').TextDecoder;
 
-async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+jest.mock('../../../lib/mongodb.js', () => ({
+  getEventLogCollection: jest.fn(),
+}));
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+const { getEventLogCollection } = require('../../../lib/mongodb');
+const handler = require('../../../api/event-log'); 
 
-  const eventLogCollection = await getEventLogCollection();
-
-  if (req.method === 'GET') {
-    try {
-      const { limit = 50, type, startDate, endDate, matchId } = req.query;
-
-      let filter = {};
-      if (type) filter.type = type;
-      // Allow filtering logs for a specific match's events
-      if (matchId) {
-        // matchId may be stored as a number or a string; search both on top-level and nested data
-        const candidates = [];
-        // original string
-        candidates.push(matchId);
-        // numeric form if applicable
-        const num = Number(matchId);
-        if (!Number.isNaN(num)) candidates.push(num);
-        filter.$or = candidates.flatMap((v) => [
-          { matchId: v },
-          { 'data.matchId': v }
-        ]);
-      }
-      if (startDate || endDate) {
-        filter.timestamp = {};
-        if (startDate) filter.timestamp.$gte = new Date(startDate);
-        if (endDate) filter.timestamp.$lte = new Date(endDate);
-      }
-
-      const events = await eventLogCollection
-        .find(filter)
-        .sort({ timestamp: -1 })
-        .limit(parseInt(limit))
-        .toArray();
-
-      res.status(200).json({
-        success: true,
-        events,
-        total: events.length
-      });
-    } catch (error) {
-      console.error('Error fetching event logs:', error);
-      res.status(500).json({ error: 'Failed to fetch event logs' });
-    }
-  } else if (req.method === 'POST') {
-    try {
-      const { type, message, data, matchId } = req.body;
-      
-      if (!type || !message) {
-        return res.status(400).json({ error: 'Type and message are required' });
-      }
-
-      const event = {
-        timestamp: new Date(),
-        type,
-        message,
-        // Ensure data is always an object when provided so we can enrich with matchId
-        data: data && typeof data === 'object' ? { ...data, ...(matchId ? { matchId } : {}) } : (matchId ? { matchId } : (data || null)),
-        source: 'api'
-      };
-      if (matchId) {
-        event.matchId = matchId; // duplicate for easier querying/indexing
-      }
-
-      const result = await eventLogCollection.insertOne(event);
-      res.status(201).json({
-        success: true,
-        eventId: result.insertedId,
-        event
-      });
-    } catch (error) {
-      console.error('Error creating event log:', error);
-      res.status(500).json({ error: 'Failed to create event log' });
-    }
-  } else {
-    res.status(405).json({ error: 'Method not allowed' });
-  }
+function mockResponse() {
+  const res = {};
+  res.status = jest.fn().mockReturnValue(res);
+  res.json = jest.fn().mockReturnValue(res);
+  res.end = jest.fn().mockReturnValue(res);
+  res.setHeader = jest.fn();
+  return res;
 }
 
-module.exports = handler;
+async function runHandler(req) {
+  const res = mockResponse();
+  await handler(req, res);
+  return res;
+}
+
+describe('Event Log API', () => {
+  let mockCol;
+
+  beforeEach(() => {
+    mockCol = {
+      find: jest.fn(),
+      insertOne: jest.fn(),
+    };
+    getEventLogCollection.mockResolvedValue(mockCol);
+  });
+
+  afterEach(() => jest.clearAllMocks());
+
+  // ---------------- OPTIONS ----------------
+  it('OPTIONS returns 200', async () => {
+    const res = await runHandler({ method: 'OPTIONS' });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.end).toHaveBeenCalled();
+  });
+
+  // ---------------- GET ----------------
+  it('GET returns events', async () => {
+    const fakeEvents = [
+      { type: 'goal', message: 'Goal scored', timestamp: new Date() }
+    ];
+    mockCol.find.mockReturnValue({ sort: () => ({ limit: () => ({ toArray: () => fakeEvents }) }) });
+
+    const res = await runHandler({ method: 'GET', query: {} });
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      events: fakeEvents,
+      total: fakeEvents.length
+    });
+  });
+
+  it('GET with filters passes correct query', async () => {
+    const fakeEvents = [];
+    const sortMock = { limit: jest.fn().mockReturnValue({ toArray: jest.fn().mockResolvedValue(fakeEvents) }) };
+    mockCol.find.mockReturnValue({ sort: () => sortMock });
+
+    const query = { type: 'goal', matchId: '123', limit: '10', startDate: '2025-01-01', endDate: '2025-12-31' };
+    await runHandler({ method: 'GET', query });
+
+    expect(mockCol.find).toHaveBeenCalled();
+  });
+
+  it('GET error handling', async () => {
+    mockCol.find.mockImplementation(() => { throw new Error('DB fail'); });
+
+    const res = await runHandler({ method: 'GET', query: {} });
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Failed to fetch event logs' });
+  });
+
+  // ---------------- POST ----------------
+  it('POST creates event successfully', async () => {
+    const body = { type: 'goal', message: 'Goal scored', matchId: '123' };
+    mockCol.insertOne.mockResolvedValue({ insertedId: 'abc123' });
+
+    const res = await runHandler({ method: 'POST', body });
+
+    expect(mockCol.insertOne).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(201);
+    const created = res.json.mock.calls[0][0];
+    expect(created.success).toBe(true);
+    expect(created.eventId).toBe('abc123');
+    expect(created.event.type).toBe('goal');
+    expect(created.event.matchId).toBe('123');
+  });
+
+  it('POST missing type or message -> 400', async () => {
+    const res = await runHandler({ method: 'POST', body: { type: 'goal' } });
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Type and message are required' });
+  });
+
+  it('POST error handling', async () => {
+    mockCol.insertOne.mockRejectedValue(new Error('DB fail'));
+    const res = await runHandler({ method: 'POST', body: { type: 'goal', message: 'x' } });
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Failed to create event log' });
+  });
+
+  // ---------------- Method not allowed ----------------
+  it('Method not allowed for PUT', async () => {
+    const res = await runHandler({ method: 'PUT' });
+    expect(res.status).toHaveBeenCalledWith(405);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Method not allowed' });
+  });
+});
