@@ -6,7 +6,7 @@ import { apiClient } from '../../lib/api';
 const dlog = (...args) => {
   if (typeof window !== 'undefined' && window.__DEBUG_STANDINGS__) {
     console.log('[Standings]', ...args);
-  }
+     }
 };
 
 

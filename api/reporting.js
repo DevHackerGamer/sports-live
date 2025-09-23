@@ -1,7 +1,7 @@
 //reporting.js
 const { ObjectId } = require('mongodb');
 const { getReportsCollection } = require('../lib/mongodb');
-console.log('Reports handler loaded');
+
 module.exports = async function handler(req, res) {
   try {
     const collection = await getReportsCollection();
