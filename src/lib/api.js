@@ -146,6 +146,10 @@ async deleteReport(id) {
       body: { teams },
     });
   }
+  async getTeamById(id) {
+  return this.request(`/api/teams?id=${id}`);
+}
+
   //standings API
 
   // Standings API

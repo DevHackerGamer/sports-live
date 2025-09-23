@@ -1,15 +1,16 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLiveSports } from '../../hooks/useLiveSports';
+import TeamInfo from '../TeamInfo/TeamInfo';
 import '../../styles/LiveSports.css';
 
 const LiveSports = ({ onMatchSelect }) => {
-  // Throttle clock updates to minute-level and pause when tab hidden to reduce scheduler overhead
-  const [currentTime, setCurrentTime] = React.useState(new Date());
-  React.useEffect(() => {
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [selectedTeam, setSelectedTeam] = useState(null);
+  
+  useEffect(() => {
     let timerId;
     const scheduleNextTick = () => {
       const now = new Date();
-      // Compute ms to the start of next minute
       const msToNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
       timerId = setTimeout(() => {
         setCurrentTime(new Date());
@@ -20,7 +21,6 @@ const LiveSports = ({ onMatchSelect }) => {
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
         if (timerId) clearTimeout(timerId);
-        // Snap to current time and schedule the next minute tick
         setCurrentTime(new Date());
         scheduleNextTick();
       } else if (timerId) {
@@ -28,7 +28,6 @@ const LiveSports = ({ onMatchSelect }) => {
       }
     };
 
-    // Initial schedule
     scheduleNextTick();
     document.addEventListener('visibilitychange', handleVisibility);
     return () => {
@@ -92,6 +91,7 @@ const LiveSports = ({ onMatchSelect }) => {
   // Derive date range from hook payload (backward compatible)
   const dateFrom = sportsData?.range?.dateFrom || sportsData?.dateFrom;
   const dateTo = sportsData?.range?.dateTo || sportsData?.dateTo;
+  
   // Pre-sort once and store parsed UTC time to avoid repeated Date parsing
   const sortedGames = React.useMemo(() => {
     const arr = (sportsData?.games || []).filter(g => g && g.utcDate);
@@ -128,26 +128,30 @@ const LiveSports = ({ onMatchSelect }) => {
 
   const getStatusBadge = (status) => {
     const statusConfig = {
-      live: { text: 'LIVE', className: 'status-live' },
-      final: { text: 'FINAL', className: 'status-final' },
-      finished: { text: 'FINAL', className: 'status-final' },
-      scheduled: { text: 'SCHEDULED', className: 'status-scheduled' },
-      default: { text: 'UPCOMING', className: 'status-default' }
+      live: { text: 'LIVE', className: 'ls-status-live' },
+      final: { text: 'FINAL', className: 'ls-status-final' },
+      finished: { text: 'FINAL', className: 'ls-status-final' },
+      scheduled: { text: 'SCHEDULED', className: 'ls-status-scheduled' },
+      default: { text: 'UPCOMING', className: 'ls-status-default' }
     };
     
     const config = statusConfig[status] || statusConfig.default;
-  return <span className={`status-badge ${config.className}`} data-testid={`status-${status || 'default'}`}>{config.text}</span>;
+    return <span className={`ls-status-badge ${config.className}`} data-testid={`status-${status || 'default'}`}>{config.text}</span>;
   };
+
+  // Render TeamInfo if a team is selected
+  if (selectedTeam) {
+    return <TeamInfo team={selectedTeam} onBack={() => setSelectedTeam(null)} />;
+  }
 
   if (error) {
     return (
-    <div className="live-sports error-state" data-testid="error">
-        <div className="error-content">
+      <div className="ls-live-sports ls-error-state" data-testid="error">
+        <div className="ls-error-content">
           <h3>Connection Error</h3>
           <p>Unable to fetch live sports data</p>
-      {/* legacy test hook */}
-      <div style={{ display: 'none' }}>Failed to load matches</div>
-          <button onClick={refreshData} className="retry-button">
+          <div style={{ display: 'none' }}>Failed to load matches</div>
+          <button onClick={refreshData} className="ls-retry-button">
             Retry
           </button>
         </div>
@@ -157,36 +161,34 @@ const LiveSports = ({ onMatchSelect }) => {
 
   if (!sportsData) {
     return (
-    <div className="live-sports loading-state" data-testid="loading">
-        <div className="loading-content">
-          <div className="loading-spinner"></div>
+      <div className="ls-live-sports ls-loading-state" data-testid="loading">
+        <div className="ls-loading-content">
+          <div className="ls-loading-spinner"></div>
           <h3>Loading live matches...</h3>
         </div>
       </div>
     );
   }
 
-  
-
   return (
-    <div className="live-sports">
-      <div className="sports-header">
-        <div className="header-left">
+    <div className="ls-live-sports">
+      <div className="ls-sports-header">
+        <div className="ls-header-left">
           <h2>Live Football</h2>
-          <div className="connection-indicator">
-            <div className={`status-dot ${isConnected ? 'connected' : 'disconnected'}`}></div>
-            <span className="status-text">
+          <div className="ls-connection-indicator">
+            <div className={`ls-status-dot ${isConnected ? 'ls-connected' : 'ls-disconnected'}`}></div>
+            <span className="ls-status-text">
               {isConnected ? 'Live' : 'Offline'}
             </span>
           </div>
         </div>
 
-        <div className="header-right">
-          <div className="current-time">
+        <div className="ls-header-right">
+          <div className="ls-current-time">
             {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </div>
           {lastUpdated && (
-            <div className="last-updated">
+            <div className="ls-last-updated">
               Updated {formatTime(lastUpdated)}
             </div>
           )}
@@ -194,31 +196,32 @@ const LiveSports = ({ onMatchSelect }) => {
       </div>
 
       {(dateFrom || dateTo || sportsData.totalMatches) && (
-        <div className="fetch-context">
+        <div className="ls-fetch-context">
           {dateFrom && (
-            <span className="date-range">Range: {formatShortDate(dateFrom)} → {formatShortDate(dateTo)}</span>
+            <span className="ls-date-range">Range: {formatShortDate(dateFrom)} → {formatShortDate(dateTo)}</span>
           )}
           {typeof sportsData.totalMatches === 'number' && (
-            <span className="count">Matches: {sportsData.totalMatches}</span>
+            <span className="ls-count">Matches: {sportsData.totalMatches}</span>
           )}
           {sportsData.environment && (
-            <span className="env">Env: {sportsData.environment}</span>
+            <span className="ls-env">Env: {sportsData.environment}</span>
           )}
         </div>
       )}
 
       {/* Render all matches grouped by weekly subheadings */}
-      <div className="matches-groups" data-testid="matches-container">
+      <div className="ls-matches-groups" data-testid="matches-container">
         {chunks.length > 0 ? (
           chunks.map((chunk) => (
-            <div key={chunk.label} className="week-group">
-              <div className="chunk-title">{chunk.label}</div>
-              <div className="matches-grid">
+            <div key={chunk.label} className="ls-week-group">
+              <div className="ls-chunk-title">{chunk.label}</div>
+              <div className="ls-matches-grid">
                 {chunk.items.map((game, index) => (
                   <MatchCard
                     key={game.id || `match-${index}`}
                     game={game}
                     onSelect={onMatchSelect}
+                    onTeamSelect={setSelectedTeam}
                     getStatusBadge={getStatusBadge}
                     formatDate={formatDate}
                     formatTime={formatTime}
@@ -228,23 +231,23 @@ const LiveSports = ({ onMatchSelect }) => {
             </div>
           ))
         ) : (
-          <div className="no-matches" data-testid="empty">
+          <div className="ls-no-matches" data-testid="empty">
             <p>No matches available</p>
-            <button onClick={refreshData} className="refresh-btn">
+            <button onClick={refreshData} className="ls-refresh-btn">
               Refresh
             </button>
           </div>
         )}
       </div>
 
-      <div className="sports-footer">
-        <button onClick={refreshData} className="refresh-btn">
+      <div className="ls-sports-footer">
+        <button onClick={refreshData} className="ls-refresh-btn">
           Refresh Data
         </button>
-        <div className="data-info">
-          <span className="source">Source: {sportsData?.source || 'Unknown'}</span>
+        <div className="ls-data-info">
+          <span className="ls-source">Source: {sportsData?.source || 'Unknown'}</span>
           {sportsData?.totalMatches && (
-            <span className="count">{sportsData.totalMatches} matches</span>
+            <span className="ls-count">{sportsData.totalMatches} matches</span>
           )}
         </div>
       </div>
@@ -253,10 +256,60 @@ const LiveSports = ({ onMatchSelect }) => {
 };
 
 // Memoized heavy card to avoid unnecessary re-renders
-const MatchCard = React.memo(function MatchCard({ game, onSelect, getStatusBadge, formatDate, formatTime }) {
+const MatchCard = React.memo(function MatchCard({ 
+  game, 
+  onSelect, 
+  onTeamSelect,
+  getStatusBadge, 
+  formatDate, 
+  formatTime 
+}) {
+  const [homeScore, setHomeScore] = useState(game.homeScore);
+  const [awayScore, setAwayScore] = useState(game.awayScore);
+  const [showGoalAnimation, setShowGoalAnimation] = useState(false);
+  const [scoringTeam, setScoringTeam] = useState(null);
+  const [scoreUpdating, setScoreUpdating] = useState(false);
+
   // Derive minute if live and missing
   let displayMinute = game.minute;
   const statusKey = (game.status || '').toLowerCase();
+  
+  useEffect(() => {
+    // Check if score has changed
+    if (game.homeScore !== homeScore || game.awayScore !== awayScore) {
+      // Determine which team scored
+      const teamScored = game.homeScore > homeScore ? 'home' : 'away';
+      setScoringTeam(teamScored);
+      
+      // Show goal animation
+      setShowGoalAnimation(true);
+      setScoreUpdating(true);
+      
+      // After animation completes, update score and hide animation
+      const animationTimer = setTimeout(() => {
+        setHomeScore(game.homeScore);
+        setAwayScore(game.awayScore);
+        setShowGoalAnimation(false);
+      }, 1000);
+      
+      const scoreUpdateTimer = setTimeout(() => {
+        setScoreUpdating(false);
+      }, 1500);
+      
+      return () => {
+        clearTimeout(animationTimer);
+        clearTimeout(scoreUpdateTimer);
+      };
+    }
+  }, [game.homeScore, game.awayScore, homeScore, awayScore]);
+
+  const handleTeamClick = (team, event) => {
+    event.stopPropagation(); // Prevent triggering the match select
+    if (team) {
+      onTeamSelect(team);
+    }
+  };
+
   if ((statusKey === 'live' || statusKey === 'in_play' || statusKey === 'inplay') && (displayMinute == null || displayMinute === '')) {
     // Try to compute from utcDate
     if (game.utcDate) {
@@ -267,51 +320,72 @@ const MatchCard = React.memo(function MatchCard({ game, onSelect, getStatusBadge
       }
     }
   }
+
   return (
     <div
-      className="match-card clickable"
+      className="ls-match-card ls-clickable"
       data-testid={`match-${game.id ?? ''}`}
       onClick={() => onSelect(game)}
     >
-      <div className="match-header">
-        <div className="comp-left">
-          <span className="competition">
+      <div className="ls-match-header">
+        <div className="ls-comp-left">
+          <span className="ls-competition">
             {game.competition}
             {game.competitionCode && (
-              <span className="competition-code">[{game.competitionCode}]</span>
+              <span className="ls-competition-code">[{game.competitionCode}]</span>
             )}
           </span>
         </div>
-        <div className="comp-right">{getStatusBadge(game.status)}</div>
+        <div className="ls-comp-right">{getStatusBadge(game.status)}</div>
       </div>
 
-  <div className="match-teams">
-        <div className="team">
+      <div className="ls-match-teams">
+        <div className={`ls-team ${scoringTeam === 'home' ? 'ls-team-scoring' : ''}`}>
           {game.homeTeam?.crest && (
-            <img className="team-crest" alt="home crest" src={game.homeTeam.crest} />
+            <img 
+              className="ls-team-crest ls-clickable" 
+              alt="home crest" 
+              src={game.homeTeam.crest} 
+              onClick={(e) => handleTeamClick(game.homeTeam, e)}
+            />
           )}
-          <span className="team-name">{game.homeTeam?.name || game.homeTeam}</span>
-          <span className="team-score">{(['live','in_play','inplay'].includes((game.status||'').toLowerCase()) && game.homeScore === '-') ? 0 : game.homeScore}</span>
+          <span className="ls-team-name">{game.homeTeam?.name || game.homeTeam}</span>
+          {showGoalAnimation && scoringTeam === 'home' && (
+            <div className="ls-goal-animation">⚽</div>
+          )}
+          <span className={`ls-team-score ${scoreUpdating && scoringTeam === 'home' ? 'ls-score-updating' : ''}`}>
+            {(['live','in_play','inplay'].includes((game.status||'').toLowerCase()) && homeScore === '-') ? 0 : homeScore}
+          </span>
         </div>
 
-        <div className="match-separator">vs</div>
+        <div className="ls-match-separator">vs</div>
 
-        <div className="team">
+        <div className={`ls-team ${scoringTeam === 'away' ? 'ls-team-scoring' : ''}`}>
           {game.awayTeam?.crest && (
-            <img className="team-crest" alt="away crest" src={game.awayTeam.crest} />
+            <img 
+              className="ls-team-crest ls-clickable" 
+              alt="away crest" 
+              src={game.awayTeam.crest} 
+              onClick={(e) => handleTeamClick(game.awayTeam, e)}
+            />
           )}
-          <span className="team-name">{game.awayTeam?.name || game.awayTeam}</span>
-          <span className="team-score">{(['live','in_play','inplay'].includes((game.status||'').toLowerCase()) && game.awayScore === '-') ? 0 : game.awayScore}</span>
+          <span className="ls-team-name">{game.awayTeam?.name || game.awayTeam}</span>
+          {showGoalAnimation && scoringTeam === 'away' && (
+            <div className="ls-goal-animation">⚽</div>
+          )}
+          <span className={`ls-team-score ${scoreUpdating && scoringTeam === 'away' ? 'ls-score-updating' : ''}`}>
+            {(['live','in_play','inplay'].includes((game.status||'').toLowerCase()) && awayScore === '-') ? 0 : awayScore}
+          </span>
         </div>
-  </div>
-  <div className="card-divider" aria-hidden="true"></div>
-  <div className="match-details">
-        <div className="meta-left">
+      </div>
+      
+      <div className="ls-card-divider" aria-hidden="true"></div>
+      
+      <div className="ls-match-details">
+        <div className="ls-meta-left">
           {game.utcDate && (
-            <span className="scheduled-time">
+            <span className="ls-scheduled-time">
               {(() => {
-                // Single unified formatting: always show localized weekday/month/day and 24h time derived from utcDate baseline
-                // For admin matches with exact entered time, prefer their given time string.
                 const baseDate = new Date(game.utcDate);
                 const dateLabel = baseDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
                 const timeLabel = (game.createdByAdmin && game.time) ? game.time : formatTime(baseDate);
@@ -320,21 +394,20 @@ const MatchCard = React.memo(function MatchCard({ game, onSelect, getStatusBadge
             </span>
           )}
           {game.matchday ? (
-            <span className="matchday">MD {game.matchday}</span>
+            <span className="ls-matchday">MD {game.matchday}</span>
           ) : game.createdByAdmin && (
-            <span className="matchday matchday-placeholder" title="Admin match has no official matchday yet">MD -</span>
+            <span className="ls-matchday ls-matchday-placeholder" title="Admin match has no official matchday yet">MD -</span>
           )}
         </div>
-        <div className="meta-right">
+        <div className="ls-meta-right">
           {(['live','in_play','inplay'].includes(statusKey) && displayMinute != null && displayMinute !== '') && (
-            <span className="match-time">{displayMinute}'</span>
+            <span className="ls-match-time">{displayMinute}'</span>
           )}
-          {game.venue && game.venue !== 'TBD' && <span className="venue">{game.venue}</span>}
+          {game.venue && game.venue !== 'TBD' && <span className="ls-venue">{game.venue}</span>}
         </div>
       </div>
     </div>
   );
 });
-
 
 export default LiveSports;
