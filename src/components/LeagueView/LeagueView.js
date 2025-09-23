@@ -40,18 +40,28 @@ const LeagueView = ({ initialLeague = "PL", onBack, onTeamSelect }) => {
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [teamsMap, setTeamsMap] = useState({}); // Map teamId -> team data
+  const [leaguePlayers, setLeaguePlayers] = useState([]);
+
   const [activeTab, setActiveTab] = useState('Standings');
 
   useEffect(() => {
     setCompetitionCode(getCompetitionCode(initialLeague));
   }, [initialLeague]);
 
+  // Clear previous data when league changes
+useEffect(() => {
+  setStandings([]);
+  setMatches([]);
+  setError('');
+}, [competitionCode]);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError('');
     setStandings([]);
     setMatches([]);
-    setPlayers([]);
+  
     const season = '2025';
     try {
       dlog('Fetching', { competitionCode });
@@ -66,7 +76,7 @@ const LeagueView = ({ initialLeague = "PL", onBack, onTeamSelect }) => {
 
         // Optional: fetch matches & players from same API or different endpoints
         if (doc.matches) setMatches(doc.matches); // assuming API provides
-        if (doc.players) setPlayers(doc.players); // assuming API provides
+         // assuming API provides
       }
     } catch (err) {
       setError('Failed to load data. Please try again.');
@@ -129,6 +139,60 @@ useEffect(() => {
   const handleBackClick = () => {
     if (onBack) onBack();
   };
+
+  // Fetch all players from the Players API
+const fetchPlayers = async () => {
+  try {
+    const res = await apiClient.request('/api/players?limit=99999');
+    if (res.success) {
+      setPlayers(res.players);
+    }
+  } catch (err) {
+    console.error('Failed to fetch players', err);
+    setPlayers([]);
+  }
+};
+useEffect(() => {
+  fetchPlayers();
+}, []);
+
+useEffect(() => {
+  const fetchTeams = async () => {
+    try {
+      const res = await apiClient.getTeams();
+      const map = {};
+      res.data.forEach(team => {
+        map[team.id] = { name: team.name, crest: team.crest };
+      });
+      setTeamsMap(map);
+    } catch (err) {
+      console.error('Failed to fetch teams', err);
+    }
+  };
+
+  fetchTeams();
+}, []);
+useEffect(() => {
+  if (!standings.length || !players.length) {
+    setLeaguePlayers([]);
+    return;
+  }
+
+  const leagueTeamIds = standings.map(s => s.team.id);
+  const filteredPlayers = players.filter(p => leagueTeamIds.includes(p.teamId));
+  setLeaguePlayers(filteredPlayers);
+}, [standings, players]);
+
+
+
+
+
+
+
+const calculateAge = (dob) =>
+  Math.floor((new Date() - new Date(dob)) / (1000 * 60 * 60 * 24 * 365.25));
+
+
 
   // Helper to render standings with qualification/relegation
   const renderStandingsTable = () => (
@@ -196,22 +260,32 @@ const renderMatches = () => (
   </div>
 );
 
-
-  const renderPlayers = () => (
-    <div className="league-view-players-list">
-      {players.length > 0 ? (
-        players.map((p) => (
-          <div key={p.id} className="league-view-player-card">
-            <img src={p.photo || '/default-player.png'} alt={p.name} />
-            <span>{p.name}</span> - <span>{p.position}</span>
-            <span>({p.team})</span>
+const renderPlayers = () => (
+  <div className="league-view-players-list">
+    {leaguePlayers.length > 0 ? (
+      leaguePlayers.map((p) => {
+        const team = teamsMap[p.teamId];
+        return (
+          <div key={p._id || p.id} className="player-card">
+            <h3>{p.name}</h3>
+            <p>
+              <strong>Team:</strong>{' '}
+              {team?.crest && <img src={team.crest} alt={team.name} className="team-icon" />}
+              {team?.name || 'Unknown'}
+            </p>
+            <p><strong>Position:</strong> {p.position}</p>
+            <p><strong>Nationality:</strong> {p.nationality}</p>
+            <p><strong>Age:</strong> {calculateAge(p.dateOfBirth)}</p>
           </div>
-        ))
-      ) : (
-        <p>No players available.</p>
-      )}
-    </div>
-  );
+        );
+      })
+    ) : (
+      <p>No players available for this league.</p>
+    )}
+  </div>
+);
+
+
 
   return (
     <div className="league-view-container">
