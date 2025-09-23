@@ -32,9 +32,9 @@ We follow a **"one developer, one branch"** model:
 
 Examples:
 
-- `feature/authentication-flow`  
+- `feature/ViewLeague`  
 - `fix/player-stats-bug`  
-- `docs/git-methodology`  
+- `docs/New-Docs`  
 
 ## Pull Request (PR) Review Process
 
@@ -99,7 +99,7 @@ We follow **semantic and descriptive commit messages** to make the project histo
 | style:    | Formatting or styling changes             |
 | test: | adding or updating tests|
 
-## Versioning and GitHub Releases (Planned)
+## Versioning and GitHub Releases
 
 The team has been advised to start using **GitHub Releases** to manage production-ready versions of the app.
 
@@ -108,11 +108,11 @@ The team has been advised to start using **GitHub Releases** to manage productio
 > - Rolling back if something breaks
 > - Clear handover when deploying
 
-We plan to use **Semantic Versioning** in the future:
+We use **Semantic Versioning** :
 
 - v1.0.1 → Initial complete release
 - v2.0.0 Adds new features
-- v3.0.1 → Fixes bugs
+- v2.0.1 → Fixes bugs
 ---
 
 ## Evidence of Git Methodology in Action

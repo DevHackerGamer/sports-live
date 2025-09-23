@@ -104,7 +104,7 @@ The Sports Live application provides a RESTful API's for accessing live sports d
 | `/api/teams/:id`  | GET    | Fetch a specific team by ID |
 | `/api/teams`      | POST   | Create new teams (admin only) |
 
-**Example Response (GET /api/teams)**:
+*Example Response (GET /api/teams)*:
 ```bash
 {
   "data": [

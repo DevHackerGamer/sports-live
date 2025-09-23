@@ -72,7 +72,8 @@ export default defineConfig({
                 { label: "Code Quality Tools", slug: "guides/codeq" },
                  { label: "Bug Tracking", slug: "guides/bugtracker" },
                 { label: "Testing", slug: "guides/testing" },
-            { label: "User Feedback", slug: "guides/ufeedback" }
+            { label: "User Feedback Collection & Analysis", slug: "guides/ufeedback" },
+            { label: "User and Stakeholder Feedback Integration", slug: "guides/feedbackintegration" }
             // Each item here is one entry in the navigation menu.
            
           ],

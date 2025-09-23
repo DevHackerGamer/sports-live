@@ -12,8 +12,7 @@ This guide provides **step-by-step instructions** for using the Sports Live Trac
 ## 2. Accessing the Platform
 
 - **Website URL:** [Sports Live Tracker](https://sports-live.onrender.com/)  
-- **Supported Browsers:** Chrome, Edge, Firefox, Safari  
-- **Recommended Screen Resolution:** 1366x768 or higher
+
 
 ---
 
@@ -22,10 +21,9 @@ This guide provides **step-by-step instructions** for using the Sports Live Trac
 ### Registration
 1. Click **Sign Up** on the homepage.
 2. Fill in your **email, password, and name**.
-3. Verify your email via the link sent.
 
 *Screenshot placeholder:*  
-![Registration Page](/diagrams/registration.png)
+![Registration Page](/diagrams/use.png)
 
 ### Login
 1. Enter registered email and password.
@@ -33,7 +31,7 @@ This guide provides **step-by-step instructions** for using the Sports Live Trac
 3. Forgot password? Click **Forgot Password** and follow instructions.
 
 *Screenshot placeholder:*  
-![Login Page](/diagrams/login.png)
+![Login Page](/diagrams/use.png)
 
 ---
 
@@ -44,10 +42,10 @@ Once logged in, the dashboard provides:
 - **Live Matches** → Current matches with real-time scores.
 - **Match Setup (Admin Only)** → Create, edit, and delete matches.
 - **Event Timeline** → List of match events (goals, fouls, substitutions).
-- **Preferences** → Select favorite teams, toggle notifications.
+- **Preferences** → Select favorite teams
 
 *Screenshot placeholder:*  
-![Dashboard Overview](/diagrams/dashboard.png)
+![Dashboard Overview](/diagrams/use.png)
 
 ---
 
@@ -55,10 +53,10 @@ Once logged in, the dashboard provides:
 
 1. Navigate to **Live Matches**.
 2. Click on a match card to view details and timeline.
-3. Use **Follow Team** to get notifications about your favorite teams.
+3. Use **Add to WatchList** to get notifications about your favorite teams.
 
 *Screenshot placeholder:*  
-![Live Match View](/diagrams/live_match.png)
+![Live Match View](/diagrams/use.png)
 
 ---
 
@@ -66,11 +64,11 @@ Once logged in, the dashboard provides:
 
 ### Adding a Match
 1. Go to **Match Setup**.
-2. Fill in **Teams, Venue, Start Time**.
+2. Fill in **Teams,Competiton, Start Time**.
 3. Click **Add Match**.
 
 *Screenshot placeholder:*  
-![Add Match](/diagrams/add_match.png)
+![Add Match](/diagrams/use.png)
 
 ### Adding Match Events
 1. Select a live match.

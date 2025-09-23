@@ -1,9 +1,8 @@
 ---
-title: "Conclusion"
+title: Conclusion
 description: Final reflections, achievements, and takeaways from the Sports Live Tracker project.
 ---
 
----
 
 # Conclusion
 

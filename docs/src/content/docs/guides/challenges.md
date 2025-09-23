@@ -2,8 +2,6 @@
 title: Challenges & Future Development
 description: Overview of challenges faced during development and opportunities for future improvements.
 
-
-
 ---
 # Challenges & Future Development
 

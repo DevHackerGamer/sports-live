@@ -20,14 +20,14 @@ Using Clerk ensures that authentication logic is outsourced to a secure, well-te
 
 ### 1. Install Clerk dependencies:
 ```bash
-npm install @clerk/clerk-sdk-node @clerk/nextj
+npm install @clerk/clerk-sdk-node @clerk/clerk-sdk-node
 ```
 
 
 ### 2. Add your Clerk publishable key to your environment:
 
 ```bash
-# .env.local
+# .env
 REACT_APP_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 ```
 ### 3. Wrap your React app with ClerkProvider:
