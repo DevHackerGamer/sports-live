@@ -311,36 +311,38 @@ const Dashboard = () => {
     </footer>
   );
 
-  // Main render logic
-  const renderContent = () => {
-    if (showAboutUs) return <AboutUs />;
-    if (selectedMatch) return (
-      <div className="match-viewer-container">
-        <MatchViewer 
-          match={selectedMatch} 
-          onBack={handleBackFromViewer} 
-          onAddToWatchlist={handleAddToWatchlist} 
+const renderContent = () => {
+  if (showAboutUs) return <AboutUs />;
+
+  switch (activeTab) {
+    case 'home':
+      return <HomeScreen />;
+    case 'players':
+      return <PlayersPage />;
+    case 'matchSetup':
+      return <MatchSetup isAdmin={isAdmin} />;
+    case 'liveInput':
+      return <LiveInput isAdmin={isAdmin} match={selectedMatch} onBackToMatch={() => setActiveTab('matches')} />;
+    case 'leagueStandings':
+      return <LeagueView initialLeague={selectedLeague || "PL"} onBack={() => setActiveTab('home')} onTeamSelect={handleTeamSelect} />;
+    case 'reports':
+      return <ReportsPage isAdmin={isAdmin} />;
+    case 'favorites':
+      return <FavoritesPanel onMatchSelect={handleMatchSelect} />;
+    case 'matches':
+    default:
+      return selectedMatch ? (
+        <MatchViewer
+          match={selectedMatch}
+          onBack={handleBackFromViewer}
+          onAddToWatchlist={handleAddToWatchlist}
         />
-      </div>
-    );
-    if (selectedTeam) return (
-      <div className="team-info-container">
-        <TeamInfo team={selectedTeam} onBack={handleBackFromTeamInfo} />
-      </div>
-    );
-    
-    switch (activeTab) {
-      case 'home': return <HomeScreen />;
-      case 'players': return <PlayersPage />;
-      case 'matchSetup': return <MatchSetup isAdmin={isAdmin} />;
-      case 'liveInput': return <LiveInput isAdmin={isAdmin} match={selectedMatch} onBackToMatch={() => setActiveTab('matches')} />;
-      case 'leagueStandings': return <LeagueView initialLeague={selectedLeague || "PL"} onBack={() => {setActiveTab('home');setSelectedLeague(null);}} onTeamSelect={handleTeamSelect} />;
-      case 'reports': return <ReportsPage isAdmin={isAdmin} />;
-      case 'favorites': return <FavoritesPanel onMatchSelect={handleMatchSelect} />;
-      case 'matches':
-      default: return <LiveSports onMatchSelect={handleMatchSelect} onTeamSelect={handleTeamSelect} />;
-    }
-  };
+      ) : (
+        <LiveSports onMatchSelect={handleMatchSelect} onTeamSelect={handleTeamSelect} />
+      );
+  }
+};
+
 
   return (
     <div className="site-wrap dashboard">
@@ -351,10 +353,10 @@ const Dashboard = () => {
           </div>
           <nav className="dashboard-nav">
             <ul>
-              <li><button onClick={() => { setActiveTab('home'); setShowAboutUs(false); setSelectedMatch(null); setSelectedTeam(null); }}>Home</button></li>
+              <li><button onClick={() => { setActiveTab('home'); setShowAboutUs(false); setSelectedTeam(null); }}>Home</button></li>
               {isAdmin && (
                 <>
-                  <li><button onClick={() => { setActiveTab('matchSetup'); setShowAboutUs(false); setSelectedMatch(null); setSelectedTeam(null); }}>Setup</button></li>
+                  <li><button onClick={() => { setActiveTab('matchSetup'); setShowAboutUs(false);  setSelectedTeam(null); }}>Setup</button></li>
                   <li><button onClick={() => { setActiveTab('liveInput'); setShowAboutUs(false); setSelectedTeam(null); }}>Live Input</button></li>
                   <li><button onClick={() => { setActiveTab('reports'); setShowAboutUs(false); setSelectedMatch(null); setSelectedTeam(null); }}>Reports</button></li>
                 </>
