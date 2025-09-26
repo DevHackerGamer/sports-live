@@ -705,4 +705,9 @@
   .form-row {
     grid-template-columns: 1fr;
   }
+  .btn.added {
+  background: #4caf50; /* green */
+  cursor: default;
+}
+
 }

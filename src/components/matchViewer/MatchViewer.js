@@ -20,6 +20,8 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
   const [reportTitle, setReportTitle] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [teamLogos, setTeamLogos] = useState({ home: '', away: '' });
+  const [addedToWatchlist, setAddedToWatchlist] = useState(false); // NEW
+
 
   useEffect(() => {
     if (match) {
@@ -413,13 +415,23 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
         <h2>Match Overview</h2>
         <div className="header-actions">
           {onAddToWatchlist && match && (
-            <button
-              onClick={() => onAddToWatchlist(match)}
-              className="btn btn-primary"
-              title="Add both teams to your favorites"
-            >
-              + Add to Watchlist
-            </button>
+           <button
+  onClick={async () => {
+    try {
+      await onAddToWatchlist(match);
+      setAddedToWatchlist(true); // mark as added
+    } catch (err) {
+      console.error("Failed to add to watchlist:", err);
+      alert("Failed to add match to watchlist");
+    }
+  }}
+  className={`btn btn-primary ${addedToWatchlist ? 'added' : ''}`}
+  disabled={addedToWatchlist}
+  title={addedToWatchlist ? "Already in watchlist" : "Add both teams to your favorites"}
+>
+  {addedToWatchlist ? "Added ✅" : "+ Add to Watchlist"}
+</button>
+
           )}
           {onBack && (
             <button onClick={onBack} className="btn btn-secondary" title="Back to matches">
