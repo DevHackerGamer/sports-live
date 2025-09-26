@@ -1,120 +1,164 @@
+// /api/__tests__/favoriteTeams.test.js
 global.TextEncoder = require('util').TextEncoder;
 global.TextDecoder = require('util').TextDecoder;
-
-const handler = require('../../../api/favoriteTeams');
-const { getFavoriteTeamsCollection, getUsersInfoCollection } = require('../../../lib/mongodb');
 
 jest.mock('../../../lib/mongodb.js', () => ({
   getFavoriteTeamsCollection: jest.fn(),
   getUsersInfoCollection: jest.fn(),
 }));
 
-// Mock Express-like req/res
-function mockReqRes({ method = 'GET', url = '/api/favoriteTeams', query = {}, body = {} } = {}) {
-  const json = jest.fn();
-  const end = jest.fn();
-  const status = jest.fn(() => ({ json, end }));
-  const setHeader = jest.fn();
-  const res = { status, setHeader, end, json };
-  const req = { method, url, query, body, headers: {} };
-  return { req, res, json, status, setHeader, end };
+const { getFavoriteTeamsCollection, getUsersInfoCollection } = require('../../../lib/mongodb');
+const handler = require('../../../api/favorite-teams'); 
+
+function mockResponse() {
+  const res = {};
+  res.status = jest.fn().mockReturnValue(res);
+  res.json = jest.fn().mockReturnValue(res);
+  res.end = jest.fn().mockReturnValue(res);
+  res.setHeader = jest.fn();
+  return res;
+}
+
+async function runHandler(req) {
+  const res = mockResponse();
+  await handler(req, res);
+  return res;
 }
 
 describe('Favorite Teams API', () => {
-  let mockFavorites, mockUsers;
+  let mockFavCol, mockUsersCol;
 
   beforeEach(() => {
-    mockFavorites = {
-      find: jest.fn().mockReturnThis(),
-      sort: jest.fn().mockReturnThis(),
-      toArray: jest.fn().mockResolvedValue([]),
+    mockFavCol = {
+      find: jest.fn(),
+      sort: jest.fn(),
+      toArray: jest.fn(),
       findOne: jest.fn(),
       insertOne: jest.fn(),
       deleteOne: jest.fn(),
     };
-    mockUsers = {
+    mockUsersCol = {
       updateOne: jest.fn(),
     };
-    getFavoriteTeamsCollection.mockResolvedValue(mockFavorites);
-    getUsersInfoCollection.mockResolvedValue(mockUsers);
+
+    getFavoriteTeamsCollection.mockResolvedValue(mockFavCol);
+    getUsersInfoCollection.mockResolvedValue(mockUsersCol);
+
+    // default chain for find
+    mockFavCol.find.mockReturnValue(mockFavCol);
+    mockFavCol.sort.mockReturnValue(mockFavCol);
+    mockFavCol.toArray.mockResolvedValue([]);
   });
 
   afterEach(() => jest.clearAllMocks());
 
-  test('GET /api/favoriteTeams returns favorites', async () => {
-    mockFavorites.toArray.mockResolvedValue([{ userId: 'u1', teamId: 1 }]);
-    const { req, res, json } = mockReqRes({ method: 'GET', query: { userId: 'u1' } });
-    await handler(req, res);
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({
+  // ---------------- OPTIONS ----------------
+  it('OPTIONS returns 200', async () => {
+    const res = await runHandler({ method: 'OPTIONS', query: {} });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.end).toHaveBeenCalled();
+  });
+
+  // ---------------- GET ----------------
+  it('GET favorite teams success', async () => {
+    const favorites = [{ userId: 'u1', teamId: 1, teamName: 'TeamA' }];
+    mockFavCol.toArray.mockResolvedValue(favorites);
+
+    const res = await runHandler({ method: 'GET', query: { userId: 'u1' } });
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
       success: true,
-      favorites: [{ userId: 'u1', teamId: 1 }],
+      favorites,
       total: 1
-    }));
-  });
-
-  test('POST /api/favoriteTeams adds a favorite', async () => {
-    mockFavorites.findOne.mockResolvedValue(null);
-    mockFavorites.insertOne.mockResolvedValue({ insertedId: 'f1' });
-    const { req, res, json } = mockReqRes({
-      method: 'POST',
-      body: { userId: 'u1', teamId: 1, teamName: 'Team A' }
     });
-    await handler(req, res);
-    expect(mockFavorites.insertOne).toHaveBeenCalled();
-    expect(mockUsers.updateOne).toHaveBeenCalled();
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({
-      success: true,
-      favoriteId: 'f1'
-    }));
   });
 
-  test('POST fails if missing fields', async () => {
-    const { req, res, json } = mockReqRes({ method: 'POST', body: { userId: 'u1' } });
-    await handler(req, res);
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({ error: 'userId, teamId, and teamName are required' }));
-  });
+  it('GET error', async () => {
+    mockFavCol.toArray.mockRejectedValue(new Error('DB fail'));
 
-  test('POST fails if team already exists', async () => {
-    mockFavorites.findOne.mockResolvedValue({ userId: 'u1', teamId: 1 });
-    const { req, res, json } = mockReqRes({
-      method: 'POST',
-      body: { userId: 'u1', teamId: 1, teamName: 'Team A' }
-    });
-    await handler(req, res);
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Team already in favorites' }));
-  });
-
-  test('DELETE /api/favoriteTeams removes a favorite', async () => {
-    mockFavorites.deleteOne.mockResolvedValue({ deletedCount: 1 });
-    const { req, res, json } = mockReqRes({ method: 'DELETE', query: { userId: 'u1', teamId: 1 } });
-    await handler(req, res);
-    expect(mockFavorites.deleteOne).toHaveBeenCalled();
-    expect(mockUsers.updateOne).toHaveBeenCalled();
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: true, deleted: true }));
-  });
-
-  test('DELETE returns 404 if not found', async () => {
-    mockFavorites.deleteOne.mockResolvedValue({ deletedCount: 0 });
-    const { req, res, json } = mockReqRes({ method: 'DELETE', query: { userId: 'u1', teamId: 1 } });
-    await handler(req, res);
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Favorite team not found' }));
-  });
-
-  test('method not allowed returns 405', async () => {
-    const { req, res, end } = mockReqRes({ method: 'PUT' });
-    await handler(req, res);
-    expect(res.status).toHaveBeenCalledWith(405);
-    expect(end).toHaveBeenCalled();
-  });
-
-  test('internal error returns 500', async () => {
-    getFavoriteTeamsCollection.mockRejectedValue(new Error('DB fail'));
-    const { req, res, json } = mockReqRes({ method: 'GET' });
-    await handler(req, res);
+    const res = await runHandler({ method: 'GET', query: { userId: 'u1' } });
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Failed to fetch favorite teams' }));
+    expect(res.json).toHaveBeenCalledWith({ error: 'Failed to fetch favorite teams' });
+  });
+
+  // ---------------- POST ----------------
+  it('POST add favorite success', async () => {
+    mockFavCol.findOne.mockResolvedValue(null);
+    mockFavCol.insertOne.mockResolvedValue({ insertedId: 'f123' });
+
+    const res = await runHandler({
+      method: 'POST',
+      body: { userId: 'u1', teamId: 1, teamName: 'TeamA' }
+    });
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: true,
+      favoriteId: 'f123',
+      favorite: expect.objectContaining({ teamName: 'TeamA' })
+    }));
+    expect(mockUsersCol.updateOne).toHaveBeenCalled();
+  });
+
+  it('POST missing fields', async () => {
+    const res = await runHandler({ method: 'POST', body: { userId: 'u1' } });
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ error: 'userId, teamId, and teamName are required' });
+  });
+
+  it('POST duplicate team', async () => {
+    mockFavCol.findOne.mockResolvedValue({});
+
+    const res = await runHandler({ method: 'POST', body: { userId: 'u1', teamId: 1, teamName: 'TeamA' } });
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Team already in favorites' });
+  });
+
+  it('POST error', async () => {
+    mockFavCol.findOne.mockResolvedValue(null);
+    mockFavCol.insertOne.mockRejectedValue(new Error('Insert fail'));
+
+    const res = await runHandler({ method: 'POST', body: { userId: 'u1', teamId: 1, teamName: 'TeamA' } });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Failed to add favorite team' });
+  });
+
+  // ---------------- DELETE ----------------
+  it('DELETE success', async () => {
+    mockFavCol.deleteOne.mockResolvedValue({ deletedCount: 1 });
+
+    const res = await runHandler({ method: 'DELETE', query: { userId: 'u1', teamId: 1 } });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ success: true, deleted: true });
+    expect(mockUsersCol.updateOne).toHaveBeenCalled();
+  });
+
+  it('DELETE missing params', async () => {
+    const res = await runHandler({ method: 'DELETE', query: { userId: 'u1' } });
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ error: 'userId and teamId are required' });
+  });
+
+  it('DELETE not found', async () => {
+    mockFavCol.deleteOne.mockResolvedValue({ deletedCount: 0 });
+
+    const res = await runHandler({ method: 'DELETE', query: { userId: 'u1', teamId: 1 } });
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Favorite team not found' });
+  });
+
+  it('DELETE error', async () => {
+    mockFavCol.deleteOne.mockRejectedValue(new Error('Delete fail'));
+    const res = await runHandler({ method: 'DELETE', query: { userId: 'u1', teamId: 1 } });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Failed to remove favorite team' });
+  });
+
+  // ---------------- Method not allowed ----------------
+  it('Method not allowed', async () => {
+    const res = await runHandler({ method: 'PATCH', query: {} });
+    expect(res.status).toHaveBeenCalledWith(405);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Method not allowed' });
   });
 });

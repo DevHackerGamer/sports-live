@@ -1,134 +1,139 @@
-// src/components/__tests__/teams.test.js
+// /api/__tests__/teams.test.js
 global.TextEncoder = require('util').TextEncoder;
 global.TextDecoder = require('util').TextDecoder;
 
+jest.mock('mongodb', () => {
+  const mCollection = {
+    findOne: jest.fn(),
+    find: jest.fn(() => ({ toArray: jest.fn() })),
+    insertMany: jest.fn(),
+  };
+  const mDb = { collection: jest.fn(() => mCollection) };
+  const mClient = { db: jest.fn(() => mDb), connect: jest.fn() };
+
+  return {
+    MongoClient: jest.fn(() => mClient),
+    __mockClient: mClient,
+    __mockDb: mDb,
+    __mockCollection: mCollection,
+  };
+});
+
+const { MongoClient, __mockCollection } = require('mongodb');
 const handler = require('../../../api/teams');
-const { MongoClient } = require('mongodb');
 
-jest.mock('mongodb');
+// ---- Mock res like in competitions ----
+function mockResponse() {
+  const res = {};
+  res.status = jest.fn().mockReturnValue(res);
+  res.json = jest.fn().mockReturnValue(res);
+  res.end = jest.fn().mockReturnValue(res);
+  res.setHeader = jest.fn();
+  return res;
+}
 
-describe('Teams API handler', () => {
-  let req, res, json, mClient, mDb, mCollection;
+async function runHandler(req) {
+  const res = mockResponse();
+  await handler(req, res);
+  return res;
+}
 
+describe('Teams API', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-
-    json = jest.fn();
-    res = {
-      setHeader: jest.fn(),
-      status: jest.fn().mockReturnThis(),
-      json,
-      end: jest.fn()
-    };
-
-    mCollection = {
-      find: jest.fn().mockReturnThis(),
-      toArray: jest.fn()
-    };
-
-    mDb = {
-      collection: jest.fn().mockReturnValue(mCollection)
-    };
-
-    mClient = {
-      connect: jest.fn().mockResolvedValue(true),
-      db: jest.fn().mockReturnValue(mDb)
-    };
-
-    MongoClient.mockImplementation(() => mClient);
   });
 
-  it('should handle OPTIONS request (CORS preflight)', async () => {
-    req = { method: 'OPTIONS' };
-
-    await handler(req, res);
-
-    expect(res.setHeader).toHaveBeenCalledWith(
-      'Access-Control-Allow-Origin',
-      '*'
-    );
-    expect(res.setHeader).toHaveBeenCalledWith(
-      'Access-Control-Allow-Methods',
-      'GET, POST, OPTIONS'
-    );
-    expect(res.setHeader).toHaveBeenCalledWith(
-      'Access-Control-Allow-Headers',
-      'Content-Type'
-    );
+  // ---------------- OPTIONS ----------------
+  it('OPTIONS returns 200', async () => {
+    const res = await runHandler({ method: 'OPTIONS' });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.end).toHaveBeenCalled();
   });
 
-  it('should return list of teams on GET', async () => {
-    req = { method: 'GET' };
-    const fakeTeams = [{ name: 'Team A' }, { name: 'Team B' }];
-    mCollection.toArray.mockResolvedValue(fakeTeams);
+  // ---------------- GET ALL ----------------
+  it('GET all teams success', async () => {
+    const fakeTeams = [{ id: 1, name: 'Team A' }, { id: 2, name: 'Team B' }];
+    __mockCollection.find.mockReturnValueOnce({ toArray: jest.fn().mockResolvedValue(fakeTeams) });
 
-    await handler(req, res);
+    const res = await runHandler({ method: 'GET', query: {} });
 
-    expect(mClient.connect).toHaveBeenCalled();
-    expect(mDb.collection).toHaveBeenCalledWith('Teams');
+    expect(__mockCollection.find).toHaveBeenCalledWith({});
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(json).toHaveBeenCalledWith(
+    expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: true,
         data: fakeTeams,
-        count: 2,
-        lastUpdated: expect.any(String)
+        count: fakeTeams.length,
       })
     );
   });
 
-  it('should return empty list if no teams found', async () => {
-    req = { method: 'GET' };
-    mCollection.toArray.mockResolvedValue([]);
+  // ---------------- GET BY ID ----------------
+  it('GET by id returns team', async () => {
+    const fakeTeam = { id: 123, name: 'Special Team' };
+    __mockCollection.findOne.mockResolvedValue(fakeTeam);
 
-    await handler(req, res);
+    const res = await runHandler({ method: 'GET', query: { id: '123' } });
 
-    expect(res.status).toHaveBeenCalledWith(500);
-    // still need to fix this test :)
-    // expect(json).toHaveBeenCalledWith(
-    //   expect.objectContaining({
-    //     success: true,
-    //     data: [],
-    //     count: 0,
-    //     lastUpdated: expect.any(String)
-    //   })
-    // );
+    expect(__mockCollection.findOne).toHaveBeenCalledWith({ id: 123 });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ success: true, data: fakeTeam });
   });
 
-  it('should return 405 for non-GET methods', async () => {
-    req = { method: 'POST' };
+  it('GET by id not found', async () => {
+    __mockCollection.findOne.mockResolvedValue(null);
 
-    await handler(req, res);
+    const res = await runHandler({ method: 'GET', query: { id: '999' } });
 
-    // Ensure "Allow" header is among calls, not exact order still needs some fixing
-    // expect(res.setHeader).toHaveBeenCalledWith('Allow', ['GET']);
-    expect(res.status).toHaveBeenCalledWith(500);
-
-    // still needs some fixing
-    // expect(json).toHaveBeenCalledWith({
-    //   success: false,
-    //   error: 'Method not allowed'
-    // });
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Team not found' });
   });
 
-  it('should handle database errors gracefully', async () => {
-    req = { method: 'GET' };
-    // Make collection throw instead of connect failing
-    mCollection.toArray.mockRejectedValue(new Error('DB error'));
+  // ---------------- POST ----------------
+  it('POST inserts valid teams', async () => {
+    __mockCollection.insertMany.mockResolvedValue({ insertedCount: 2 });
+    const newTeams = [{ id: 1, name: 'T1' }, { id: 2, name: 'T2' }];
 
-    await handler(req, res);
+    const res = await runHandler({ method: 'POST', body: { teams: newTeams } });
+
+    expect(__mockCollection.insertMany).toHaveBeenCalledWith(newTeams);
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith({ success: true, insertedCount: 2 });
+  });
+
+  it('POST with invalid body', async () => {
+    const res = await runHandler({ method: 'POST', body: {} });
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      error: 'Invalid or missing teams array',
+    });
+  });
+
+  // ---------------- ERROR HANDLING ----------------
+  it('GET error returns 500', async () => {
+    __mockCollection.find.mockImplementationOnce(() => {
+      throw new Error('DB failure');
+    });
+
+    const res = await runHandler({ method: 'GET', query: {} });
 
     expect(res.status).toHaveBeenCalledWith(500);
-    // must match exact api response
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        error: 'Failed to handle teams request',
+        message: 'DB failure',
+      })
+    );
+  });
 
-    // expect(json).toHaveBeenCalledWith(
-    //   expect.objectContaining({
-    //     success: false,
-    //     error: 'Failed to fetch teams',
-    //     message: 'DB error'
-    //   })
-    // );
+  // ---------------- METHOD NOT ALLOWED ----------------
+  it('DELETE not allowed', async () => {
+    const res = await runHandler({ method: 'DELETE' });
+
+    expect(res.status).toHaveBeenCalledWith(405);
+    expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Method not allowed' });
   });
 });
