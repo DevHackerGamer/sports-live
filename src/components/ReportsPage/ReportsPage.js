@@ -1,5 +1,7 @@
 import { useEffect, useState,useMemo } from 'react';
 import { apiClient } from '../../lib/api';
+import LiveInput from '../liveInput/LiveInput';
+
 import '../../styles/ReportsPage.css';
 
 const ReportsPage = () => {
@@ -10,6 +12,8 @@ const ReportsPage = () => {
   const [error, setError] = useState('');
   const [matchDetails, setMatchDetails] = useState({});
   const [eventDetails, setEventDetails] = useState({});
+  const [selectedMatch, setSelectedMatch] = useState(null);
+
 
   // Fetch reports
   const fetchReports = async () => {
@@ -173,6 +177,12 @@ const filteredReports = useMemo(() => {
           Clear Filters
         </button>
       </div>
+      {selectedMatch ? (
+  <LiveInput
+    match={selectedMatch}
+    onBackToMatch={() => setSelectedMatch(null)}
+  />
+) : (
 
       <table>
         <thead>
@@ -230,6 +240,24 @@ const filteredReports = useMemo(() => {
                 </td>
                 <td>{r.createdAt ? new Date(r.createdAt).toLocaleString() : '-'}</td>
                 <td>
+                  <button
+  className="view-btn"
+  onClick={async () => {
+    try {
+      const res = await apiClient.getMatchById(r.matchId);
+      if (res && res.data) {
+        setSelectedMatch(res.data); // pass to LiveInput
+      } else {
+        alert('Failed to load match details.');
+      }
+    } catch (err) {
+      console.error('Error fetching match:', err);
+      alert('Failed to load match.');
+    }
+  }}
+>
+  View
+</button>
                   <button className="delete-btn" onClick={() => deleteReport(r._id)}>
                     Delete
                   </button>
@@ -239,6 +267,7 @@ const filteredReports = useMemo(() => {
           )}
         </tbody>
       </table>
+          )}
     </div>
   );
 };

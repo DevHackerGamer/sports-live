@@ -142,6 +142,28 @@
 .reports-page .delete-btn:active {
   transform: translateY(0) scale(0.98);
 }
+/* View button */
+.reports-page .view-btn {
+  background: var(--secondary); /* use secondary color */
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-weight: 500;
+  transition: var(--transition);
+  margin-right: 8px;
+}
+
+.reports-page .view-btn:hover {
+  background: var(--secondary-light); /* slightly lighter on hover */
+  transform: translateY(-1px) scale(1.02);
+}
+
+.reports-page .view-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
 
 /* Status select */
 .reports-page table select {
