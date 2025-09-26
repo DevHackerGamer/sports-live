@@ -355,7 +355,7 @@ const Dashboard = () => {
               {isAdmin && (
                 <>
                   <li><button onClick={() => { setActiveTab('matchSetup'); setShowAboutUs(false); setSelectedMatch(null); setSelectedTeam(null); }}>Setup</button></li>
-                  <li><button onClick={() => { setActiveTab('liveInput'); setShowAboutUs(false); setSelectedMatch(null); setSelectedTeam(null); }}>Live Input</button></li>
+                  <li><button onClick={() => { setActiveTab('liveInput'); setShowAboutUs(false); setSelectedTeam(null); }}>Live Input</button></li>
                   <li><button onClick={() => { setActiveTab('reports'); setShowAboutUs(false); setSelectedMatch(null); setSelectedTeam(null); }}>Reports</button></li>
                 </>
               )}

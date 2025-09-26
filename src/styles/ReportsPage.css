@@ -1,131 +1,180 @@
 /* ReportsPage.css */
-
-/* General page styling */
 .reports-page {
-  padding: 20px;
-  font-family: Arial, sans-serif;
+  padding: 2rem;
+  font-family: "Poppins", sans-serif;
+  background: var(--dark-bg);
+  color: var(--dark-text);
+  min-height: 100vh;
 }
 
+/* Page title */
 .reports-page h2 {
-  margin-bottom: 15px;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+  font-size: 1.8rem;
+  color: var(--primary-light);
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-/* New reports badge */
-.new-badge {
-  background-color: #ff4757; /* bright red */
-  color: white;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.85rem;
-  font-weight: bold;
-}
-
-/* Controls: filter, search, refresh button */
+/* Controls: filters, search, clear button */
 .reports-controls {
   display: flex;
-  gap: 10px;
-  margin-bottom: 15px;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .reports-controls select,
 .reports-controls input {
-  padding: 5px 10px;
-  border-radius: 5px;
-  border: 1px solid #ccc;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--dark-border);
+  background: var(--dark-card);
+  color: var(--dark-text);
+  transition: var(--transition);
 }
 
-/* Refresh button styling */
+.reports-controls select:focus,
+.reports-controls input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 6px rgba(230, 57, 70, 0.4);
+}
+
 .reports-controls button {
-  padding: 5px 12px;
-  background-color: #3498db; /* blue */
-  color: white;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--gradient-primary);
+  color: #fff;
   border: none;
-  border-radius: 5px;
-  font-weight: bold;
   cursor: pointer;
-  transition: background-color 0.2s ease, transform 0.1s ease;
+  font-weight: 500;
+  transition: var(--transition);
+  box-shadow: var(--shadow-sm);
 }
 
 .reports-controls button:hover {
-  background-color: #2980b9;
+  background: linear-gradient(135deg, var(--primary-light), var(--primary));
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: var(--shadow-md);
 }
 
-.reports-controls button:active {
-  transform: scale(0.95);
-}
-
-/* Table styling */
+/* Table */
 .reports-page table {
   width: 100%;
   border-collapse: collapse;
+  background: var(--dark-card);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
 .reports-page table th,
 .reports-page table td {
-  padding: 8px 12px;
-  border-bottom: 1px solid #ddd;
+  padding: 12px 16px;
   text-align: left;
+  border-bottom: 1px solid var(--dark-border);
 }
 
 .reports-page table th {
-  background-color: #f4f4f4;
-  font-weight: bold;
+  background: var(--dark-bg);
+  font-weight: 600;
+  color: var(--primary-light);
 }
 
-/* Highlight unresolved reports */
+.reports-page table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Hover effect like player cards */
+.reports-page table tr {
+  transition: var(--transition);
+  cursor: default;
+}
+
+.reports-page table tr:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  background: rgba(230, 57, 70, 0.05);
+}
+
+/* Report status highlights */
 .unresolved-report {
-  background-color: #fff7f7; /* light red */
+  border-left: 4px solid var(--primary);
+  background-color: #2b1b1b; /* subtle dark red tint */
 }
 
-/* Highlight resolved reports */
 .resolved-report {
-  background-color: #e6f9e6; /* light green */
+  border-left: 4px solid var(--secondary);
+  background-color: #1f2a1f; /* subtle dark green tint */
 }
 
-/* Highlight newly added reports */
+/* New report accent */
 .new-report {
-  border-left: 4px solid #ff4757; /* bright red line on left */
+  border-left: 4px solid var(--primary-light);
   animation: highlightNew 1s ease-in-out;
 }
 
 @keyframes highlightNew {
-  0% { background-color: #fff0f0; }
-  100% { background-color: #fff7f7; }
+  0% { background-color: #2a1a1a; }
+  100% { background-color: #2b1b1b; }
 }
 
-/* Delete button for reports */
+/* Delete button */
 .reports-page .delete-btn {
-  background-color: #e74c3c; /* red */
-  color: white;
+  background: var(--primary-dark);
+  color: #fff;
   border: none;
-  padding: 5px 10px;
-  border-radius: 5px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-weight: bold;
-  transition: background-color 0.2s ease, transform 0.1s ease;
+  font-weight: 500;
+  transition: var(--transition);
 }
 
 .reports-page .delete-btn:hover {
-  background-color: #c0392b; /* darker red on hover */
+  background: var(--primary);
+  transform: translateY(-1px) scale(1.02);
 }
 
 .reports-page .delete-btn:active {
-  transform: scale(0.95);
+  transform: translateY(0) scale(0.98);
 }
 
-/* Center the actions column */
-.reports-page table th:last-child,
-.reports-page table td:last-child {
-  text-align: center;
-}
-
-/* Compact select dropdowns for status */
+/* Status select */
 .reports-page table select {
-  padding: 3px 6px;
-  border-radius: 4px;
-  border: 1px solid #ccc;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--dark-bg);
+  color: var(--dark-text);
+  border: 1px solid var(--dark-border);
   cursor: pointer;
+}
+
+/* Loading / unknown states */
+.loading-match,
+.loading-event,
+.unknown-match,
+.unknown-event {
+  font-style: italic;
+  color: #888;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .reports-controls {
+    flex-direction: column;
+  }
+
+  .reports-page table th,
+  .reports-page table td {
+    padding: 8px 10px;
+  }
+
+  .reports-page table tr:hover {
+    transform: none;
+    box-shadow: none;
+  }
 }
