@@ -53,8 +53,11 @@ const PlayersPage = () => {
     fetchPlayers();
   }, []);
 
-  const calculateAge = (dob) =>
-    Math.floor((new Date() - new Date(dob)) / (1000 * 60 * 60 * 24 * 365.25));
+  const calculateAge = (dob) => {
+  if (!dob) return "N/A";
+  const diff = Date.now() - new Date(dob).getTime();
+  return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
+};
 
   // Reset all filters
   const resetFilters = () => {
@@ -93,10 +96,24 @@ const PlayersPage = () => {
   const startIndex = (currentPage - 1) * playersPerPage;
   const paginatedPlayers = filteredPlayers.slice(startIndex, startIndex + playersPerPage);
 
+  // Pagination window (show ±2 pages around current)
+const getPageNumbers = () => {
+  const delta = 2;
+  const range = [];
+  for (let i = Math.max(1, currentPage - delta); i <= Math.min(totalPages, currentPage + delta); i++) {
+    range.push(i);
+  }
+  return range;
+};
+
+
+
   return (
     <div className="players-page">
       <h1>Players</h1>
 
+      
+      
       <div className="filters">
         <input
           placeholder="Player Name"
@@ -120,16 +137,24 @@ const PlayersPage = () => {
         />
         <button onClick={resetFilters} className="reset-filters">
           Reset Filters
-        </button>
+       
+  </button>
+         
+     
       </div>
 
       {loading ? (
         <p>Loading players...</p>
-      ) : (
+      ) :
+      
+      (
         <>
-          <div className="player-cards">
-            {paginatedPlayers.map((p) => {
-              const team = teamsMap[p.teamId];
+          {filteredPlayers.length === 0 ? (
+            <p className="empty-message">No players match your filters.</p>
+          ) : (
+            <div className="player-cards">
+              {paginatedPlayers.map((p) => {
+                const team = teamsMap[p.teamId];
               return (
                 <div className="player-card" key={p._id}>
                   <h3>{p.name}</h3>
@@ -157,34 +182,36 @@ const PlayersPage = () => {
               );
             })}
           </div>
-
+          )}
           {/* Pagination Controls */}
-          {totalPages > 1 && (
+          {totalPages > 1 && filteredPlayers.length > 0 && (
             <div className="pagination">
               <button
                 disabled={currentPage === 1}
-                onClick={() => setCurrentPage(prev => prev - 1)}
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
               >
                 Previous
               </button>
 
-              {/* Numbered buttons */}
-              {[...Array(totalPages)].map((_, idx) => {
-                const pageNum = idx + 1;
-                return (
-                  <button
-                    key={pageNum}
-                    className={currentPage === pageNum ? 'active' : ''}
-                    onClick={() => setCurrentPage(pageNum)}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
+              {getPageNumbers().map((pageNum) => (
+                <button
+                  key={pageNum}
+                  className={currentPage === pageNum ? 'active' : ''}
+                  onClick={() => setCurrentPage(pageNum)}
+                >
+                  {pageNum}
+                </button>
+              ))}
+
+              {/* show ellipsis + last page when current window doesn't include the last pages */}
+              {currentPage + 2 < totalPages && <span className="ellipsis">…</span>}
+              {currentPage + 2 < totalPages && (
+                <button onClick={() => setCurrentPage(totalPages)}>{totalPages}</button>
+              )}
 
               <button
                 disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(prev => prev + 1)}
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
               >
                 Next
               </button>
@@ -195,5 +222,6 @@ const PlayersPage = () => {
     </div>
   );
 };
+
 
 export default PlayersPage;
