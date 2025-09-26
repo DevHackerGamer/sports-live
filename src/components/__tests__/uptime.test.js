@@ -2,7 +2,7 @@
 global.TextEncoder = require('util').TextEncoder;
 global.TextDecoder = require('util').TextDecoder;
 
-const handler = require('../../../api/serverUptime'); // adjust path
+const handler = require('../../../api/uptime'); // adjust path
 
 function mockResponse() {
   const res = {};
