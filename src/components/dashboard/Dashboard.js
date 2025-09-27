@@ -314,6 +314,15 @@ const Dashboard = () => {
 const renderContent = () => {
   if (showAboutUs) return <AboutUs />;
 
+    if (selectedTeam) {
+    return (
+      <TeamInfo 
+        team={selectedTeam} 
+        onBack={handleBackFromTeamInfo} 
+      />
+    );
+  }
+
   switch (activeTab) {
     case 'home':
       return <HomeScreen />;
