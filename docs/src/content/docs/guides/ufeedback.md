@@ -6,13 +6,13 @@ description: Tools and guidelines for maintaining code quality in the project.
 
 ## 1. Overview  
 To ensure **continuous improvement** and a **user-centered design**, we implemented a **formal user feedback process** starting in **Sprint 2**.  
-The goal was to validate usability, design, and feature functionality by collecting insights from early testers (friends, classmates, family members, and peers).  
+The goal was to validate usability, design, and feature functionality by collecting insights from early testers (friends, classmates, and family members).  
 
 ---
 ## 2. Feedback Collection Process  
 
 - **Tool Used**: Google Forms  
-- **Distribution**: Shared via WhatsApp groups, email invitations, and direct sharing with testers.  
+- **Distribution**: Shared via WhatsApp groups, with family members , friends and with other testers
 - **Response Window**: Open since Sprint 2 and extended into Sprint 3.  
 - **Sample Size**: Over 20+ respondents.  
 - **Data Export**: Responses exported to **Google Sheets** for structured analysis.  
@@ -92,7 +92,58 @@ The goal was to validate usability, design, and feature functionality by collect
 </details>
 
 ---
-## 4. Feedback Evaluation Process  
+
+## 4. Response Screenshots (Google Form Results)
+
+Here are some of the **summaries of responses** that we recieved from our Google Forms.  
+
+- ### Navigation & Usability :  
+![Responses - Navigation Ease](/diagrams/responses_navigation.png)  
+
+- ### Design & Layout Ratings:
+![Responses - Design Ratings](/diagrams/responses_design.png)  
+
+- ### First Impressions & Favourite Features: 
+![Responses - Favourite Features](/diagrams/responses_features.png)  
+
+- ### If Users experineced any Bugs/Issues:
+![Responses - Positive Feedback](/diagrams/responses_bugs.png)  
+
+- ### What Users liked the Most/Least:
+![Responses - Positive Feedback](/diagrams/responses_likes.png)  
+
+- ### Improvement Suggestions and Overall Satisfaction:
+![Responses - Suggestions](/diagrams/responses_suggestions.png)  
+---
+
+## 5. Feedback Analysis  
+
+### 5.1 Score(Rating) Results  
+
+| Question | Avg. Score (1–5) | Key Insight |
+|----------|------------------|-------------|
+| Ease of navigation | **4.2** | Users found navigation simple overall but could be improved |
+| Overall design & layout | **4.1** | Layout considered clean, but some requested more contrast. |
+| First impression of scoreboard | **4.0** | Scoreboard clear, but a few users found it busy, and could have more match details |
+| Overall satisfaction | **4.3** | Majority of testers satisfied with the experience. |
+
+### 5.2 Text Results  
+
+- **Most Used Features:**  
+  - Match Viewer and Event Timeline.  
+- **Reported Issues:**  
+  - Delays in live score updates.  
+  - Manual event input confusing.  
+- **Suggested Improvements:**  
+  - African Football
+  - Push notifications for goals/events.  
+  - Dark mode.  
+  - Easier match setup with reusable templates.  
+
+---
+
+
+## 6. Feedback Evaluation Process  
 
 We followed a structured evaluation method:  
 
@@ -113,47 +164,20 @@ We followed a structured evaluation method:
 
 
 
-5. **Prioritization**  
+4. **Prioritization**  
    - Used an **Impact vs Effort Matrix** to decide development order:  
      - High Impact / Low Effort → Sprint 3 fixes (UI refinements).  
      - High Impact / High Effort → Sprint 4+ (push notifications, dark mode).  
      - Low Impact → Logged for future.  
 
-6. **Integration**  
-   - Converted top feedback themes into **product backlog items**.  
-   - Linked them to Sprint deliverables.  
-   - Planned to re-test improvements in Sprint 4.  
 
----
 
-## 5. Feedback Analysis  
 
-### 5.1 Quantitative Results  
-
-| Question | Avg. Score (1–5) | Key Insight |
-|----------|------------------|-------------|
-| Ease of navigation | **4.2** | Users found navigation simple overall but could be improved |
-| Overall design & layout | **4.1** | Layout considered clean, but some requested more contrast. |
-| First impression of scoreboard | **4.0** | Scoreboard clear, but a few users found it busy, and could have more match details |
-| Overall satisfaction | **4.3** | Majority of testers satisfied with the experience. |
-
-### 5.2 Qualitative Results  
-
-- **Most Used Features:**  
-  - Match Viewer and Event Timeline.  
-- **Reported Issues:**  
-  - Delays in live score updates.  
-  - Manual event input confusing.  
-- **Suggested Improvements:**  
-  - African Football
-  - Push notifications for goals/events.  
-  - Dark mode.  
-  - Easier match setup with reusable templates.  
 
 
 ---
 
-## 6. Insights & Actions  
+## 7. Insights & Actions  
 
 | Feedback Theme | User Need | Planned Action |
 |----------------|-----------|----------------|
@@ -163,7 +187,7 @@ We followed a structured evaluation method:
 | **Feature Gaps** | Alerts for events | Push notifications in Sprint 4 |
 
 
-## 7. Next Steps  
+## 8. Next Steps  
 
 - Keep collecting responses during Sprint 3.  
 - Conduct **usability tests** (screen recordings) 

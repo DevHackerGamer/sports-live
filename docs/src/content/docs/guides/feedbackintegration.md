@@ -113,3 +113,5 @@ It provides **before-and-after comparisons** and iteration notes to demonstrate 
   - Documented changes based on feedback.  
   - Evidence of iterative improvement.  
   - Commit history demonstrating integration.  
+
+> For the original user feedback and response screenshots, see [User Feedback](/guides/ufeedback).
