@@ -12,6 +12,7 @@ We are using:
 
 - **Jest** → for unit testing JavaScript functions and API logic. 
 - **React Testing Library** → for UI testing of React components.  
+- **Supertest** → Integration tests for backend API routes.  
 
 
 ### Why we Chose Jest:
@@ -26,12 +27,16 @@ We selected **Jest** as our testing framework because:
 
 Given our project’s **React frontend** and **Node.js API layer**, Jest was the **natural fit** for unit testing.  
 
-### Setup
+
+
+---
+
+## Setup
 - **Framework** → [Jest](https://jestjs.io/)  
 - **UI Testing** → [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/) 
 - **API Testing** → [Supertest](https://github.com/ladjs/supertest)  
-
-#### Installiation:
+---
+## Installiation:
 **Install Jest:**
 ```bash
 npm install --save-dev jest
@@ -56,6 +61,17 @@ In the root of your project create:
 ```bash
 import '@testing-library/jest-dom'; 
 ```
+---
+## Testing Organization & Creating Test Files:
+We follow **consistent naming:**
+- Under src there is a folder where all our tests files are stored , called ___tests___
+- Create a file under that file under that folder and ensure that
+- All tests files end with .test.js
+- Or you could have Tests are stored alongside components in each components folder as shown below
+
+Our Folder Structure:
+ ![testf](/diagrams/testf.png)
+---
 ## How to Run Automated Tests:
 A small test by test description on how to run the automated tests for both frontend components and backend APIs. 
 ### 1. Install Dependencies
@@ -85,14 +101,6 @@ npm run test:coverage
 ```
 The summary appears in the terminal.
 
-## Testing Organization:
-We follow **consistent naming:**
-- All tests files end with .test.js
-- Tests are stored alongside components in each components folder
-
-Our Folder Structure:
- ![testf](/diagrams/testf.png)
----
 ### Unit Testing Strategy
 **Functions** → Test input/output correctness.
 

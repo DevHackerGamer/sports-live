@@ -34,8 +34,9 @@ export default defineConfig({
               label: "Project management methodology",
               slug: "guides/project",
             },
-            { label: "Project Design & Planning", slug: "guides/designplan" }
-           
+            { label: "Project Planning", slug: "guides/projectplan" },
+            { label: "Project Design", slug: "guides/projectdesign" }
+
           ],
         },
          {

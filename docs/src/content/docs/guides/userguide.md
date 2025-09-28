@@ -20,18 +20,18 @@ This guide provides **step-by-step instructions** for using the Sports Live Trac
 
 ### Registration
 1. Click **Sign Up** on the homepage.
-2. Fill in your **email, password, and name**.
+2. Enter your **Name**, **Email**, and **Password**. 
 
-*Screenshot placeholder:*  
-![Registration Page](/diagrams/use.png)
+*Screenshot of the page:*  
+![Registration Page](/diagrams/register.png)
 
-### Login
-1. Enter registered email and password.
-2. Click **Sign In**.
-3. Forgot password? Click **Forgot Password** and follow instructions.
+###  Login (Returning Users)
+1. Click **Sign In** on the homepage.  
+2. Enter your **Email** and **Password**.  
 
-*Screenshot placeholder:*  
-![Login Page](/diagrams/use.png)
+
+*Screenshot of the page:*  
+![Login Page](/diagrams/login.png)
 
 ---
 
@@ -43,66 +43,95 @@ Once logged in, the dashboard provides:
 - **Match Setup (Admin Only)** → Create, edit, and delete matches.
 - **Event Timeline** → List of match events (goals, fouls, substitutions).
 - **Preferences** → Select favorite teams
+- **League Tables**  → Follow the League table of top leagues in Europe
 
-*Screenshot placeholder:*  
-![Dashboard Overview](/diagrams/use.png)
-
----
-
-## 5. Following Matches
-
-1. Navigate to **Live Matches**.
-2. Click on a match card to view details and timeline.
-3. Use **Add to WatchList** to get notifications about your favorite teams.
-
-*Screenshot placeholder:*  
-![Live Match View](/diagrams/use.png)
+*Screenshot of the page:*   
+![Dashboard Overview](/diagrams/dashboard.png)
 
 ---
 
-## 6. Admin Features
+## 4. Following Matches
 
-### Adding a Match
-1. Go to **Match Setup**.
-2. Fill in **Teams,Competiton, Start Time**.
-3. Click **Add Match**.
+1. Navigate to the **Live Matches** tab.  
+2. Browse available matches → each shows team names, score, and status.  
+3. Click a **Match Card** to open detailed stats and event timeline.  
+4. Use **Add to Watchlist**  to receive updates for your favorite teams.  
 
-*Screenshot placeholder:*  
-![Add Match](/diagrams/use.png)
+*Screenshot of the page:*  
+![Live Match View](/diagrams/live_match.png)
 
-### Adding Match Events
-1. Select a live match.
-2. Add events such as goals, fouls, or substitutions.
-3. Click **Save**.
 
-*Screenshot placeholder:*  
-![Add Event](/diagrams/add_event.png)
+---
+## 5. Viewing League Standings 
+
+Stay up to date with how your teams rank in their leagues.
+
+1. Open the **League Standings** section from the dashboard.  
+2. Select a **League** from the dropdown menu (e.g., Premier League, La Liga).  
+3. View the **table**, which includes:  
+   - Position / Rank  
+   - Team Crest & Name  
+   - Matches Played (P)  
+   - Wins (W), Draws (D), Losses (L)  
+   - Points (Pts)  
+4. Switch leagues anytime to compare standings.  
+
+*Screenshot of the page:*   
+![League Standings](/diagrams/league.png)
 
 ---
 
-## 7. Preferences & Notifications
+## 6. Admin Features 
 
-1. Go to **Preferences**.
-2. Select your **favorite teams**.
-3. Toggle **notifications** on/off.
-4. Save changes.
+> 🔒 Only available to **admins**.
 
-*Screenshot placeholder:*  
+###  Adding a Match
+1. Go to **Match Setup**.  
+2. Enter **Competition**, **Teams**, and **Start Time**.  
+3. Click **Add Match** → Match will appear on the dashboard.  
+
+*Screenshot of the page:*  
+![Add Match](/diagrams/live_match.png)
+
+---
+
+### 7. Adding Match Events
+1. Select a live match from the dashboard.  
+2. Add events such as:  
+   - Goals  
+   - Substitutions  
+   - Fouls / Cards  
+3. Click **Save** → Updates appear instantly on the live scoreboard.  
+
+*Screenshot of the page:*  
+![Add Event](/diagrams/preferences.png)
+
+---
+
+## 8. Preferences & Notifications
+
+Personalize your experience:
+
+1. Open **Preferences** from the dashboard.  
+2. Select your **Favorite Teams** .  
+3. Toggle **Notifications** on/off.  
+
+
+*Screenshot of the page:*   
 ![Preferences Page](/diagrams/preferences.png)
 
 ---
 
-## 8. Troubleshooting
+##  Troubleshooting
+
 
 | Issue | Solution |
-|-------|---------|
+|-------|----------|
 | Page not loading | Refresh browser, check internet connection |
-| Cannot log in | Reset password, check email verification |
-| Scores not updating | Ensure live match is active, reload page |
+| Cannot log in | Reset password, ensure email is verified |
+| Scores not updating | Refresh the page or confirm the match is still live |
+| Match disappeared after refresh | Check if it was deleted by an admin |
 
 ---
 
-## 9. References
-
-- [Support Page](https://sports-live.onrender.com/support)
-- [FAQ](https://sports-live.onrender.com/faq)
+You’re all set! Enjoy **Sports Live Feeds** and keep up with your favorite teams in real time.  
