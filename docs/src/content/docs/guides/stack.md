@@ -75,7 +75,7 @@ The technology stack was chosen to meet the following core project requirements:
   Render and MongoDB Atlas offer monitoring, automatic failover, and high availability. Combined with version-controlled workflows and automated testing, this ensures the system is stable and maintainable.
 
 - **Cost Effectiveness**  
-  Using Render’s  hosting and Atlas cloud database minimizes operational costs while maintaining performance and reliability.
+  Using Render’s  hosting and Mongo database minimizes operational costs while maintaining performance and reliability.
 
 ## Architecture Overview
 

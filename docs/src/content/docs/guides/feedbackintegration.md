@@ -76,7 +76,7 @@ It provides **before-and-after comparisons** and iteration notes to demonstrate 
   - **Before:** Player details hidden/misaligned.  
     ![Before - Player Cards](/diagrams/playercardb.png) 
   - **After:** Player cards visible with consistent layout.  
-    ![After - Player Cards](/diagrams/playercardb.png) 
+    ![After - Player Cards](/diagrams/ekse.png) 
 
 
 - **Event Timestamps:**

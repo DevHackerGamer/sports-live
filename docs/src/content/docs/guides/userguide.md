@@ -91,7 +91,7 @@ Stay up to date with how your teams rank in their leagues.
 3. Click **Add Match** → Match will appear on the dashboard.  
 
 *Screenshot of the page:*  
-![Add Match](/diagrams/live_match.png)
+![Add Match](/diagrams/setup.png)
 
 ---
 
@@ -104,7 +104,7 @@ Stay up to date with how your teams rank in their leagues.
 3. Click **Save** → Updates appear instantly on the live scoreboard.  
 
 *Screenshot of the page:*  
-![Add Event](/diagrams/preferences.png)
+![Add Event](/diagrams/live_event.png)
 
 ---
 

@@ -116,9 +116,32 @@ Here are some of the **summaries of responses** that we recieved from our Google
 ![Responses - Suggestions](/diagrams/responses_suggestions.png)  
 ---
 
-## 5. Feedback Analysis  
 
-### 5.1 Score(Rating) Results  
+
+## 5. Feedback Analysis  
+### 5.1 Google Sheets Raw Data
+
+The **Respones** , screenshots of the Google Sheet charts detailing the responses
+
+- **Ease of navigation**
+![Google Sheet - Section 1](/diagrams/nav2.png)  
+
+- **First Impressions of Scoreboard?**
+![Google Sheet - Section 2](/diagrams/score21.png)  
+
+- **Core Features Responses**
+![Google Sheet - Section 3](/diagrams/3cf.png)  
+
+- **Overall Design & Layout**
+![Google Sheet - Section 4](/diagrams/tired.png)  
+
+- **Overall Satisfaction with the App?**
+![Google Sheet - Section 5](/diagrams/ovc.png)  
+
+> 💡
+
+---
+### 5.2 Score(Rating) Results  
 
 | Question | Avg. Score (1–5) | Key Insight |
 |----------|------------------|-------------|
@@ -127,7 +150,7 @@ Here are some of the **summaries of responses** that we recieved from our Google
 | First impression of scoreboard | **4.0** | Scoreboard clear, but a few users found it busy, and could have more match details |
 | Overall satisfaction | **4.3** | Majority of testers satisfied with the experience. |
 
-### 5.2 Text Results  
+### 5.3 Text Results  
 
 - **Most Used Features:**  
   - Match Viewer and Event Timeline.  
