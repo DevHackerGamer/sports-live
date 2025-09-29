@@ -62,6 +62,7 @@ export default defineConfig({
             { label: "Authentication", slug: "guides/authentication" },
             { label: "API Documentation", slug: "guides/endpoints" },
             { label: "User Guide", slug: "guides/userguide" },
+            { label: "Change Log", slug: "guides/changelog" }
           ],
 
         },
