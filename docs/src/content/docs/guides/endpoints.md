@@ -38,7 +38,7 @@ The Sports Live application provides a RESTful API's for accessing live sports d
   - `/api/users/:id/favorites` → User-specific favorite teams
 
 ### Architecture Diagram
-![API Architecture Diagram](/diagrams/api-architecture.png)
+![API Architecture Diagram](/diagrams/architexture.png)
 
 ---
 

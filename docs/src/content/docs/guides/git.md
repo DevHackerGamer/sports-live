@@ -33,7 +33,7 @@ We follow a **"one developer, one branch"** model:
 Examples:
 
 - `feature/ViewLeague`  
-- `fix/player-stats-bug`  
+- `fix/ReportIssue`  
 - `docs/New-Docs`  
 
 ## Pull Request (PR) Review Process

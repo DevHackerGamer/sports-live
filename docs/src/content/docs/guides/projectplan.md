@@ -65,10 +65,10 @@ We followed an **Agile Scrum approach** with **weekly sprints**.
 Each team member had **clear ownership**:  
 
 - **Frontend (React UI)** → Wireframes, dashboard, match viewer.  
-- **Backend (Node + Express)** → API endpoints, WebSockets.  
+- **Backend (Node)** → API endpoints
 - **Database (MongoDB)** → Schema design, ERD.  
 - **Authentication (Clerk)** → Secure login + role-based access.  
-- **Testing (Jest/RTL)** → Automated unit + integration tests.  
+- **Testing (Jest)** → Automated unit + integration tests.  
 - **Deployment (Render)** → Cloud hosting + CI/CD pipeline.  
 
 ---
