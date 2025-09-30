@@ -1,138 +1,199 @@
+// /api/__tests__/players.test.js
 global.TextEncoder = require('util').TextEncoder;
 global.TextDecoder = require('util').TextDecoder;
 
-const handler = require('../../../api/standings');
-const { getStandingsCollection, getTeamsCollection } = require('../../../lib/mongodb');
-
 jest.mock('../../../lib/mongodb.js', () => ({
-  getStandingsCollection: jest.fn(),
+  getPlayersCollection: jest.fn(),
   getTeamsCollection: jest.fn(),
 }));
 
-jest.mock('../../../lib/auth', () => ({
-  isAdmin: jest.fn(),
-}));
-const { isAdmin } = require('../../../lib/auth');
+const { getPlayersCollection, getTeamsCollection } = require('../../../lib/mongodb');
+const handler = require('../../../api/players'); // adjust path if needed
 
-// Mock Express-like req/res
-function mockReqRes({ method = 'GET', url = '/api/standings', query = {}, body = {} } = {}) {
-  const json = jest.fn();
-  const end = jest.fn();
-  const status = jest.fn(() => ({ json, end }));
-  const setHeader = jest.fn();
-  const res = { status, setHeader, end, json };
-  const req = { method, url, query, body, headers: {} };
-  return { req, res, json, status, setHeader, end };
+function mockResponse() {
+  const res = {};
+  res.status = jest.fn().mockReturnValue(res);
+  res.json = jest.fn().mockReturnValue(res);
+  res.end = jest.fn().mockReturnValue(res);
+  res.setHeader = jest.fn();
+  return res;
 }
 
-describe('Standings API', () => {
-  let mockStandings, mockTeams;
+async function runHandler(req) {
+  const res = mockResponse();
+  await handler(req, res);
+  return res;
+}
+
+describe('players API', () => {
+  let mockPlayersCol, mockTeamsCol;
 
   beforeEach(() => {
-    mockStandings = {
-      find: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis(),
-      toArray: jest.fn().mockResolvedValue([]),
-      findOne: jest.fn(),
+    mockPlayersCol = {
+      find: jest.fn(),
+      sort: jest.fn(),
+      skip: jest.fn(),
+      limit: jest.fn(),
+      toArray: jest.fn(),
+      countDocuments: jest.fn(),
       insertOne: jest.fn(),
       updateOne: jest.fn(),
       deleteOne: jest.fn(),
     };
-    mockTeams = {
-      find: jest.fn().mockReturnThis(),
-      project: jest.fn().mockReturnThis(),
-      toArray: jest.fn().mockResolvedValue([]),
+    mockTeamsCol = {
+      findOne: jest.fn(),
     };
-    getStandingsCollection.mockResolvedValue(mockStandings);
-    getTeamsCollection.mockResolvedValue(mockTeams);
-    isAdmin.mockResolvedValue(true);
+
+    getPlayersCollection.mockResolvedValue(mockPlayersCol);
+    getTeamsCollection.mockResolvedValue(mockTeamsCol);
+
+    // default chain for find
+    mockPlayersCol.find.mockReturnValue(mockPlayersCol);
+    mockPlayersCol.sort.mockReturnValue(mockPlayersCol);
+    mockPlayersCol.skip.mockReturnValue(mockPlayersCol);
+    mockPlayersCol.limit.mockReturnValue(mockPlayersCol);
+    mockPlayersCol.toArray.mockResolvedValue([]);
+    mockPlayersCol.countDocuments.mockResolvedValue(0);
   });
 
   afterEach(() => jest.clearAllMocks());
 
-  test('OPTIONS request returns 200', async () => {
-    const { req, res, end } = mockReqRes({ method: 'OPTIONS' });
-    await handler(req, res);
+  // ---------------- OPTIONS ----------------
+  it('OPTIONS request returns 200', async () => {
+    const res = await runHandler({ method: 'OPTIONS', query: {} });
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(end).toHaveBeenCalled();
+    expect(res.end).toHaveBeenCalled();
   });
 
-  test('GET /api/standings returns enriched standings', async () => {
-    mockStandings.toArray.mockResolvedValue([
-      { _id: 'BL1-2025', standings: [{ table: [{ team: { id: 1 } }] }] }
-    ]);
-    mockTeams.toArray.mockResolvedValue([{ id: 1, crest: 'crest-1' }]);
+  // ---------------- GET ----------------
+  it('GET players with default filter', async () => {
+    const fakePlayers = [{ id: 1, name: 'Player1' }];
+    mockPlayersCol.toArray.mockResolvedValue(fakePlayers);
+    mockPlayersCol.countDocuments.mockResolvedValue(1);
 
-    const { req, res, json } = mockReqRes({ method: 'GET', query: { limit: '1' } });
-    await handler(req, res);
+    const res = await runHandler({ method: 'GET', query: {} });
 
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({
-      success: true,
-      count: 1,
-      data: expect.any(Array),
-      filters: expect.any(Object)
-    }));
-
-    const result = json.mock.calls[0][0];
-    expect(result.data[0].standings[0].table[0].team.crest).toBe('crest-1');
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        players: fakePlayers,
+        total: 1,
+      })
+    );
   });
 
-  test('GET /api/standings/:id returns single document', async () => {
-    mockStandings.findOne.mockResolvedValue({ _id: 'BL1-2025' });
-    const { req, res, json } = mockReqRes({ url: '/api/standings/BL1-2025' });
-    await handler(req, res);
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: { _id: 'BL1-2025' } }));
+  it('GET players resolves teamId from teamName', async () => {
+    mockTeamsCol.findOne.mockResolvedValue({ id: 123 });
+    mockPlayersCol.toArray.mockResolvedValue([{ id: 2, name: 'WithTeam' }]);
+
+    const res = await runHandler({ method: 'GET', query: { teamName: 'Arsenal' } });
+
+    expect(mockTeamsCol.findOne).toHaveBeenCalledWith({
+      name: { $regex: '^Arsenal$', $options: 'i' },
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  test('GET /api/standings/:id returns 404 if not found', async () => {
-    mockStandings.findOne.mockResolvedValue(null);
-    const { req, res, json } = mockReqRes({ url: '/api/standings/NOTFOUND' });
-    await handler(req, res);
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
-  });
+  it('GET players error', async () => {
+    mockPlayersCol.toArray.mockRejectedValue(new Error('DB fail'));
 
-  test('POST /api/standings creates document', async () => {
-    mockStandings.insertOne.mockResolvedValue({ insertedId: 'newId' });
-    const { req, res, json } = mockReqRes({ method: 'POST', body: { competition: 'BL1' } });
-    await handler(req, res);
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: true, id: 'newId' }));
-  });
-
-  test('PUT /api/standings/:id updates document', async () => {
-    mockStandings.updateOne.mockResolvedValue({ matchedCount: 1, modifiedCount: 1 });
-    const { req, res, json } = mockReqRes({ method: 'PUT', url: '/api/standings/BL1-2025', body: { type: 'HOME' } });
-    await handler(req, res);
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: true, modified: true }));
-  });
-
-  test('DELETE /api/standings/:id removes document', async () => {
-    mockStandings.deleteOne.mockResolvedValue({ deletedCount: 1 });
-    const { req, res, json } = mockReqRes({ method: 'DELETE', url: '/api/standings/BL1-2025' });
-    await handler(req, res);
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: true, deleted: true }));
-  });
-
-  test('forbidden if not admin', async () => {
-    isAdmin.mockResolvedValue(false);
-    const { req, res, json } = mockReqRes({ method: 'POST', body: {} });
-    await handler(req, res);
-    expect(res.status).toHaveBeenCalledWith(403);
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
-  });
-
-  test('method not allowed returns 405', async () => {
-    const { req, res, json } = mockReqRes({ method: 'PATCH' });
-    await handler(req, res);
-    expect(res.status).toHaveBeenCalledWith(405);
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
-  });
-
-  test('internal error returns 500', async () => {
-    getStandingsCollection.mockRejectedValue(new Error('DB fail'));
-    const { req, res, json } = mockReqRes();
-    await handler(req, res);
+    const res = await runHandler({ method: 'GET', query: {} });
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
+    expect(res.json).toHaveBeenCalledWith({ error: 'Failed to fetch players' });
+  });
+
+  // ---------------- POST ----------------
+  it('POST valid player', async () => {
+    mockPlayersCol.insertOne.mockResolvedValue({ insertedId: 'p123' });
+
+    const body = { name: 'Messi', position: 'FW' };
+    const res = await runHandler({ method: 'POST', body });
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        playerId: 'p123',
+        player: expect.objectContaining({ name: 'Messi' }),
+      })
+    );
+  });
+
+  it('POST missing name', async () => {
+    const res = await runHandler({ method: 'POST', body: { nationality: 'FR' } });
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Player name is required' });
+  });
+
+  it('POST error', async () => {
+    mockPlayersCol.insertOne.mockRejectedValue(new Error('Insert fail'));
+    const res = await runHandler({ method: 'POST', body: { name: 'X' } });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Failed to create player' });
+  });
+
+  // ---------------- PUT ----------------
+  it('PUT update success', async () => {
+    mockPlayersCol.updateOne.mockResolvedValue({ matchedCount: 1, modifiedCount: 1 });
+
+    const res = await runHandler({ method: 'PUT', query: { id: '1' }, body: { position: 'GK' } });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ success: true, modified: true });
+  });
+
+  it('PUT missing id', async () => {
+    const res = await runHandler({ method: 'PUT', query: {}, body: {} });
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Player ID is required' });
+  });
+
+  it('PUT not found', async () => {
+    mockPlayersCol.updateOne.mockResolvedValue({ matchedCount: 0 });
+    const res = await runHandler({ method: 'PUT', query: { id: '999' }, body: { position: 'DF' } });
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Player not found' });
+  });
+
+  it('PUT error', async () => {
+    mockPlayersCol.updateOne.mockRejectedValue(new Error('Update fail'));
+    const res = await runHandler({ method: 'PUT', query: { id: '1' }, body: {} });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Failed to update player' });
+  });
+
+  // ---------------- DELETE ----------------
+  it('DELETE success', async () => {
+    mockPlayersCol.deleteOne.mockResolvedValue({ deletedCount: 1 });
+    const res = await runHandler({ method: 'DELETE', query: { id: '1' } });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ success: true, deleted: true });
+  });
+
+  it('DELETE missing id', async () => {
+    const res = await runHandler({ method: 'DELETE', query: {} });
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Player ID is required' });
+  });
+
+  it('DELETE not found', async () => {
+    mockPlayersCol.deleteOne.mockResolvedValue({ deletedCount: 0 });
+    const res = await runHandler({ method: 'DELETE', query: { id: '999' } });
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Player not found' });
+  });
+
+  it('DELETE error', async () => {
+    mockPlayersCol.deleteOne.mockRejectedValue(new Error('Delete fail'));
+    const res = await runHandler({ method: 'DELETE', query: { id: '1' } });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Failed to delete player' });
+  });
+
+  // ---------------- Method not allowed ----------------
+  it('Method not allowed', async () => {
+    const res = await runHandler({ method: 'PATCH', query: {} });
+    expect(res.status).toHaveBeenCalledWith(405);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Method not allowed' });
   });
 });

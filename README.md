@@ -10,9 +10,10 @@ A modern web platform for tracking live sports feeds, scores, and stats. Built w
 ---
 
 ## 🌐 Live Links
-- Frontend: [React App / Azure Static Web App]()
-- Backend API: [Azure Web App / API Endpoint]()
-- GitHub: [Repo Link](https://github.com/DevHackerGamer/sports-live)
+- 🌐 Hosted Here: [Sports Live](https://sports-live.onrender.com/)
+- 📄 Documentation Site [Documentation Site](https://adorable-kleicha-8ace6b.netlify.app/)
+-  💻 GitHub: [Repo Link](https://github.com/DevHackerGamer/sports-live)
+- 📚 Project Board (Notion): [Sprint & Task Board](https://www.notion.so/Sports-Live-Tracker-2025-25b7181e6705803aa7bdffa7190f8dfa?source=copy_link)   
 ---
 
 
@@ -22,20 +23,26 @@ A modern web platform for tracking live sports feeds, scores, and stats. Built w
 - Admins can manage feeds and API connections
 - Mobile-friendly and responsive UI
 - Real-time score updates for live matches
+- View League Tables of top Leagues
 
 ---
 
 
 ## 🧰 Tech Stack
-- Backend: Node.js, Express,MongoDB,  Axios for API requests
+- Backend: Node.js, Express, MongoDB.
 - Frontend: React (functional components & hooks)
-- Deployment & Dev Tools: Azure Web Apps / Container Registry, Docker, Git & GitHub, Notion (sprint boards), Discord (team communication)
+- Deployment & Dev Tools: Render, Docker, Git & GitHub, Notion (sprint boards), Discord & Whatsapp (team communication)
 
 ---
-
 ## 🔑 Core Features
-- **Admin Portal**: Add/manage feeds, Authentication & user roles, API key management and data sync
-- **Public Interface**: Live feed display & scoreboards, Filter by league/team/event, Mobile-friendly interface
+- **Admin Portal:**  
+  - Create and Manage Matches
+  - Add/Edit/Delete Live Match Events
+- **Public Interface:**  
+  - Live feed display & scoreboards  
+  - View Live Match Statistics & Events
+  - View League Tables
+  - Mobile-friendly responsive UI  
 
 ---
 
@@ -49,17 +56,16 @@ git clone https://github.com/DevHackerGamer/sports-live.git
 cd sports-live
 ```
 
-### 2. Install Dependencies (Backend + Frontend)
+### 2. Install Dependencies (Backend & Frontend)
 
 ```bash
 npm install
 ```
 
 
-### 3. Run Frontend = Backend Locally
+### 3. Run Frontend & Backend Locally
 
 ```bash
-cd frontend
 npm run dev
 ```
 
@@ -68,9 +74,13 @@ npm run dev
 ---
 
 ## 👥 Team
-- Fullstack Dev
-- Testing & QA
-- DevOps & Deployment
+- Fullstack Devs , Testing & QA
+- Joshua Williams
+- Mohau Makunyane  
+- Bohlale Mabonga
+- Tshepo Mngomezulu
+- Kwezi Mudacumura
+- Lehlohonolo Tosa
 - Mentorship: University of the Witwatersrand – Software Design Project 2025
 
 ---
@@ -79,6 +89,7 @@ npm run dev
 - Manual and automated User Acceptance Testing (UAT)
 - CI/CD testing pipeline integrated with GitHub Actions
 - Code coverage tracked via Codecov
+- Unit & integration tests using Jest + React Testing Library
 
 ---
 
@@ -106,31 +117,22 @@ npm run dev
 
 ## 📚 Resources
 - [React Documentation](https://reactjs.org/)  
-- [Tailwind CSS](https://tailwindcss.com/)  
+- [Tailwind CSS](https://tailwindcss.com/)
+---
 
 # Folder Structure
 
-- `frontend/` – React app UI (Live scoreboard, event feed, match setup, etc.)
-- `backend/` – REST APIs for live updates, match metadata, and feed delivery
+- `src/` – React app UI (Live scoreboard, event feed, match setup, etc.)
+- `api /` – REST APIs for live updates, match metadata, and feed delivery
 - `docs/` – Sprint planning, setup instructions, team roles, methodology
 
-# Setting Up
 
-More details on dev setup coming soon!
 
-#  Team
-
-- Joshua Williams
-- Mohau Makunyane  
-- Bohlale Mabonga
-- Tshepo Mngomezulu
-- Kwezi Mudacumura
-- Lehlohonolo Tosa
-
+---
 
 # Documentation 
 
 For the full documentation of the website visit:
 
-
 https://adorable-kleicha-8ace6b.netlify.app/
+

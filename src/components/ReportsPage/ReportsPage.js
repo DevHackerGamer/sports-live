@@ -1,5 +1,7 @@
 import { useEffect, useState,useMemo } from 'react';
 import { apiClient } from '../../lib/api';
+import LiveInput from '../liveInput/LiveInput';
+
 import '../../styles/ReportsPage.css';
 
 const ReportsPage = () => {
@@ -10,6 +12,8 @@ const ReportsPage = () => {
   const [error, setError] = useState('');
   const [matchDetails, setMatchDetails] = useState({});
   const [eventDetails, setEventDetails] = useState({});
+  const [selectedMatch, setSelectedMatch] = useState(null);
+
 
   // Fetch reports
   const fetchReports = async () => {
@@ -49,13 +53,12 @@ const ReportsPage = () => {
           const match = res.data;
           if (!match) return;
 
-          const key = String(match._id || match.id || match.matchId);
-          if (!key) return;
+           const key = String(match.id || match._id)
 
           // Ensure homeTeam/awayTeam and date exist
           const homeTeam = match.homeTeam?.name || match.homeTeam || 'Home';
           const awayTeam = match.awayTeam?.name || match.awayTeam || 'Away';
-          const date = match.date || match.utcDate || match.matchDate || new Date().toISOString();
+          const date = match.utcDate || match.date || new Date().toISOString();
 
           matchMap[key] = { ...match, homeTeam, awayTeam, date };
         });
@@ -174,6 +177,12 @@ const filteredReports = useMemo(() => {
           Clear Filters
         </button>
       </div>
+      {selectedMatch ? (
+  <LiveInput
+    match={selectedMatch}
+    onBackToMatch={() => setSelectedMatch(null)}
+  />
+) : (
 
       <table>
         <thead>
@@ -206,7 +215,7 @@ const filteredReports = useMemo(() => {
         const m = matchDetails[String(r.matchId)];
         return `${m.homeTeam} vs ${m.awayTeam} (${new Date(m.date).toLocaleDateString()})`;
       })()
-    : 'Unknown Match'}
+    : <span className="loading-match">Loading...</span>}
 </td>
                 <td>
                   {eventDetails[String(r.eventId)]
@@ -218,7 +227,7 @@ const filteredReports = useMemo(() => {
                         const desc = e?.description ? ` (${e.description})` : '';
                         return `${minute}${type}${player}${desc}`;
                       })()
-                    : 'Unknown Event'}
+                    :  <span className="loading-event">Loading...</span>}
                 </td>
                 <td>{r.title || '-'}</td>
                 <td>{r.description || '-'}</td>
@@ -231,6 +240,24 @@ const filteredReports = useMemo(() => {
                 </td>
                 <td>{r.createdAt ? new Date(r.createdAt).toLocaleString() : '-'}</td>
                 <td>
+                  <button
+  className="view-btn"
+  onClick={async () => {
+    try {
+      const res = await apiClient.getMatchById(r.matchId);
+      if (res && res.data) {
+        setSelectedMatch(res.data); // pass to LiveInput
+      } else {
+        alert('Failed to load match details.');
+      }
+    } catch (err) {
+      console.error('Error fetching match:', err);
+      alert('Failed to load match.');
+    }
+  }}
+>
+  View
+</button>
                   <button className="delete-btn" onClick={() => deleteReport(r._id)}>
                     Delete
                   </button>
@@ -240,6 +267,7 @@ const filteredReports = useMemo(() => {
           )}
         </tbody>
       </table>
+          )}
     </div>
   );
 };

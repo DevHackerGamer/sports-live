@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useUser, useAuth, UserButton } from '@clerk/clerk-react';
 import LiveSports from '../sports/LiveSports';
 import FavoritesPanel from '../favouritespanel/FavoritesPanel';
+import WatchlistPage from '../WatchlistPage/WatchlistPage';
 import MatchViewer from '../matchViewer/MatchViewer';
 import MatchSetup from '../matchsetup/MatchSetup';
 import LiveInput from '../liveInput/LiveInput';
@@ -31,6 +32,7 @@ const Dashboard = () => {
   const [showAboutUs, setShowAboutUs] = useState(false);
   const [selectedLeague, setSelectedLeague] = useState(null);
   const [selectedTeam, setSelectedTeam] = useState(null); 
+  const [selectedTabTitle, setSelectedTabTitle] = useState('home');
 
   // Sync isAdmin with Clerk
   useEffect(() => {
@@ -68,23 +70,7 @@ const Dashboard = () => {
   const handleTeamSelect = (team) => setSelectedTeam(team); 
   const handleBackFromTeamInfo = () => setSelectedTeam(null);
 
-  const handleAddToWatchlist = async (match) => {
-    if (!user) return;
-    try {
-      const teams = [match?.homeTeam?.name || match?.homeTeam, match?.awayTeam?.name || match?.awayTeam];
-      for (const teamName of teams) {
-        if (teamName) {
-          await fetch(`/api/users/${encodeURIComponent(user.id)}/favorites`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ teamName }),
-          });
-        }
-      }
-    } catch (e) {
-      console.error('Failed to add to watchlist', e);
-    }
-  };
+  // Watchlist now handled via LiveSports hover UI and user-matches API.
 
   // League Data
   const leagues = [
@@ -311,36 +297,48 @@ const Dashboard = () => {
     </footer>
   );
 
-  // Main render logic
-  const renderContent = () => {
-    if (showAboutUs) return <AboutUs />;
-    if (selectedMatch) return (
-      <div className="match-viewer-container">
-        <MatchViewer 
-          match={selectedMatch} 
-          onBack={handleBackFromViewer} 
-          onAddToWatchlist={handleAddToWatchlist} 
+const renderContent = () => {
+  if (showAboutUs) return <AboutUs />;
+
+    if (selectedTeam) {
+    return (
+      <TeamInfo 
+        team={selectedTeam} 
+        onBack={handleBackFromTeamInfo} 
+      />
+    );
+  }
+
+  switch (activeTab) {
+    case 'home':
+      return <HomeScreen />;
+    case 'players':
+      return <PlayersPage />;
+    case 'matchSetup':
+      return <MatchSetup isAdmin={isAdmin} />;
+    case 'liveInput':
+      return <LiveInput isAdmin={isAdmin} match={selectedMatch} onBackToMatch={() => setActiveTab('matches')} />;
+    case 'leagueStandings':
+      return <LeagueView initialLeague={selectedLeague || "PL"} onBack={() => setActiveTab('home')} onTeamSelect={handleTeamSelect} />;
+    case 'reports':
+      return <ReportsPage isAdmin={isAdmin} />;
+    case 'favorites':
+      return <FavoritesPanel onMatchSelect={handleMatchSelect} />;
+    case 'watchlist':
+      return <WatchlistPage onMatchSelect={handleMatchSelect} />;
+    case 'matches':
+    default:
+      return selectedMatch ? (
+        <MatchViewer
+          match={selectedMatch}
+          onBack={handleBackFromViewer}
         />
-      </div>
-    );
-    if (selectedTeam) return (
-      <div className="team-info-container">
-        <TeamInfo team={selectedTeam} onBack={handleBackFromTeamInfo} />
-      </div>
-    );
-    
-    switch (activeTab) {
-      case 'home': return <HomeScreen />;
-      case 'players': return <PlayersPage />;
-      case 'matchSetup': return <MatchSetup isAdmin={isAdmin} />;
-      case 'liveInput': return <LiveInput isAdmin={isAdmin} match={selectedMatch} onBackToMatch={() => setActiveTab('matches')} />;
-      case 'leagueStandings': return <LeagueView initialLeague={selectedLeague || "PL"} onBack={() => {setActiveTab('home');setSelectedLeague(null);}} onTeamSelect={handleTeamSelect} />;
-      case 'reports': return <ReportsPage isAdmin={isAdmin} />;
-      case 'favorites': return <FavoritesPanel onMatchSelect={handleMatchSelect} />;
-      case 'matches':
-      default: return <LiveSports onMatchSelect={handleMatchSelect} onTeamSelect={handleTeamSelect} />;
-    }
-  };
+      ) : (
+        <LiveSports onMatchSelect={handleMatchSelect} onTeamSelect={handleTeamSelect} />
+      );
+  }
+};
+
 
   return (
     <div className="site-wrap dashboard">
@@ -351,11 +349,26 @@ const Dashboard = () => {
           </div>
           <nav className="dashboard-nav">
             <ul>
-              <li><button onClick={() => { setActiveTab('home'); setShowAboutUs(false); setSelectedMatch(null); setSelectedTeam(null); }}>Home</button></li>
+              <li><button onClick={() => { setActiveTab('home'); setShowAboutUs(false); setSelectedTeam(null); }}>Home</button></li>
+              <li><button onClick={() => { setActiveTab('favorites'); setShowAboutUs(false); setSelectedMatch(null); setSelectedTeam(null); }}>Favourites</button></li>
+              <li><button onClick={() => { setActiveTab('watchlist'); setShowAboutUs(false); setSelectedMatch(null); setSelectedTeam(null); }}>Watchlist</button></li>
               {isAdmin && (
                 <>
-                  <li><button onClick={() => { setActiveTab('matchSetup'); setShowAboutUs(false); setSelectedMatch(null); setSelectedTeam(null); }}>Setup</button></li>
-                  <li><button onClick={() => { setActiveTab('liveInput'); setShowAboutUs(false); setSelectedMatch(null); setSelectedTeam(null); }}>Live Input</button></li>
+                  <li><button onClick={() => { setActiveTab('matchSetup'); setShowAboutUs(false);  setSelectedTeam(null); }}>Setup</button></li>
+                  {selectedMatch && (
+                    <li>
+                      <button
+                        onClick={() => {
+                          setActiveTab('liveInput');
+                          setShowAboutUs(false);
+                          setSelectedTeam(null);
+                        }}
+                        title="Enter live input for the selected match"
+                      >
+                        Live Input
+                      </button>
+                    </li>
+                  )}
                   <li><button onClick={() => { setActiveTab('reports'); setShowAboutUs(false); setSelectedMatch(null); setSelectedTeam(null); }}>Reports</button></li>
                 </>
               )}

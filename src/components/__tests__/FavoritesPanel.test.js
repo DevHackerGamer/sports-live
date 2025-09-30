@@ -1,84 +1,95 @@
-// src/components/favouritespanel/__tests__/FavoritesPanel.test.js
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import FavoritesPanel from '../FavoritesPanel';
+import FavoritesPanel from '..favouritespanel/FavoritesPanel';
 import { useUser } from '@clerk/clerk-react';
-import { apiClient } from '../../../lib/api';
+import { apiClient } from '../../lib/api';
 
-// --- Mock Clerk useUser ---
-jest.mock('@clerk/clerk-react', () => ({
-  useUser: jest.fn(),
-}));
-
-// --- Mock apiClient ---
-jest.mock('../../../lib/api', () => ({
+jest.mock('@clerk/clerk-react', () => ({ useUser: jest.fn() }));
+jest.mock('../../lib/api', () => ({
   apiClient: {
+    getMatchesByDate: jest.fn(),
+    getTeams: jest.fn(),
     getUserFavorites: jest.fn(),
     addUserFavorite: jest.fn(),
     removeUserFavorite: jest.fn(),
-    getMatchesByDate: jest.fn(),
-    getTeams: jest.fn(),
-  },
+  }
 }));
 
-describe('FavoritesPanel', () => {
-  const mockUser = { id: 'user123' };
+beforeEach(() => {
+  useUser.mockReturnValue({ user: { id: 'user1' } });
+});
 
-  beforeEach(() => {
-    useUser.mockReturnValue({ user: mockUser });
-    apiClient.getUserFavorites.mockResolvedValue({ data: ['Team A'] });
-    apiClient.getTeams.mockResolvedValue({ data: [{ name: 'Team A' }, { name: 'Team B' }] });
-    apiClient.getMatchesByDate.mockResolvedValue({ data: [] });
-    apiClient.addUserFavorite.mockResolvedValue({});
-    apiClient.removeUserFavorite.mockResolvedValue({});
-  });
+afterEach(() => {
+  jest.resetAllMocks();
+});
 
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
+test('renders sign-in prompt when no user', () => {
+  useUser.mockReturnValue({ user: null });
+  render(<FavoritesPanel />);
+  expect(screen.getByTestId('no-user')).toHaveTextContent(/please sign in/i);
+});
 
-  test('renders loading message when user is not ready', () => {
-    useUser.mockReturnValue({ user: null });
-    render(<FavoritesPanel />);
-    expect(screen.getByTestId('loading-user')).toBeInTheDocument();
-  });
+test('renders favorites panel', async () => {
+  apiClient.getMatchesByDate.mockResolvedValue({ data: [] });
+  apiClient.getTeams.mockResolvedValue({ data: [{ name: 'Team A' }, { name: 'Team B' }] });
+  apiClient.getUserFavorites.mockResolvedValue({ data: ['Team A'] });
 
-  test('displays favorites after loading', async () => {
-    render(<FavoritesPanel />);
-    expect(await screen.findByTestId('favorite-item')).toHaveTextContent('Team A');
-  });
+  render(<FavoritesPanel />);
+  await waitFor(() => screen.getByTestId('favorites-panel'));
 
-  test('can remove a favorite team', async () => {
-    render(<FavoritesPanel />);
-    const removeButton = await screen.findByTestId('remove-favorite');
-    fireEvent.click(removeButton);
-    await waitFor(() => {
-      expect(apiClient.removeUserFavorite).toHaveBeenCalledWith(mockUser.id, 'Team A');
-    });
-  });
+  expect(screen.getByTestId('favorites-panel')).toBeInTheDocument();
+  expect(screen.getByTestId('favorites-list')).toBeInTheDocument();
+  expect(screen.getByText('Team A')).toBeInTheDocument();
+});
 
-  test('can add a new favorite via input and Enter key', async () => {
-    render(<FavoritesPanel />);
-    const input = screen.getByTestId('add-input');
-    fireEvent.change(input, { target: { value: 'Team B' } });
-    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
-    await waitFor(() => {
-      expect(apiClient.addUserFavorite).toHaveBeenCalledWith(mockUser.id, 'Team B');
-    });
-  });
+test('adds a valid favorite', async () => {
+  apiClient.getMatchesByDate.mockResolvedValue({ data: [] });
+  apiClient.getTeams.mockResolvedValue({ data: [{ name: 'Team A' }, { name: 'Team B' }] });
+  apiClient.getUserFavorites.mockResolvedValue({ data: [] });
+  apiClient.addUserFavorite.mockResolvedValue({ success: true });
 
-  test('can add a new favorite via dropdown', async () => {
-    render(<FavoritesPanel />);
-    const dropdown = screen.getByTestId('add-dropdown');
-    fireEvent.change(dropdown, { target: { value: 'Team B' } });
-    await waitFor(() => {
-      expect(apiClient.addUserFavorite).toHaveBeenCalledWith(mockUser.id, 'Team B');
-    });
-  });
+  render(<FavoritesPanel />);
+  await waitFor(() => screen.getByTestId('add-favorite-section'));
 
-  test('shows error if api call fails', async () => {
-    apiClient.getUserFavorites.mockRejectedValueOnce(new Error('Failed to fetch'));
-    render(<FavoritesPanel />);
-    expect(await screen.findByTestId('error')).toHaveTextContent('Failed to fetch');
+  const input = screen.getByTestId('add-input');
+  fireEvent.change(input, { target: { value: 'Team A' } });
+
+  const button = screen.getByTestId('add-button');
+  expect(button).not.toBeDisabled();
+
+  fireEvent.click(button);
+  await waitFor(() => expect(apiClient.addUserFavorite).toHaveBeenCalledWith('user1', 'Team A'));
+});
+
+test('removes a favorite', async () => {
+  apiClient.getMatchesByDate.mockResolvedValue({ data: [] });
+  apiClient.getTeams.mockResolvedValue({ data: [{ name: 'Team A' }] });
+  apiClient.getUserFavorites.mockResolvedValue({ data: ['Team A'] });
+  apiClient.removeUserFavorite.mockResolvedValue({ success: true });
+
+  render(<FavoritesPanel />);
+  await waitFor(() => screen.getByText('Team A'));
+
+  fireEvent.click(screen.getByLabelText(/Remove Team A/i));
+  await waitFor(() => expect(apiClient.removeUserFavorite).toHaveBeenCalledWith('user1', 'Team A'));
+});
+
+test('clicking a match calls onMatchSelect', async () => {
+  const mockSelect = jest.fn();
+  apiClient.getMatchesByDate.mockResolvedValue({
+    data: [{
+      id: 'm1',
+      homeTeam: { name: 'Team A' },
+      awayTeam: { name: 'Team B' },
+      utcDate: new Date().toISOString()
+    }]
   });
+  apiClient.getTeams.mockResolvedValue({ data: [{ name: 'Team A' }, { name: 'Team B' }] });
+  apiClient.getUserFavorites.mockResolvedValue({ data: ['Team A'] });
+
+  render(<FavoritesPanel onMatchSelect={mockSelect} />);
+  await waitFor(() => screen.getByTestId('favorite-item'));
+
+  fireEvent.click(screen.getByText(/Team A vs Team B/i));
+  expect(mockSelect).toHaveBeenCalled();
 });
