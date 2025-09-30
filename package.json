@@ -78,6 +78,8 @@
       "api/**/*.js",
       "!api/**/__tests__/**",
       "!src/**/*.test.{js,jsx}",
+      "src/hooks/**/*.{js,jsx}", 
+       "src/App.js",
        "!src/components/EventFeeds/**",
       "!src/components/sports/**",
       "!src/components/matchViewer/**",

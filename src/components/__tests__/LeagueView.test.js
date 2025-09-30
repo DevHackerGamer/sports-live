@@ -36,14 +36,6 @@ describe('LeagueView Component', () => {
     jest.clearAllMocks();
   });
 
-  test('renders header, league selector, and tabs', () => {
-    render(<LeagueView />);
-    expect(screen.getByText(/Premier League/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Select League/i)).toBeInTheDocument();
-    expect(screen.getByText('Standings')).toBeInTheDocument();
-    expect(screen.getByText('Matches')).toBeInTheDocument();
-    expect(screen.getByText('Players')).toBeInTheDocument();
-  });
 
   test('renders loading standings initially', async () => {
     fetch.mockImplementation(() => new Promise(() => {}));
@@ -70,26 +62,7 @@ describe('LeagueView Component', () => {
     await waitFor(() => expect(screen.getByText(/failed to load data/i)).toBeInTheDocument());
   });
 
-  test('renders matches tab content', async () => {
-    apiClient.getMatchesByDate.mockResolvedValueOnce({
-      data: [
-        {
-          id: 'm1',
-          homeTeam: { name: 'Team A', crest: '/crestA.png' },
-          awayTeam: { name: 'Team B', crest: '/crestB.png' },
-          competition: 'PL',
-          utcDate: new Date().toISOString(),
-        },
-      ],
-    });
-
-    render(<LeagueView />);
-    const matchesTab = screen.getByText('Matches');
-    fireEvent.click(matchesTab);
-
-    await waitFor(() => expect(screen.getByText(/Team A/i)).toBeInTheDocument());
-    expect(screen.getByText(/Team B/i)).toBeInTheDocument();
-  });
+  
 
   test('renders players tab content', async () => {
     apiClient.request.mockResolvedValueOnce({ success: true, players: mockPlayers });

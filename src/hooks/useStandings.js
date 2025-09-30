@@ -3,7 +3,7 @@ import { useLeagueStandings } from '../../hooks/useStandings';
 import { apiClient } from '../../lib/api';
 
 // Mock apiClient
-jest.mock('../../lib/api', () => ({
+jest.mock('../../../lib/api', () => ({
   apiClient: {
     getStandings: jest.fn(),
   },
