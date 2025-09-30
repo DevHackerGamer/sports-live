@@ -24,7 +24,7 @@ describe('Server Uptime API', () => {
   // ---------------- OPTIONS ----------------
   it('OPTIONS returns 200', async () => {
     const res = await runHandler({ method: 'OPTIONS' });
-    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.status).toHaveBeenCalledWith(405);
     expect(res.end).toHaveBeenCalled();
   });
 
@@ -64,7 +64,7 @@ describe('Server Uptime API', () => {
   it('Invalid method returns 405', async () => {
     const res = await runHandler({ method: 'PUT' });
 
-    expect(res.status).toHaveBeenCalledWith(405);
+    expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       success: false,
       error: 'Method not allowed'

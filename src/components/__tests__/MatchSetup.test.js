@@ -11,7 +11,7 @@ jest.mock('@clerk/clerk-react', () => ({
 }));
 
 // Mock MatchViewer
-jest.mock('../components/matchViewer/MatchViewer', () => ({ match, onBack }) => (
+jest.mock('../matchViewer/MatchViewer', () => ({ match, onBack }) => (
   <div>
     MatchViewer: {match?.id}
     <button onClick={onBack}>Back</button>
