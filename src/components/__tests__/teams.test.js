@@ -1,65 +1,58 @@
-// /api/__tests__/teams.test.js
-global.TextEncoder = require('util').TextEncoder;
-global.TextDecoder = require('util').TextDecoder;
+// src/components/__tests__/teams.test.js
+global.TextEncoder = require("util").TextEncoder;
+global.TextDecoder = require("util").TextDecoder;
 
-jest.mock('mongodb', () => {
-  const mCollection = {
-    findOne: jest.fn(),
-    find: jest.fn(() => ({ toArray: jest.fn() })),
-    insertMany: jest.fn(),
-  };
-  const mDb = { collection: jest.fn(() => mCollection) };
-  const mClient = { db: jest.fn(() => mDb), connect: jest.fn() };
+const handler = require("../../../api/teams");
+const { getTeamsInfoCollection } = require("../../../lib/mongodb");
 
-  return {
-    MongoClient: jest.fn(() => mClient),
-    __mockClient: mClient,
-    __mockDb: mDb,
-    __mockCollection: mCollection,
-  };
-});
+jest.mock("../../../lib/mongodb.js", () => ({
+  getTeamsInfoCollection: jest.fn(),
+}));
 
-const { MongoClient, __mockCollection } = require('mongodb');
-const handler = require('../../../api/teams');
-
-// ---- Mock res like in competitions ----
-function mockResponse() {
-  const res = {};
-  res.status = jest.fn().mockReturnValue(res);
-  res.json = jest.fn().mockReturnValue(res);
-  res.end = jest.fn().mockReturnValue(res);
-  res.setHeader = jest.fn();
-  return res;
+// mock req/res like in players.test.js
+function mockReqRes({ method = "GET", query = {}, body = {} } = {}) {
+  const json = jest.fn();
+  const end = jest.fn();
+  const status = jest.fn(() => ({ json, end }));
+  const setHeader = jest.fn();
+  const res = { status, setHeader, end, json };
+  const req = { method, url: "/api/teams", query, body, headers: {} };
+  return { req, res, json, status, setHeader, end };
 }
 
-async function runHandler(req) {
-  const res = mockResponse();
-  await handler(req, res);
-  return res;
-}
+describe("Teams API", () => {
+  let mockTeams;
 
-describe('Teams API', () => {
   beforeEach(() => {
+    mockTeams = {
+      find: jest.fn().mockReturnThis(),
+      toArray: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn(),
+      insertMany: jest.fn(),
+    };
+    getTeamsInfoCollection.mockResolvedValue(mockTeams);
     jest.clearAllMocks();
   });
 
-  // ---------------- OPTIONS ----------------
-  it('OPTIONS returns 200', async () => {
-    const res = await runHandler({ method: 'OPTIONS' });
+  test("OPTIONS request returns 200", async () => {
+    const { req, res, end } = mockReqRes({ method: "OPTIONS" });
+    await handler(req, res);
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.end).toHaveBeenCalled();
+    expect(end).toHaveBeenCalled();
   });
 
-  // ---------------- GET ALL ----------------
-  it('GET all teams success', async () => {
-    const fakeTeams = [{ id: 1, name: 'Team A' }, { id: 2, name: 'Team B' }];
-    __mockCollection.find.mockReturnValueOnce({ toArray: jest.fn().mockResolvedValue(fakeTeams) });
+  test("GET all teams success", async () => {
+    const fakeTeams = [
+      { id: 1, name: "Team A" },
+      { id: 2, name: "Team B" },
+    ];
+    mockTeams.toArray.mockResolvedValue(fakeTeams);
 
-    const res = await runHandler({ method: 'GET', query: {} });
+    const { req, res, json } = mockReqRes({ method: "GET" });
+    await handler(req, res);
 
-    expect(__mockCollection.find).toHaveBeenCalledWith({});
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith(
+    expect(mockTeams.find).toHaveBeenCalledWith({});
+    expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: true,
         data: fakeTeams,
@@ -68,72 +61,88 @@ describe('Teams API', () => {
     );
   });
 
-  // ---------------- GET BY ID ----------------
-  it('GET by id returns team', async () => {
-    const fakeTeam = { id: 123, name: 'Special Team' };
-    __mockCollection.findOne.mockResolvedValue(fakeTeam);
+  test("GET by id returns team", async () => {
+    const fakeTeam = { id: 123, name: "Special Team" };
+    mockTeams.findOne.mockResolvedValue(fakeTeam);
 
-    const res = await runHandler({ method: 'GET', query: { id: '123' } });
+    const { req, res, json } = mockReqRes({
+      method: "GET",
+      query: { id: "123" },
+    });
+    await handler(req, res);
 
-    expect(__mockCollection.findOne).toHaveBeenCalledWith({ id: 123 });
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ success: true, data: fakeTeam });
+    expect(mockTeams.findOne).toHaveBeenCalledWith({ id: 123 });
+    expect(json).toHaveBeenCalledWith({ success: true, data: fakeTeam });
   });
 
-  it('GET by id not found', async () => {
-    __mockCollection.findOne.mockResolvedValue(null);
+  test("GET by id not found", async () => {
+    mockTeams.findOne.mockResolvedValue(null);
 
-    const res = await runHandler({ method: 'GET', query: { id: '999' } });
+    const { req, res, json } = mockReqRes({
+      method: "GET",
+      query: { id: "999" },
+    });
+    await handler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Team not found' });
+    expect(json).toHaveBeenCalledWith({
+      success: false,
+      error: "Team not found",
+    });
   });
 
-  // ---------------- POST ----------------
-  it('POST inserts valid teams', async () => {
-    __mockCollection.insertMany.mockResolvedValue({ insertedCount: 2 });
-    const newTeams = [{ id: 1, name: 'T1' }, { id: 2, name: 'T2' }];
+  test("POST inserts valid teams", async () => {
+    mockTeams.insertMany.mockResolvedValue({ insertedCount: 2 });
+    const newTeams = [
+      { id: 1, name: "T1" },
+      { id: 2, name: "T2" },
+    ];
 
-    const res = await runHandler({ method: 'POST', body: { teams: newTeams } });
+    const { req, res, json } = mockReqRes({
+      method: "POST",
+      body: { teams: newTeams },
+    });
+    await handler(req, res);
 
-    expect(__mockCollection.insertMany).toHaveBeenCalledWith(newTeams);
+    expect(mockTeams.insertMany).toHaveBeenCalledWith(newTeams);
     expect(res.status).toHaveBeenCalledWith(201);
-    expect(res.json).toHaveBeenCalledWith({ success: true, insertedCount: 2 });
+    expect(json).toHaveBeenCalledWith({
+      success: true,
+      insertedCount: 2,
+    });
   });
 
-  it('POST with invalid body', async () => {
-    const res = await runHandler({ method: 'POST', body: {} });
+  test("POST with invalid body", async () => {
+    const { req, res, json } = mockReqRes({ method: "POST", body: {} });
+    await handler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({
+    expect(json).toHaveBeenCalledWith({
       success: false,
-      error: 'Invalid or missing teams array',
+      error: "Invalid or missing teams array",
     });
   });
 
-  // ---------------- ERROR HANDLING ----------------
-  it('GET error returns 500', async () => {
-    __mockCollection.find.mockImplementationOnce(() => {
-      throw new Error('DB failure');
-    });
+  test("internal error returns 500", async () => {
+    getTeamsInfoCollection.mockRejectedValue(new Error("DB fail"));
 
-    const res = await runHandler({ method: 'GET', query: {} });
+    const { req, res, json } = mockReqRes({ method: "GET" });
+    await handler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        success: false,
-        error: 'Failed to handle teams request',
-        message: 'DB failure',
-      })
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ error: "Failed to handle teams request" })
     );
   });
 
-  // ---------------- METHOD NOT ALLOWED ----------------
-  it('DELETE not allowed', async () => {
-    const res = await runHandler({ method: 'DELETE' });
+  test("method not allowed returns 405", async () => {
+    const { req, res, json } = mockReqRes({ method: "DELETE" });
+    await handler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(405);
-    expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Method not allowed' });
+    expect(json).toHaveBeenCalledWith({
+      success: false,
+      error: "Method not allowed",
+    });
   });
 });

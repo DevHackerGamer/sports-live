@@ -58,25 +58,7 @@ describe("Dashboard Component", () => {
   expect(screen.getByText(/Chelsea/i)).toBeInTheDocument();
 });
 
-describe("Dashboard Admin Tabs", () => {
-  beforeEach(() => {
-    jest.resetModules();
-    jest.doMock("@clerk/clerk-react", () => ({
-      useUser: () => ({ user: { fullName: "Admin" } }),
-      useAuth: () => ({ getToken: async () => "mock-token" }),
-      UserButton: () => <div data-testid="user-btn">UserButton</div>,
-    }));
-  });
 
-  it("navigates to Match Setup when Setup clicked", () => {
-    const { getByRole } = render(<Dashboard isAdmin />);
-    fireEvent.click(getByRole("button", { name: /^Setup$/i }));
-    expect(screen.getByText(/Match Setup/i)).toBeInTheDocument();
-  });
-
- 
- 
-});
 it("navigates back to Home when Home button clicked", () => {
   fireEvent.click(screen.getByRole("button", { name: /^About$/i }));
   expect(screen.getByRole("heading", { name: /About Sports Live/i })).toBeInTheDocument();

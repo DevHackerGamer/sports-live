@@ -98,10 +98,10 @@ describe('users API - favorites', () => {
     mockUsersCol.updateOne.mockRejectedValue(new Error('DB fail'));
     const res = await runHandler({ method: 'POST', url: '/api/users/123/favorites', body: { teamName: 'X' } });
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       success: false,
       error: 'Failed to add favorite team',
-    });
+    }));
   });
 
   // ---------------- PUT ----------------
@@ -134,10 +134,10 @@ describe('users API - favorites', () => {
     mockUsersCol.updateOne.mockRejectedValue(new Error('DB fail'));
     const res = await runHandler({ method: 'PUT', url: '/api/users/123/favorites', body: { favorites: [] } });
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       success: false,
       error: 'Failed to update user favorites',
-    });
+    }));
   });
 
   // ---------------- DELETE ----------------
@@ -176,10 +176,10 @@ describe('users API - favorites', () => {
     mockUsersCol.updateOne.mockRejectedValue(new Error('DB fail'));
     const res = await runHandler({ method: 'DELETE', url: '/api/users/123/favorites/TeamA' });
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       success: false,
       error: 'Failed to remove favorite team',
-    });
+    }));
   });
 
   // ---------------- Method not allowed ----------------

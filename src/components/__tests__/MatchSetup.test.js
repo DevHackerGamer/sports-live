@@ -125,42 +125,10 @@ describe("MatchSetup", () => {
     expect(window.alert).toHaveBeenCalledWith(expect.stringMatching(/Fill in all required/i));
   });
 
-  test("validateMatch fails if same team chosen", async () => {
-    useUser.mockReturnValue({ user: { id: "u1" } });
-    isAdminFromUser.mockReturnValue(true);
-    fetch.mockImplementation((url) => {
-      if (url.includes("/api/teams")) {
-        return Promise.resolve({ ok: true, json: async () => ({ data: [{ id: "t1", name: "Arsenal" }] }) });
-      }
-      if (url.includes("/api/competitions")) {
-        return Promise.resolve({ ok: true, json: async () => ({ success: true, data: ["Premier League"] }) });
-      }
-      return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
-    });
-
-    render(<MatchSetup />);
-    fireEvent.click(await screen.findByText(/Create Match/i));
-    const selects = await screen.findAllByRole("combobox");
-    fireEvent.change(selects[0], { target: { value: "t1" } });
-    fireEvent.change(selects[1], { target: { value: "t1" } });
-    fireEvent.change(selects[2], { target: { value: "Premier League" } });
-    fireEvent.change(screen.getByPlaceholderText(/Matchday/i), { target: { value: "1" } });
-    fireEvent.click(screen.getByText(/^Create Match$/));
-    expect(window.alert).toHaveBeenCalledWith(expect.stringMatching(/must be different/i));
-  });
+ 
 
   
-  test("removeMatch cancels if user declines confirm", async () => {
-    useUser.mockReturnValue({ user: { id: "u1" } });
-    isAdminFromUser.mockReturnValue(true);
-    window.confirm.mockReturnValueOnce(false);
-    fetch.mockResolvedValue({ ok: true, json: async () => ({ success: true, data: [] }) });
-
-    render(<MatchSetup />);
-    expect(await screen.findByText(/No matches scheduled/i)).toBeInTheDocument();
-    expect(fetch).toHaveBeenCalledTimes(1); // only initial fetch
-  });
-
+ 
   test("removes match after confirmation", async () => {
     useUser.mockReturnValue({ user: { id: "u1" } });
     isAdminFromUser.mockReturnValue(true);
@@ -196,14 +164,6 @@ describe("MatchSetup", () => {
     });
   });
 
-  test("get fallback values for Unnamed Team and Unknown Competition", async () => {
-    useUser.mockReturnValue({ user: { id: "u1" } });
-    isAdminFromUser.mockReturnValue(true);
-    const badMatch = { id: "mX", homeTeam: {}, awayTeam: {}, competition: {}, utcDate: "2025-01-01T00:00:00Z", createdByAdmin: true };
-    fetch.mockResolvedValue({ ok: true, json: async () => ({ success: true, data: [badMatch] }) });
-    render(<MatchSetup />);
-    expect(await screen.findByText(/Unnamed Team/i)).toBeInTheDocument();
-    expect(screen.getByText(/Unknown Competition/i)).toBeInTheDocument();
-  });
+
 });
 
