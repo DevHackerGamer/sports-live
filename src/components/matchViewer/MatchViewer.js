@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { apiClient } from '../../lib/api';
+import MatchStatistics from './MatchStatistics';
 import '../../styles/MatchViewer.css';
 
-const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchlist }) => {
+const MatchViewer = ({ match, initialSection = 'details', onBack }) => {
   const { user } = useUser();
   const isAdmin = (user?.privateMetadata?.type === 'admin');
   const [matchDetails, setMatchDetails] = useState(null);
@@ -20,7 +21,7 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
   const [reportTitle, setReportTitle] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [teamLogos, setTeamLogos] = useState({ home: '', away: '' });
-  const [addedToWatchlist, setAddedToWatchlist] = useState(false); // NEW
+  const [showEventList, setShowEventList] = useState(false);
 
 
   useEffect(() => {
@@ -32,6 +33,36 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match]);
+
+  // Refresh details immediately when LiveInput broadcasts a match update (pause/resume or HT/FT)
+  useEffect(() => {
+    let bc;
+    const onMsg = (ev) => {
+      try {
+        const data = ev?.data || ev;
+        if (data && data.type === 'matches-updated') {
+          fetchMatchDetails();
+        }
+      } catch {}
+    };
+    try {
+      if ('BroadcastChannel' in window) {
+        bc = new BroadcastChannel('sports-live');
+        bc.onmessage = onMsg;
+      }
+    } catch {}
+    const onStorage = (e) => {
+      if (!e) return;
+      if (e.key === 'sports:refresh') {
+        fetchMatchDetails();
+      }
+    };
+    try { window.addEventListener('storage', onStorage); } catch {}
+    return () => {
+      try { window.removeEventListener('storage', onStorage); } catch {}
+      try { if (bc) bc.close(); } catch {}
+    };
+  }, []);
 
   useEffect(() => {
     if (initialSection) {
@@ -52,12 +83,12 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
         setMatchDetails(matchResponse.data);
         setMeta({ referee: matchResponse.data?.referee || '', venue: matchResponse.data?.venue || '' });
         
-        // Set team logos if available
-        if (matchResponse.data.homeTeam?.logo) {
-          setTeamLogos(prev => ({ ...prev, home: matchResponse.data.homeTeam.logo }));
+        // Set team logos/crests if available
+        if (matchResponse.data.homeTeam?.crest || matchResponse.data.homeTeam?.logo) {
+          setTeamLogos(prev => ({ ...prev, home: matchResponse.data.homeTeam.crest || matchResponse.data.homeTeam.logo }));
         }
-        if (matchResponse.data.awayTeam?.logo) {
-          setTeamLogos(prev => ({ ...prev, away: matchResponse.data.awayTeam.logo }));
+        if (matchResponse.data.awayTeam?.crest || matchResponse.data.awayTeam?.logo) {
+          setTeamLogos(prev => ({ ...prev, away: matchResponse.data.awayTeam.crest || matchResponse.data.awayTeam.logo }));
         }
         
         // If the API doesn't return any events, fetch them separately
@@ -197,12 +228,12 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
         const homeTeam = teams.find(t => (t.name || '').toLowerCase() === homeTeamName.toLowerCase());
         const awayTeam = teams.find(t => (t.name || '').toLowerCase() === awayTeamName.toLowerCase());
         
-        // Set logos if available from teams data
-        if (homeTeam?.logo && !teamLogos.home) {
-          setTeamLogos(prev => ({ ...prev, home: homeTeam.logo }));
+        // Set crests if available from teams data
+        if ((homeTeam?.crest || homeTeam?.logo) && !teamLogos.home) {
+          setTeamLogos(prev => ({ ...prev, home: homeTeam.crest || homeTeam.logo }));
         }
-        if (awayTeam?.logo && !teamLogos.away) {
-          setTeamLogos(prev => ({ ...prev, away: awayTeam.logo }));
+        if ((awayTeam?.crest || awayTeam?.logo) && !teamLogos.away) {
+          setTeamLogos(prev => ({ ...prev, away: awayTeam.crest || awayTeam.logo }));
         }
         
         if (homeTeam?.id || homeTeam?._id) {
@@ -365,7 +396,10 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
       competition: displayMatchRaw?.competition?.name || displayMatchRaw?.competition || '',
     };
     const rawStatus = (dm.status || '').toString();
-    if (rawStatus === 'IN_PLAY') dm.status = 'live';
+    // Canonicalize status for consistent UI
+    if (/^IN_PLAY$/i.test(rawStatus)) dm.status = 'live';
+    else if (/^PAUSED$/i.test(rawStatus)) dm.status = 'paused';
+    else if (/^FINISHED$/i.test(rawStatus)) dm.status = 'finished';
     // Derive scores if not directly present
     if (dm.homeScore == null) {
       dm.homeScore = dm?.score?.fullTime?.home ?? dm?.score?.halfTime?.home ?? dm?.score?.regular?.home ?? 0;
@@ -377,8 +411,8 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
     dm.homeScore = typeof dm.homeScore === 'number' ? dm.homeScore : 0;
     dm.awayScore = typeof dm.awayScore === 'number' ? dm.awayScore : 0;
 
-    // Derive current minute if live and missing
-    if (dm.status === 'live' && (dm.minute == null || dm.minute === '')) {
+    // Derive current minute if live/paused and missing
+    if ((dm.status === 'live' || dm.status === 'paused') && (dm.minute == null || dm.minute === '')) {
       // Try latest event with a minute/time
       const evs = (dm.events || events || []).slice().sort((a,b)=> (b.minute||0) - (a.minute||0));
       if (evs.length && (evs[0].minute || evs[0].time)) {
@@ -397,6 +431,49 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
     return dm;
   }, [displayMatchRaw, events]);
 
+  // Build timeline-friendly events with resolved minute and side
+  const timelineData = useMemo(() => {
+    const homeName = (displayMatchRaw?.homeTeam?.name || displayMatchRaw?.homeTeam || '').toString();
+    const awayName = (displayMatchRaw?.awayTeam?.name || displayMatchRaw?.awayTeam || '').toString();
+    const resolved = (events || []).map((event) => {
+      // minute
+      let minute;
+      if (event.minute !== undefined && event.minute !== null && event.minute !== '') {
+        minute = typeof event.minute === 'number' ? event.minute : parseInt(String(event.minute), 10);
+      } else if (event.time) {
+        const m = parseInt(String(event.time).split(':')[0], 10);
+        minute = Number.isNaN(m) ? undefined : m;
+      }
+      if (Number.isNaN(minute)) minute = undefined;
+      // side
+      const rawTeam = (event.team || event.teamName || '').toString();
+      const side = /^(home|away)$/i.test(rawTeam)
+        ? rawTeam.toLowerCase()
+        : ((event.teamSide && /^(home|away)$/i.test(event.teamSide)) ? event.teamSide.toLowerCase() :
+          ((rawTeam && homeName && rawTeam.toLowerCase() === homeName.toLowerCase()) ? 'home' :
+            ((rawTeam && awayName && rawTeam.toLowerCase() === awayName.toLowerCase()) ? 'away' : '')));
+      // crest per side
+      const crest = side === 'home'
+        ? (teamLogos.home || (displayMatchRaw?.homeTeam && typeof displayMatchRaw.homeTeam === 'object' ? displayMatchRaw.homeTeam.crest : ''))
+        : side === 'away'
+          ? (teamLogos.away || (displayMatchRaw?.awayTeam && typeof displayMatchRaw.awayTeam === 'object' ? displayMatchRaw.awayTeam.crest : ''))
+          : '';
+      const type = canonicalEventType(event.type);
+      const label = eventLabel(type);
+      const playerDisplay = (type === 'substitution' && (event.playerOut || event.playerIn))
+        ? `${event.playerOut || ''}${event.playerOut && event.playerIn ? ' → ' : ''}${event.playerIn || ''}`
+        : (event.player || '');
+      const teamName = (/^(home|away)$/i.test(rawTeam) || !rawTeam)
+        ? (side === 'home' ? homeName : side === 'away' ? awayName : rawTeam)
+        : rawTeam;
+      const description = event.description || [label, teamName, playerDisplay].filter(Boolean).join(' - ');
+      return { minute, side, crest, type, label, description, teamName };
+    });
+    const withMinute = resolved.filter(r => r.minute !== undefined && r.minute !== null && !Number.isNaN(r.minute));
+    const maxMinute = Math.max(90, ...withMinute.map(r => r.minute).filter(m => typeof m === 'number' && m >= 0 && m <= 150));
+    return { events: withMinute, maxMinute };
+  }, [events, displayMatchRaw, teamLogos]);
+
   if (!match) {
     return (
       <div className="match-viewer">
@@ -414,25 +491,6 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
       <div className="match-viewer-header">
         <h2>Match Overview</h2>
         <div className="header-actions">
-          {onAddToWatchlist && match && (
-           <button
-  onClick={async () => {
-    try {
-      await onAddToWatchlist(match);
-      setAddedToWatchlist(true); // mark as added
-    } catch (err) {
-      console.error("Failed to add to watchlist:", err);
-      alert("Failed to add match to watchlist");
-    }
-  }}
-  className={`btn btn-primary ${addedToWatchlist ? 'added' : ''}`}
-  disabled={addedToWatchlist}
-  title={addedToWatchlist ? "Already in watchlist" : "Add both teams to your favorites"}
->
-  {addedToWatchlist ? "Added ✅" : "+ Add to Watchlist"}
-</button>
-
-          )}
           {onBack && (
             <button onClick={onBack} className="btn btn-secondary" title="Back to matches">
               ← Back
@@ -491,8 +549,8 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
           <div className="match-teams">
             <div className="team home-team">
               <div className="team-logo">
-                {teamLogos.home ? (
-                  <img src={teamLogos.home} alt={displayMatch.homeTeam} />
+                {(teamLogos.home || (displayMatchRaw?.homeTeam && typeof displayMatchRaw.homeTeam === 'object' && displayMatchRaw.homeTeam.crest)) ? (
+                  <img src={teamLogos.home || displayMatchRaw.homeTeam.crest} alt={displayMatch.homeTeam} />
                 ) : (
                   <div className="team-logo-placeholder">
                     {displayMatch.homeTeam.charAt(0)}
@@ -504,13 +562,15 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
             </div>
             
             <div className="match-status">
-              {displayMatch.status === 'live' && displayMatch.minute ? (
+              {(displayMatch.status === 'live' && displayMatch.minute) ? (
                 <div className="live-indicator">
                   <span className="live-dot"></span>
                   <div className="live-minute" title="Current minute">{displayMatch.minute}'</div>
                 </div>
+              ) : displayMatch.status === 'paused' ? (
+                <div className="match-result" title="Match paused">PAUSED {typeof displayMatch.minute === 'number' ? `• ${displayMatch.minute}'` : ''}</div>
               ) : (
-                <div className="match-result">{displayMatch.status.toUpperCase()}</div>
+                <div className="match-result">{String(displayMatch.status || '').toUpperCase()}</div>
               )}
               {displayMatch.utcDate && (
                 <div className="match-date">
@@ -522,8 +582,8 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
             
             <div className="team away-team">
               <div className="team-logo">
-                {teamLogos.away ? (
-                  <img src={teamLogos.away} alt={displayMatch.awayTeam} />
+                {(teamLogos.away || (displayMatchRaw?.awayTeam && typeof displayMatchRaw.awayTeam === 'object' && displayMatchRaw.awayTeam.crest)) ? (
+                  <img src={teamLogos.away || displayMatchRaw.awayTeam.crest} alt={displayMatch.awayTeam} />
                 ) : (
                   <div className="team-logo-placeholder">
                     {displayMatch.awayTeam.charAt(0)}
@@ -563,48 +623,106 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
       )}
 
       {activeSection === 'stats' && (
-        <div className="match-statistics">
-          <h3>Statistics</h3>
-          {displayMatch.statistics ? (
-            <div className="stats-grid">
-              {displayMatch.statistics.map((stat, index) => (
-                <div key={index} className="stat-item">
-                  <span className="stat-label">{stat.type}:</span>
-                  <div className="stat-bar-container">
-                    <div 
-                      className="stat-bar" 
-                      style={{ width: `${stat.value}%` }}
-                    ></div>
-                  </div>
-                  <span className="stat-value">{stat.value}%</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="no-stats">
-              <p>No statistics available for this match</p>
-            </div>
-          )}
-        </div>
+        <MatchStatistics match={displayMatch} />
       )}
 
       {activeSection === 'events' && (
         <div className="match-events">
           <h3>Match Events Timeline</h3>
-          {events.length > 0 ? (
-            <div className="events-timeline">
-              {events
-                .slice()
-                .sort((a,b) => {
-                  // Sort by minute then created/order (undefined minutes last)
-                  const ma = (a.minute === 0 || a.minute) ? a.minute : (a.time ? parseInt(String(a.time).split(':')[0],10) : undefined);
-                  const mb = (b.minute === 0 || b.minute) ? b.minute : (b.time ? parseInt(String(b.time).split(':')[0],10) : undefined);
-                  if (ma == null && mb == null) return 0;
-                  if (ma == null) return 1;
-                  if (mb == null) return -1;
-                  return ma - mb;
-                })
-                .map((event, index) => {
+          {/* Horizontal visual timeline */}
+          {timelineData.events.length > 0 ? (
+            <div className="timeline-section">
+              <div className="timeline-legend">
+                <div className="legend-item">
+                  {teamLogos.home || (displayMatchRaw?.homeTeam && typeof displayMatchRaw.homeTeam === 'object' && displayMatchRaw.homeTeam.crest) ? (
+                    <img src={teamLogos.home || displayMatchRaw.homeTeam.crest} alt={displayMatch.homeTeam} />
+                  ) : (
+                    <div className="legend-placeholder">{displayMatch.homeTeam?.charAt(0)}</div>
+                  )}
+                  <span>{displayMatch.homeTeam}</span>
+                  <span className="legend-side">(top)</span>
+                </div>
+                <div className="legend-item">
+                  {teamLogos.away || (displayMatchRaw?.awayTeam && typeof displayMatchRaw.awayTeam === 'object' && displayMatchRaw.awayTeam.crest) ? (
+                    <img src={teamLogos.away || displayMatchRaw.awayTeam.crest} alt={displayMatch.awayTeam} />
+                  ) : (
+                    <div className="legend-placeholder">{displayMatch.awayTeam?.charAt(0)}</div>
+                  )}
+                  <span>{displayMatch.awayTeam}</span>
+                  <span className="legend-side">(bottom)</span>
+                </div>
+              </div>
+              <div className="timeline-wrapper">
+                <div className="timeline-line" />
+                {/* dynamic ticks every 15' with major ticks at 0, 45, end */}
+                {(() => {
+                  const step = 15;
+                  const maxTick = Math.max(90, Math.ceil(timelineData.maxMinute / step) * step);
+                  const ticks = [];
+                  for (let m = 0; m <= maxTick; m += step) {
+                    const left = Math.max(0, Math.min(100, (m / maxTick) * 100));
+                    const isMajor = m === 0 || m === 45 || m === maxTick;
+                    ticks.push(
+                      <div key={`tick-${m}`} className={`timeline-tick ${isMajor ? 'major' : 'minor'}`} style={{ left: `${left}%` }}>
+                        {isMajor && <span>{`${m}'`}</span>}
+                      </div>
+                    );
+                  }
+                  return ticks;
+                })()}
+                {/* event markers */}
+                {timelineData.events
+                  .sort((a, b) => a.minute - b.minute)
+                  .map((ev, idx) => {
+                    const left = Math.max(0, Math.min(100, (ev.minute / timelineData.maxMinute) * 100));
+                    return (
+                      <div
+                        key={`tl-${idx}-${ev.minute}-${ev.teamName}-${ev.type}`}
+                        className={`timeline-marker ${ev.side || ''} ${ev.type}`}
+                        style={{ left: `${left}%` }}
+                        title={`${ev.label} • ${ev.teamName || ''}${ev.teamName ? ' • ' : ''}${ev.minute}'`}
+                      >
+                        {ev.crest ? (
+                          <img src={ev.crest} alt={ev.teamName || 'Team'} />
+                        ) : (
+                          <div className="marker-dot" />
+                        )}
+                        <div className="marker-caret" aria-hidden="true" />
+                        <div className="marker-tooltip">
+                          <div className="tip-line"><strong>{ev.label}</strong> {ev.minute}'</div>
+                          {ev.teamName && <div className="tip-line">{ev.teamName}</div>}
+                          {ev.description && <div className="tip-line dim">{ev.description}</div>}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+              <div style={{ marginTop: '0.75rem' }}>
+                <button
+                  type="button"
+                  className="timeline-toggle"
+                  onClick={() => setShowEventList(s => !s)}
+                >
+                  {showEventList ? 'Show less' : 'Show more'}
+                </button>
+              </div>
+            </div>
+          ) : null}
+          {showEventList ? (
+            events.length > 0 ? (
+              <div className="events-timeline">
+                {events
+                  .slice()
+                  .sort((a,b) => {
+                    // Sort by minute then created/order (undefined minutes last)
+                    const ma = (a.minute === 0 || a.minute) ? a.minute : (a.time ? parseInt(String(a.time).split(':')[0],10) : undefined);
+                    const mb = (b.minute === 0 || b.minute) ? b.minute : (b.time ? parseInt(String(b.time).split(':')[0],10) : undefined);
+                    if (ma == null && mb == null) return 0;
+                    if (ma == null) return 1;
+                    if (mb == null) return -1;
+                    return ma - mb;
+                  })
+                  .map((event, index) => {
                   const t = canonicalEventType(event.type);
                   const label = eventLabel(t);
                   // Derive minute but do NOT force 0 (empty instead) to avoid showing misleading 0'
@@ -619,7 +737,7 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
                     const m = parseInt(String(event.time).split(':')[0], 10);
                     minute = Number.isNaN(m) ? undefined : m;
                   }
-                  const minuteDisplay = (minute === 0 || minute == null) ? '' : minute; // hide 0'
+                  const minuteDisplay = (minute == null) ? '' : minute; // show 0'
                   const isSub = t === 'substitution';
                   const playerDisplay = isSub && (event.playerOut || event.playerIn)
                     ? `${event.playerOut || ''}${event.playerOut && event.playerIn ? ' → ' : ''}${event.playerIn || ''}`
@@ -632,6 +750,15 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
                   const teamName = (/^(home|away)$/i.test(rawTeam) || !rawTeam)
                     ? (side === 'home' ? (displayMatch.homeTeam || 'Home') : side === 'away' ? (displayMatch.awayTeam || 'Away') : rawTeam)
                     : rawTeam;
+                  const teamNameLc = (teamName || '').toLowerCase();
+                  const homeNameLc = (displayMatch.homeTeam || '').toLowerCase();
+                  const awayNameLc = (displayMatch.awayTeam || '').toLowerCase();
+                  const resolvedSide = side || (teamNameLc && teamNameLc === homeNameLc ? 'home' : teamNameLc && teamNameLc === awayNameLc ? 'away' : '');
+                  const crest = resolvedSide === 'home'
+                    ? (teamLogos.home || (displayMatchRaw?.homeTeam && typeof displayMatchRaw.homeTeam === 'object' ? displayMatchRaw.homeTeam.crest : ''))
+                    : resolvedSide === 'away'
+                      ? (teamLogos.away || (displayMatchRaw?.awayTeam && typeof displayMatchRaw.awayTeam === 'object' ? displayMatchRaw.awayTeam.crest : ''))
+                      : '';
                   // Build a smart fallback description
                   const fallbackPieces = [];
                   if (!event.description) {
@@ -642,7 +769,12 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
                   const descriptionText = event.description || fallbackPieces.join(' - ');
                   return (
                     <div key={event.id || `event-${index}`} className={`event-item ${t}`}>
-                      <div className="event-time" title="Match minute">{minuteDisplay !== '' ? `${minuteDisplay}'` : ''}</div>
+                      <div className="event-time" title="Match minute">
+                        {crest && (
+                          <img className="event-time-crest" src={crest} alt={`${teamName || 'Team'} crest`} />
+                        )}
+                        <span className="event-minute-text">{minuteDisplay !== '' ? `${minuteDisplay}'` : ''}</span>
+                      </div>
                       <div className="event-icon" title={label}>{label}</div>
                       <div className="event-details">
                         <div className="event-description">{descriptionText}</div>
@@ -655,15 +787,16 @@ const MatchViewer = ({ match, initialSection = 'details', onBack, onAddToWatchli
                     </div>
                   );
                 })}
-            </div>
-          ) : (
-            <div className="no-events">
-              <p>No events available for this match</p>
-              {displayMatch.status === 'scheduled' && (
-                <p>Events will appear here once the match starts</p>
-              )}
-            </div>
-          )}
+              </div>
+            ) : (
+              <div className="no-events">
+                <p>No events available for this match</p>
+                {displayMatch.status === 'scheduled' && (
+                  <p>Events will appear here once the match starts</p>
+                )}
+              </div>
+            )
+          ) : null}
           
           <div className="event-comments">
             <h4>Report Event Error</h4>

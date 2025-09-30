@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { useUser } from '@clerk/clerk-react';
+import { apiClient } from '../../lib/api';
 import { useLiveSports } from '../../hooks/useLiveSports';
 import TeamInfo from '../TeamInfo/TeamInfo';
 import '../../styles/LiveSports.css';
 
 const LiveSports = ({ onMatchSelect }) => {
+  const { user } = useUser();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedTeam, setSelectedTeam] = useState(null);
+  const [watchlistIds, setWatchlistIds] = useState(new Set());
   
   useEffect(() => {
     let timerId;
@@ -35,6 +39,22 @@ const LiveSports = ({ onMatchSelect }) => {
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);
+  
+  // Load user's watchlist when user changes
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!user) { setWatchlistIds(new Set()); return; }
+      try {
+        const res = await apiClient.getUserWatchlist(user.id);
+        const ids = new Set((res.data || []).map(i => String(i.matchId)));
+        if (!cancelled) setWatchlistIds(ids);
+      } catch (e) {
+        if (!cancelled) setWatchlistIds(new Set());
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
   
   const { 
     sportsData, 
@@ -129,6 +149,7 @@ const LiveSports = ({ onMatchSelect }) => {
   const getStatusBadge = (status) => {
     const statusConfig = {
       live: { text: 'LIVE', className: 'ls-status-live' },
+      paused: { text: 'PAUSED', className: 'ls-status-paused' },
       final: { text: 'FINAL', className: 'ls-status-final' },
       finished: { text: 'FINAL', className: 'ls-status-final' },
       scheduled: { text: 'SCHEDULED', className: 'ls-status-scheduled' },
@@ -225,6 +246,14 @@ const LiveSports = ({ onMatchSelect }) => {
                     getStatusBadge={getStatusBadge}
                     formatDate={formatDate}
                     formatTime={formatTime}
+                    inWatchlist={watchlistIds.has(String(game.id ?? game._id ?? game.matchId))}
+                    onWatchlistAdded={(mid) => {
+                      setWatchlistIds(prev => {
+                        const next = new Set(prev);
+                        next.add(String(mid));
+                        return next;
+                      });
+                    }}
                   />
                 ))}
               </div>
@@ -262,13 +291,24 @@ const MatchCard = React.memo(function MatchCard({
   onTeamSelect,
   getStatusBadge, 
   formatDate, 
-  formatTime 
+  formatTime,
+  inWatchlist,
+  onWatchlistAdded,
 }) {
+  const { user } = useUser();
   const [homeScore, setHomeScore] = useState(game.homeScore);
   const [awayScore, setAwayScore] = useState(game.awayScore);
   const [showGoalAnimation, setShowGoalAnimation] = useState(false);
   const [scoringTeam, setScoringTeam] = useState(null);
   const [scoreUpdating, setScoreUpdating] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [added, setAdded] = useState(!!inWatchlist);
+
+  // Keep local state in sync with parent-provided watchlist status
+  useEffect(() => {
+    setAdded(!!inWatchlist);
+  }, [inWatchlist]);
 
   // Derive minute if live and missing
   let displayMinute = game.minute;
@@ -310,7 +350,7 @@ const MatchCard = React.memo(function MatchCard({
     }
   };
 
-  if ((statusKey === 'live' || statusKey === 'in_play' || statusKey === 'inplay') && (displayMinute == null || displayMinute === '')) {
+  if ((statusKey === 'live' || statusKey === 'in_play' || statusKey === 'inplay' || statusKey === 'paused') && (displayMinute == null || displayMinute === '')) {
     // Try to compute from utcDate
     if (game.utcDate) {
       const startMs = Date.parse(game.utcDate);
@@ -326,7 +366,34 @@ const MatchCard = React.memo(function MatchCard({
       className="ls-match-card ls-clickable"
       data-testid={`match-${game.id ?? ''}`}
       onClick={() => onSelect(game)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
+      {/* Hover action: Add to Watchlist */}
+      {hovered && user && !added && (
+        <button
+          className="ls-watchlist-btn"
+          disabled={adding}
+          title="Add match to your watchlist"
+          onClick={async (e) => {
+            e.stopPropagation();
+            try {
+              setAdding(true);
+              await apiClient.addUserMatch(user.id, game);
+              setAdded(true);
+              const mid = game.id ?? game._id ?? game.matchId;
+              if (onWatchlistAdded && mid != null) onWatchlistAdded(mid);
+            } catch (err) {
+              console.error('Add to watchlist failed', err);
+              alert('Failed to add to watchlist');
+            } finally {
+              setAdding(false);
+            }
+          }}
+        >
+          {adding ? 'Adding…' : '+ Watchlist'}
+        </button>
+      )}
       <div className="ls-match-header">
         <div className="ls-comp-left">
           <span className="ls-competition">
@@ -354,7 +421,7 @@ const MatchCard = React.memo(function MatchCard({
             <div className="ls-goal-animation">⚽</div>
           )}
           <span className={`ls-team-score ${scoreUpdating && scoringTeam === 'home' ? 'ls-score-updating' : ''}`}>
-            {(['live','in_play','inplay'].includes((game.status||'').toLowerCase()) && homeScore === '-') ? 0 : homeScore}
+            {(['live','in_play','inplay','paused'].includes((game.status||'').toLowerCase()) && homeScore === '-') ? 0 : homeScore}
           </span>
         </div>
 
@@ -374,7 +441,7 @@ const MatchCard = React.memo(function MatchCard({
             <div className="ls-goal-animation">⚽</div>
           )}
           <span className={`ls-team-score ${scoreUpdating && scoringTeam === 'away' ? 'ls-score-updating' : ''}`}>
-            {(['live','in_play','inplay'].includes((game.status||'').toLowerCase()) && awayScore === '-') ? 0 : awayScore}
+            {(['live','in_play','inplay','paused'].includes((game.status||'').toLowerCase()) && awayScore === '-') ? 0 : awayScore}
           </span>
         </div>
       </div>
@@ -400,7 +467,7 @@ const MatchCard = React.memo(function MatchCard({
           )}
         </div>
         <div className="ls-meta-right">
-          {(['live','in_play','inplay'].includes(statusKey) && displayMinute != null && displayMinute !== '') && (
+          {(['live','in_play','inplay','paused'].includes(statusKey) && displayMinute != null && displayMinute !== '') && (
             <span className="ls-match-time">{displayMinute}'</span>
           )}
           {game.venue && game.venue !== 'TBD' && <span className="ls-venue">{game.venue}</span>}

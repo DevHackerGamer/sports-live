@@ -43,7 +43,8 @@ describe('Dashboard', () => {
     render(<Dashboard />);
     // Admin buttons in header
     expect(screen.getByText('Setup')).toBeInTheDocument();
-    expect(screen.getByText('Live Input')).toBeInTheDocument();
+    // Live Input should NOT be visible until a match is selected
+    expect(screen.queryByText('Live Input')).not.toBeInTheDocument();
     expect(screen.getByText('Reports')).toBeInTheDocument();
   });
 
@@ -69,6 +70,20 @@ describe('Dashboard', () => {
     render(<Dashboard />);
     fireEvent.click(screen.getByText('Select Match'));
     expect(screen.getByText('MatchViewer: 1')).toBeInTheDocument();
+    // Live Input tab should now appear for admins
+    expect(screen.getByText('Live Input')).toBeInTheDocument();
+  });
+
+  test('can switch to Live Input after selecting a match', () => {
+    render(<Dashboard />);
+    // Initially hidden
+    expect(screen.queryByText('Live Input')).not.toBeInTheDocument();
+    // Select a match which makes Live Input visible
+    fireEvent.click(screen.getByText('Select Match'));
+    expect(screen.getByText('MatchViewer: 1')).toBeInTheDocument();
+    // Live Input visible and navigable
+    fireEvent.click(screen.getByText('Live Input'));
+    expect(screen.getByText('LiveInput')).toBeInTheDocument();
   });
 
   test('clicking About shows AboutUs section', () => {

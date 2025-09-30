@@ -1,0 +1,164 @@
+/* MatchStatistics.css — styles specific to MatchStatistics component */
+
+/* Base container styling is primarily in MatchViewer.css */
+
+/* Reorder layout so team names appear at the top (under the title) */
+.match-statistics {
+	display: grid;
+	grid-template-areas:
+		"title"
+		"teams"
+		"stats"
+		"ts";
+	row-gap: 1rem;
+}
+
+.match-statistics > h3 {
+	grid-area: title;
+}
+
+.match-statistics > .team-labels {
+	grid-area: teams;
+}
+
+.match-statistics > .stats-container {
+	grid-area: stats;
+}
+
+.match-statistics > .stats-timestamp {
+	grid-area: ts;
+}
+
+.match-statistics .loading,
+.match-statistics .error,
+.match-statistics .no-stats {
+	text-align: center;
+	padding: 1rem;
+	color: var(--dark-text, rgba(255,255,255,0.8));
+}
+
+.match-statistics .error {
+	background: rgba(230, 57, 70, 0.08);
+	border: 1px solid var(--primary, #e63946);
+	border-radius: var(--radius-sm, 6px);
+}
+
+.match-statistics .stats-container {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+}
+
+.match-statistics .stat-row {
+	display: grid;
+	grid-template-columns: minmax(44px, 72px) 1fr minmax(44px, 72px);
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.75rem 0.75rem;
+	border: 1px solid var(--dark-border, rgba(255,255,255,0.08));
+	background: var(--dark-card, rgba(255,255,255,0.03));
+	border-radius: var(--radius-md, 10px);
+	box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.15));
+}
+
+/* spacing now handled by container gap; border-bottom removed */
+
+.match-statistics .stat-home-value,
+.match-statistics .stat-away-value {
+	font-weight: 700;
+	color: var(--dark-text, #e5e7eb);
+	font-variant-numeric: tabular-nums;
+}
+
+.match-statistics .stat-home-value {
+	text-align: left;
+}
+
+.match-statistics .stat-away-value {
+	text-align: right;
+}
+
+.match-statistics .stat-content {
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+}
+
+.match-statistics .stat-label {
+	font-size: 0.9rem;
+	letter-spacing: 0.3px;
+	color: rgba(255,255,255,0.8);
+	text-transform: capitalize;
+	text-align: center; /* center the stat heading/label */
+}
+
+/* Dual-sided bar for percentage-based stats (e.g., possession) */
+.match-statistics .stat-bar-container {
+	position: relative;
+	height: 10px;
+	background: rgba(255, 255, 255, 0.1);
+	border-radius: 6px;
+	overflow: hidden;
+}
+
+.match-statistics .stat-bar {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	transition: width 0.4s ease;
+}
+
+.match-statistics .stat-bar-home {
+	left: 0;
+	background: var(--gradient-primary, linear-gradient(90deg, #e63946, #ff7b86));
+}
+
+.match-statistics .stat-bar-away {
+	right: 0;
+	background: var(--primary-light, #ff7b86);
+	opacity: 0.9;
+}
+
+/* Team labels below the grid */
+.match-statistics .team-labels {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 0.25rem 0.5rem;
+	margin-top: 0.25rem;
+	color: rgba(255,255,255,0.8);
+	font-size: 0.95rem;
+}
+
+.match-statistics .team-label-home {
+	text-align: left;
+}
+
+.match-statistics .team-label-away {
+	text-align: right;
+}
+
+.match-statistics .stats-timestamp {
+	margin-top: 1rem;
+	font-size: 0.75rem;
+	color: rgba(255,255,255,0.6);
+	text-align: right;
+}
+
+/* Responsive tweaks */
+@media (max-width: 600px) {
+	.match-statistics .stat-row {
+		grid-template-columns: minmax(36px, 56px) 1fr minmax(36px, 56px);
+		gap: 0.5rem;
+		padding: 0.6rem 0.6rem;
+	}
+
+	.match-statistics .stat-label {
+		font-size: 0.85rem;
+	}
+
+	.match-statistics .stat-bar-container {
+		height: 8px;
+	}
+}
+

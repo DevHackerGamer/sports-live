@@ -41,6 +41,26 @@ describe('LiveInput component', () => {
     expect(screen.queryByText(/No events recorded yet/i)).not.toBeInTheDocument();
     expect(screen.getByText(/Test Player/)).toBeInTheDocument();
   });
+
+  test('allows editing event minute inline', () => {
+    render(<LiveInput isAdmin match={sampleMatch} />);
+    // Minute button shows current minute (0 initially)
+    const minuteBtn = screen.getByRole('button', { name: /click to edit minute/i });
+    expect(minuteBtn).toBeInTheDocument();
+    // Click to edit
+    minuteBtn.click();
+    const minuteInput = screen.getByLabelText(/edit event minute/i);
+    expect(minuteInput).toBeInTheDocument();
+    // Change to 12 and blur (confirm)
+    fireEvent.change(minuteInput, { target: { value: '12' } });
+    fireEvent.blur(minuteInput);
+    // Add an event
+    const playerInput = screen.getByPlaceholderText(/Player name/i);
+    fireEvent.change(playerInput, { target: { value: 'Edited Minute Scorer' } });
+    fireEvent.click(screen.getByText(/Add Event/i));
+    // Expect timeline to contain "12'" for the event time
+    expect(screen.getByText(/Edited Minute Scorer/)).toBeInTheDocument();
+  });
 });
 
 // Minimal test to assert fallback placeholder player appears when no roster found for a famous club.

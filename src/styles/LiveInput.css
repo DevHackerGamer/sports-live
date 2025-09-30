@@ -266,7 +266,18 @@ textarea {
 .event-time {
   font-weight: 600;
   color: var(--primary);
-  width: 50px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 50px;
+}
+
+/* Ensure the crest does not cover the minute and has a consistent size */
+.event-time .event-time-crest {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  border-radius: 50%;
 }
 
 .event-type {
@@ -301,5 +312,115 @@ textarea {
 
   .form-row {
     flex-direction: column;
+  }
+}
+
+/* Match Statistics Panel */
+.match-statistics-panel {
+  background: var(--dark-card);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-top: 2rem;
+  border: 1px solid var(--dark-border);
+}
+
+.match-statistics-panel h3 {
+  color: var(--primary);
+  margin-bottom: 1rem;
+  text-align: center;
+  font-family: 'Playfair Display', serif;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.stat-category {
+  background: var(--dark-bg);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  border: 1px solid var(--dark-border);
+}
+
+.stat-category h4 {
+  color: var(--primary-light);
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.stat-row:last-child {
+  margin-bottom: 0;
+}
+
+.stat-row label {
+  font-size: 0.9rem;
+  color: var(--dark-text);
+  font-weight: 500;
+}
+
+.stat-row input[type="number"] {
+  width: 60px;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--dark-border);
+  border-radius: var(--radius-sm);
+  background: var(--dark-bg);
+  color: var(--dark-text);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.stat-row input[type="number"]:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
+}
+
+.stat-row input[type="number"]::-webkit-outer-spin-button,
+.stat-row input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.stat-row input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.stats-control {
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+/* Responsive adjustments for statistics panel */
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .stat-row {
+    grid-template-columns: 1fr 50px 50px;
+    gap: 0.25rem;
+  }
+  
+  .stat-row label {
+    font-size: 0.8rem;
+  }
+  
+  .stat-row input[type="number"] {
+    width: 50px;
+    font-size: 0.8rem;
   }
 }

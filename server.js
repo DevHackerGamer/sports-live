@@ -64,6 +64,7 @@ app.all('/api/matches', delegate('./api/matches.js'));
 app.all('/api/matches/:id', delegate('./api/matches.js'));
 app.all('/api/matches/:id/events', delegate('./api/matches.js'));
 app.all('/api/matches/:id/events/:eventId', delegate('./api/matches.js'));
+app.all('/api/match-statistics', delegate('./api/match-statistics.js'));
 app.all('/api/teams', delegate('./api/teams.js'));
 app.all('/api/competitions', delegate('./api/competitions.js'));
 app.all('/api/users/:userId/favorites', delegate('./api/users.js'));
@@ -75,6 +76,8 @@ app.all('/api/display-state', delegate('./api/display-state.js'));
 app.all('/api/players', delegate('./api/players.js'));
 app.all('/api/favorite-teams', delegate('./api/favorite-teams.js'));
 app.all('/api/auth-me', delegate('./api/auth-me.js'));
+// User watchlist (matches)
+app.all('/api/user-matches', delegate('./api/user-matches.js'));
 
 // to manage created matches
 // RESTful CRUD for createdMatches

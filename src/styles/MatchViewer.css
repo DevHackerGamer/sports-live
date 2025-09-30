@@ -161,11 +161,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 1rem;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
-  padding: 1rem;
-  box-shadow: var(--shadow-sm);
 }
 
 .team-logo img {
@@ -361,6 +356,185 @@
   font-family: "Playfair Display", serif;
 }
 
+/* Horizontal Minute Timeline */
+.timeline-section {
+  margin-bottom: 1.5rem;
+}
+
+.timeline-legend {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  color: rgba(255,255,255,0.8);
+}
+
+.timeline-legend .legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.6rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--dark-border);
+  border-radius: 999px;
+}
+
+.timeline-legend img,
+.timeline-legend .legend-placeholder {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: contain;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.06);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.timeline-legend .legend-side {
+  color: rgba(255,255,255,0.5);
+  font-size: 0.8rem;
+}
+
+.timeline-wrapper {
+  position: relative;
+  height: 120px; /* space for markers above and below */
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--dark-border);
+  border-radius: var(--radius-md);
+  overflow: visible;
+}
+
+.timeline-line {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.2), var(--primary), rgba(255,255,255,0.2));
+  transform: translateY(-50%);
+}
+
+.timeline-tick {
+  position: absolute;
+  top: 50%;
+  width: 2px;
+  height: 10px;
+  background: rgba(255,255,255,0.35);
+  transform: translate(-0.5px, -50%);
+}
+
+.timeline-tick.major {
+  height: 18px;
+  background: rgba(255,255,255,0.6);
+}
+
+.timeline-tick span {
+  position: absolute;
+  top: 12px;
+  transform: translateX(-50%);
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.7);
+}
+
+.timeline-marker {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.timeline-marker img {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: contain;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.timeline-marker .marker-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 3px rgba(230,57,70,0.25);
+}
+
+/* Position markers above or below based on side */
+.timeline-marker.home {
+  transform: translate(-50%, calc(-50% - 30px));
+}
+
+.timeline-marker.away {
+  transform: translate(-50%, calc(-50% + 30px));
+  flex-direction: column-reverse; /* caret appears above crest */
+}
+
+/* Pronounced V-caret pointing toward the line */
+.timeline-marker .marker-caret {
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  margin: 0; /* rely on parent gap for spacing */
+}
+
+.timeline-marker.home .marker-caret {
+  border-top: 8px solid var(--primary);
+}
+
+.timeline-marker.away .marker-caret {
+  border-bottom: 8px solid var(--primary);
+}
+
+/* Tooltips */
+.timeline-marker .marker-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translate(-50%, -8px);
+  background: rgba(0,0,0,0.85);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 6px;
+  padding: 6px 8px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 3;
+}
+
+.timeline-marker.away .marker-tooltip {
+  bottom: auto;
+  top: 100%;
+  transform: translate(-50%, 8px);
+}
+
+.timeline-marker:hover .marker-tooltip {
+  opacity: 1;
+}
+
+.marker-tooltip .tip-line.dim {
+  opacity: 0.8;
+}
+
+/* Toggle link */
+.timeline-toggle {
+  background: none;
+  border: none;
+  color: var(--primary);
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
 .events-timeline {
   display: flex;
   flex-direction: column;
@@ -403,15 +577,30 @@
 
 .event-time {
   grid-row: span 2;
-  display: flex;
+  display: inline-flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  background: var(--dark-card);
-  border-radius: 50%;
+  gap: 4px;
+  min-width: 40px;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+}
+
+.event-time .event-time-crest {
+  position: static;
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  border-radius: 50%;
+}
+
+/* Show minute text alongside crest, not behind it */
+.event-time .event-minute-text {
+  position: relative;
+  z-index: 1;
+  color: var(--dark-text);
+  line-height: 1;
 }
 
 .event-icon {

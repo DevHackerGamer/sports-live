@@ -279,30 +279,50 @@ async function getMatches(req, res) {
     const nowMs = Date.now();
     const bulkUpdates = [];
     for (const m of matches) {
-      if (m?.createdByAdmin && (m.utcDate || (m.date && m.time))) {
-        // Prefer original admin-entered local date+time to drive live clock to avoid timezone conversion drift
-        let startMs;
-        if (m.date && m.time) {
-          const local = new Date(`${m.date}T${m.time}`); // interpret as local wall time
-          startMs = local.getTime();
-        } else {
-          startMs = Date.parse(m.utcDate);
-        }
-        if (!isNaN(startMs)) {
-          const diffMin = Math.floor((nowMs - startMs) / 60000);
-          if (diffMin >= 0 && diffMin <= 90) {
-            let changed = false;
-            if (m.status !== 'IN_PLAY') { m.status = 'IN_PLAY'; changed = true; }
-            const newMinute = Math.max(1, diffMin + 1);
-            if (m.minute !== newMinute) { m.minute = newMinute; changed = true; }
-            if (changed) {
-              bulkUpdates.push({ updateOne: { filter: { id: m.id }, update: { $set: { status: m.status, minute: m.minute, lastUpdated: new Date() } } } });
-            }
-          } else if (diffMin > 90) {
-            if (m.status !== 'FINISHED' || m.minute !== 90) {
-              m.status = 'FINISHED';
-              m.minute = 90;
-              bulkUpdates.push({ updateOne: { filter: { id: m.id }, update: { $set: { status: 'FINISHED', minute: 90, lastUpdated: new Date() } } } });
+      if (m?.createdByAdmin) {
+        // If a persistent clock exists, use it as source of truth
+        if (m.clock && (typeof m.clock.elapsed === 'number' || m.clock.startedAt)) {
+          const baseElapsed = Math.max(0, Math.floor(m.clock.elapsed || 0));
+          const runningBonus = (m.clock.running && m.clock.startedAt)
+            ? Math.max(0, Math.floor((nowMs - Date.parse(m.clock.startedAt)) / 1000))
+            : 0;
+          const totalElapsed = baseElapsed + runningBonus; // seconds
+          const newMinute = Math.floor(totalElapsed / 60);
+          let newStatus = m.status;
+          if (m.clock.running) newStatus = 'IN_PLAY';
+          else if (totalElapsed > 0) newStatus = 'PAUSED';
+          else newStatus = m.status || 'TIMED';
+          let changed = false;
+          if (m.minute !== newMinute) { m.minute = newMinute; changed = true; }
+          if (m.status !== newStatus) { m.status = newStatus; changed = true; }
+          if (changed) {
+            bulkUpdates.push({ updateOne: { filter: { id: m.id }, update: { $set: { status: m.status, minute: m.minute, lastUpdated: new Date() } } } });
+          }
+        } else if (m.utcDate || (m.date && m.time)) {
+          // Legacy fallback: derive from scheduled start only if no clock set
+          let startMs;
+          if (m.date && m.time) {
+            const local = new Date(`${m.date}T${m.time}`);
+            startMs = local.getTime();
+          } else {
+            startMs = Date.parse(m.utcDate);
+          }
+          if (!isNaN(startMs)) {
+            const diffMin = Math.floor((nowMs - startMs) / 60000);
+            if (diffMin >= 0 && diffMin <= 90) {
+              let changed = false;
+              if (m.status !== 'IN_PLAY') { m.status = 'IN_PLAY'; changed = true; }
+              const newMinute = Math.max(1, diffMin + 1);
+              if (m.minute !== newMinute) { m.minute = newMinute; changed = true; }
+              if (changed) {
+                bulkUpdates.push({ updateOne: { filter: { id: m.id }, update: { $set: { status: m.status, minute: m.minute, lastUpdated: new Date() } } } });
+              }
+            } else if (diffMin > 90) {
+              if (m.status !== 'FINISHED' || m.minute !== 90) {
+                m.status = 'FINISHED';
+                m.minute = 90;
+                bulkUpdates.push({ updateOne: { filter: { id: m.id }, update: { $set: { status: 'FINISHED', minute: 90, lastUpdated: new Date() } } } });
+              }
             }
           }
         }
@@ -579,7 +599,21 @@ async function handler(req, res) {
         console.warn('Score derivation (single) failed:', e.message);
       }
 
-      if (match.createdByAdmin && (match.utcDate || (match.date && match.time))) {
+      // Prefer persisted clock if present for admin-created matches
+      if (match.createdByAdmin && match.clock && (typeof match.clock.elapsed === 'number' || match.clock.startedAt)) {
+        const nowMs = Date.now();
+        const baseElapsed = Math.max(0, Math.floor(match.clock.elapsed || 0));
+        const runningBonus = (match.clock.running && match.clock.startedAt) ? Math.max(0, Math.floor((nowMs - Date.parse(match.clock.startedAt)) / 1000)) : 0;
+        const totalElapsed = baseElapsed + runningBonus;
+        const newMinute = Math.floor(totalElapsed / 60);
+        let newStatus = match.clock.running ? 'IN_PLAY' : (totalElapsed > 0 ? 'PAUSED' : (match.status || 'TIMED'));
+        let changed = false;
+        if (match.minute !== newMinute) { match.minute = newMinute; changed = true; }
+        if (match.status !== newStatus) { match.status = newStatus; changed = true; }
+        if (changed) {
+          try { await matchesCollection.updateOne({ _id: match._id }, { $set: { status: match.status, minute: match.minute, lastUpdated: new Date() } }); } catch(e) {}
+        }
+      } else if (match.createdByAdmin && (match.utcDate || (match.date && match.time))) {
         let startMs;
         if (match.date && match.time) {
           const local = new Date(`${match.date}T${match.time}`);
@@ -926,6 +960,27 @@ async function handler(req, res) {
         const orFilters = buildIdQueries(id);
         const matchFilter = orFilters.length === 1 ? orFilters[0] : { $or: orFilters };
         const updates = req.body || {};
+        // Normalize and handle clock updates from client (LiveInput)
+        // Expected shape: { clock: { running: bool, elapsed: seconds, startedAt?: ISO }, status?, minute? }
+        if (updates.clock) {
+          const c = updates.clock;
+          const norm = { running: !!c.running };
+          if (typeof c.elapsed === 'number' && c.elapsed >= 0) norm.elapsed = Math.floor(c.elapsed);
+          if (c.startedAt) {
+            const t = Date.parse(c.startedAt);
+            if (!isNaN(t)) norm.startedAt = new Date(t).toISOString();
+          } else if (norm.running) {
+            norm.startedAt = new Date().toISOString();
+          }
+          updates.clock = norm;
+          // Also reflect computed status/minute for quick reads
+          const nowMs = Date.now();
+          const baseElapsed = Math.max(0, Math.floor(norm.elapsed || 0));
+          const runningBonus = (norm.running && norm.startedAt) ? Math.max(0, Math.floor((nowMs - Date.parse(norm.startedAt)) / 1000)) : 0;
+          const totalElapsed = baseElapsed + runningBonus;
+          updates.minute = Math.floor(totalElapsed / 60);
+          updates.status = norm.running ? 'IN_PLAY' : (totalElapsed > 0 ? 'PAUSED' : 'TIMED');
+        }
         updates.lastUpdated = new Date().toISOString();
         const result = await matchesCollection.updateOne(matchFilter, { $set: updates });
         if (!result.matchedCount) return res.status(404).json({ success: false, error: 'Match not found' });
@@ -968,6 +1023,19 @@ async function handler(req, res) {
         const matchFilter = orFilters.length === 1 ? orFilters[0] : { $or: orFilters };
         const result = await matchesCollection.deleteOne(matchFilter);
         if (!result.deletedCount) return res.status(404).json({ success: false, error: 'Match not found or not admin-created' });
+        
+        // Also delete associated match statistics
+        try {
+          const db = await getDatabase();
+          const statsCollection = db.collection('Match_Statistics');
+          const matchId = id;
+          await statsCollection.deleteOne({ matchId });
+          console.log(`Deleted match statistics for match ${matchId}`);
+        } catch (error) {
+          console.error('Error deleting match statistics:', error);
+          // Don't fail the match deletion if statistics deletion fails
+        }
+        
         return res.status(200).json({ success: true, deleted: true });
       }
 

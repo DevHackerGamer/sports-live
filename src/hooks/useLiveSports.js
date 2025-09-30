@@ -14,6 +14,25 @@ export const useLiveSports = (updateInterval = 120000) => {
   const fetchSportsData = useCallback(async () => {
     try {
       setError(null);
+      
+      // Clean up expired status overrides
+      try {
+        const overrides = JSON.parse(localStorage.getItem('match-status-overrides') || '{}');
+        const now = Date.now();
+        const cleaned = {};
+        let hasExpired = false;
+        for (const [matchId, override] of Object.entries(overrides)) {
+          if (override.expires > now) {
+            cleaned[matchId] = override;
+          } else {
+            hasExpired = true;
+          }
+        }
+        if (hasExpired) {
+          localStorage.setItem('match-status-overrides', JSON.stringify(cleaned));
+        }
+      } catch {}
+      
       if (process.env.NODE_ENV !== 'production' && process.env.DEBUG_LIVE_SPORTS) {
         console.log('[liveSports] fetching window');
       }
@@ -29,14 +48,22 @@ export const useLiveSports = (updateInterval = 120000) => {
         if (isActiveRef.current) {
           // Transform data to match the expected format
           const transformedGames = (matchesResponse.data || []).map(match => {
+            // Check for temporary status overrides (for immediate UI updates)
+            let statusOverride = null;
+            try {
+              const overrides = JSON.parse(localStorage.getItem('match-status-overrides') || '{}');
+              const matchId = match.id || match._id;
+              if (overrides[matchId] && overrides[matchId].expires > Date.now()) {
+                statusOverride = overrides[matchId].status;
+                console.log('Applying status override for match', matchId, ':', statusOverride);
+              }
+            } catch {}
+
             const normalizeTeam = (t) => {
-              if (!t) return { name: 'Unknown' };
-              if (typeof t === 'string') return { name: t };
+              if (!t) return { name: 'TBD', shortName: 'TBD' };
+              if (typeof t === 'string') return { name: t, shortName: t };
               return {
-                id: t.id,
-                name: t.name || (typeof t === 'string' ? t : undefined) || 'Unknown',
-                crest: t.crest,
-                tla: t.tla,
+                name: t.name || t.shortName || 'TBD',
                 shortName: t.shortName
               };
             };
@@ -48,9 +75,32 @@ export const useLiveSports = (updateInterval = 120000) => {
             if (!displayUtc && isAdmin && match.date && match.time) {
               displayUtc = new Date(`${match.date}T${match.time}`).toISOString();
             }
-            const rawStatus = match.status || 'scheduled';
-            let canonicalStatus = rawStatus.toUpperCase() === 'IN_PLAY' ? 'live' : rawStatus.toLowerCase();
-            if (canonicalStatus === 'timed') canonicalStatus = 'scheduled';
+            
+            const rawStatus = statusOverride || match.status || 'scheduled';
+            let canonicalStatus = rawStatus.toLowerCase();
+            
+            // Handle status mapping with priority for finished states
+            if (rawStatus.toUpperCase() === 'FINISHED') {
+              canonicalStatus = 'final';
+            } else if (rawStatus.toUpperCase() === 'IN_PLAY') {
+              canonicalStatus = 'live';
+            } else if (canonicalStatus === 'timed') {
+              canonicalStatus = 'scheduled';
+            } else if (canonicalStatus === 'finished') {
+              canonicalStatus = 'final';
+            }
+            
+            // Double-check: if we have a match_end event, force final status
+            if (match.events && Array.isArray(match.events)) {
+              const hasMatchEnd = match.events.some(e => 
+                (e.type === 'match_end' || e.type === 'matchend') ||
+                (e.eventType === 'match_end' || e.eventType === 'matchend')
+              );
+              if (hasMatchEnd) {
+                canonicalStatus = 'final';
+                console.log('Found match_end event, forcing final status for match:', match.id);
+              }
+            }
             return {
               id: match.id || match._id,
               homeTeam: normalizeTeam(match.homeTeam),
@@ -178,9 +228,40 @@ export const useLiveSports = (updateInterval = 120000) => {
     isActiveRef.current = true;
     startUpdates();
 
+    // Listen for cross-tab refresh signals (BroadcastChannel + storage fallback)
+    let bc;
+    try {
+      if ('BroadcastChannel' in window) {
+        bc = new BroadcastChannel('sports-live');
+        bc.onmessage = (ev) => {
+          try {
+            const data = ev?.data || ev;
+            console.log('BroadcastChannel message received:', data);
+            if (data && data.type === 'matches-updated') {
+              // Force immediate refresh for status changes
+              if (data.forceRefresh || data.newStatus) {
+                console.log('Force refreshing due to status change:', data.newStatus);
+              }
+              refreshData();
+            }
+          } catch {}
+        };
+      }
+    } catch {}
+    const onStorage = (e) => {
+      if (!e) return;
+      if (e.key === 'sports:refresh' || e.key === 'sports:force-refresh') {
+        console.log('Storage refresh triggered:', e.key);
+        refreshData();
+      }
+    };
+    try { window.addEventListener('storage', onStorage); } catch {}
+
     return () => {
       isActiveRef.current = false;
       stopUpdates();
+      try { window.removeEventListener('storage', onStorage); } catch {}
+      try { if (bc) bc.close(); } catch {}
     };
   }, [startUpdates, stopUpdates]);
 

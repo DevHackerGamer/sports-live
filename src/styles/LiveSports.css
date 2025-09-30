@@ -439,6 +439,34 @@
   transform: scale(1.05);
 }
 
+/* Watchlist hover button on match cards */
+.ls-match-card .ls-watchlist-btn {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  z-index: 2;
+  padding: 6px 10px;
+  font-size: 12px;
+  border: none;
+  border-radius: 6px;
+  background: var(--primary, #4f46e5);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.15s ease, transform 0.15s ease, background 0.2s ease;
+}
+
+.ls-match-card:hover .ls-watchlist-btn {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ls-match-card .ls-watchlist-btn:disabled {
+  background: #777;
+  cursor: default;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .ls-live-sports {

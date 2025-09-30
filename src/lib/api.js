@@ -106,6 +106,32 @@ class ApiClient {
       method: 'DELETE',
     });
   }
+
+  // Match Statistics API
+  async getMatchStatistics(matchId) {
+    return this.request(`/api/match-statistics?matchId=${encodeURIComponent(matchId)}`);
+  }
+
+  async createMatchStatistics(matchId, statistics) {
+    return this.request('/api/match-statistics', {
+      method: 'POST',
+      body: { matchId, ...statistics },
+    });
+  }
+
+  async updateMatchStatistics(matchId, statistics) {
+    return this.request('/api/match-statistics', {
+      method: 'PUT',
+      body: { matchId, ...statistics },
+    });
+  }
+
+  async deleteMatchStatistics(matchId) {
+    return this.request(`/api/match-statistics?matchId=${encodeURIComponent(matchId)}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Reports API - recognize change`
 async getReports(id) {
   if (id) {
@@ -203,6 +229,27 @@ async deleteReport(id) {
     if (params.endDate) qs.append('endDate', params.endDate);
     const query = qs.toString();
     return this.request(`/api/event-log${query ? '?' + query : ''}`);
+  }
+
+  // User Watchlist (Matches)
+  async getUserWatchlist(userId) {
+    const params = new URLSearchParams();
+    if (userId) params.append('userId', userId);
+    return this.request(`/api/user-matches?${params.toString()}`);
+  }
+
+  async addUserMatch(userId, match) {
+    const matchId = match?.id || match?._id || match?.matchId;
+    if (!matchId) throw new Error('matchId required');
+    return this.request('/api/user-matches', {
+      method: 'POST',
+      body: { userId, matchId, match },
+    });
+  }
+
+  async removeUserMatch(userId, matchId) {
+    const qs = new URLSearchParams({ userId, matchId: String(matchId) });
+    return this.request(`/api/user-matches?${qs.toString()}`, { method: 'DELETE' });
   }
 }
 

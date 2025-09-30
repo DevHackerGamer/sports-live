@@ -37,7 +37,7 @@
     "start:prod": "node server.js",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d build",
-    "dev": "concurrently -k -n server,ui -c green,cyan \"PORT=8080 node server.js\" \"react-scripts start\""
+    "dev": "concurrently -k -n server,ui -c green,cyan \"PORT=8080 nodemon --watch server.js --watch api --watch lib --ext js server.js\" \"react-scripts start\""
   },
   "eslintConfig": {
     "extends": [
@@ -66,6 +66,7 @@
     "eslint-plugin-prettier": "^5.5.4",
     "eslint-plugin-react": "^7.37.5",
     "gh-pages": "^6.3.0",
+    "nodemon": "^3.1.0",
     "http-proxy-middleware": "^3.0.5",
     "node-mocks-http": "^1.17.2",
     "react-scripts": "^5.0.1"
