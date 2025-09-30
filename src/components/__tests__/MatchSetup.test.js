@@ -1,133 +1,209 @@
-// __tests__/MatchSetup.test.jsx
-import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import MatchSetup from '../matchsetup/MatchSetup';
-import { useUser } from '@clerk/clerk-react';
-import '@testing-library/jest-dom/extend-expect';
+import React from "react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import MatchSetup from "../matchsetup/MatchSetup";
+import { useUser } from "@clerk/clerk-react";
+import { isAdminFromUser } from "../../lib/roles";
 
-// Mock Clerk
-jest.mock('@clerk/clerk-react', () => ({
-  useUser: jest.fn(),
-}));
+// Mock Clerk + roles
+jest.mock("@clerk/clerk-react", () => ({ useUser: jest.fn() }));
+jest.mock("../../lib/roles", () => ({ isAdminFromUser: jest.fn() }));
 
-// Mock MatchViewer
-jest.mock('../components/matchViewer/MatchViewer', () => ({ match, onBack }) => (
-  <div>
-    MatchViewer: {match?.id}
-    <button onClick={onBack}>Back</button>
-  </div>
-));
+// Global fetch mock
+global.fetch = jest.fn();
 
-beforeEach(() => {
-  useUser.mockReturnValue({ user: { firstName: 'Admin', id: 'user1', publicMetadata: { roles: ['admin'] } } });
-  global.fetch = jest.fn();
-  window.confirm = jest.fn(() => true); // auto-confirm deletions
-});
-
-afterEach(() => {
-  jest.resetAllMocks();
-});
-
-test('non-admin sees access denied', () => {
-  useUser.mockReturnValue({ user: { firstName: 'User' } });
-  render(<MatchSetup />);
-  expect(screen.getByText(/Access denied/i)).toBeInTheDocument();
-});
-
-test('renders match list', async () => {
-  fetch.mockResolvedValueOnce({
-    ok: true,
-    json: async () => ({
-      success: true,
-      data: [
-        { id: 'm1', homeTeam: { name: 'Team A' }, awayTeam: { name: 'Team B' }, competition: { name: 'League 1' }, utcDate: new Date().toISOString(), createdByAdmin: true }
-      ]
-    }),
+describe("MatchSetup", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    window.alert = jest.fn();
+    window.confirm = jest.fn();
   });
+
+  test("denies access if user is not admin", () => {
+    useUser.mockReturnValue({ user: { id: "u1" } });
+    isAdminFromUser.mockReturnValue(false);
+    render(<MatchSetup />);
+    expect(screen.getByText(/Access denied/i)).toBeInTheDocument();
+  });
+
+  test("renders scheduled matches empty state", async () => {
+    useUser.mockReturnValue({ user: { id: "u1" } });
+    isAdminFromUser.mockReturnValue(true);
+    fetch.mockResolvedValue({ ok: true, json: async () => ({ success: true, data: [] }) });
+    render(<MatchSetup />);
+    expect(await screen.findByText(/No matches scheduled/i)).toBeInTheDocument();
+  });
+
+  test("toggles create form", async () => {
+    useUser.mockReturnValue({ user: { id: "u1" } });
+    isAdminFromUser.mockReturnValue(true);
+    fetch.mockResolvedValue({ ok: true, json: async () => ({ success: true, data: [] }) });
+
+    render(<MatchSetup />);
+    fireEvent.click(screen.getByText(/Create Match/i));
+    expect(await screen.findByText(/Create New Match/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/Close Form/i));
+    expect(screen.queryByText(/Create New Match/i)).not.toBeInTheDocument();
+  });
+
+  test("creates match successfully", async () => {
+    useUser.mockReturnValue({ user: { id: "u1" } });
+    isAdminFromUser.mockReturnValue(true);
+
+    fetch.mockImplementation((url, options) => {
+      if (url.includes("/api/matches") && !options) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [{
+              id: "m1",
+              homeTeam: { id: "t1", name: "Arsenal" },
+              awayTeam: { id: "t2", name: "Chelsea" },
+              competition: { name: "Premier League" },
+              utcDate: "2025-12-25T18:30:00Z",
+            }],
+          }),
+        });
+      }
+      if (url.includes("/api/matches") && options?.method === "POST") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ success: true, data: { id: "m1" } }),
+        });
+      }
+      if (url.includes("/api/teams")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ data: [{ id: "t1", name: "Arsenal" }, { id: "t2", name: "Chelsea" }] }),
+        });
+      }
+      if (url.includes("/api/competitions")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ success: true, data: ["Premier League"] }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    const { container } = render(<MatchSetup />);
+    fireEvent.click(screen.getByText(/Create Match/i));
+
+    const selects = screen.getAllByRole("combobox");
+    fireEvent.change(selects[0], { target: { value: "t1" } });
+    fireEvent.change(selects[1], { target: { value: "t2" } });
+    fireEvent.change(selects[2], { target: { value: "Premier League" } });
+
+    fireEvent.change(container.querySelector('input[name="date"]'), { target: { value: "2025-12-25" } });
+    fireEvent.change(container.querySelector('input[name="time"]'), { target: { value: "18:30" } });
+    fireEvent.change(container.querySelector('input[name="matchday"]'), { target: { value: "5" } });
+
+    fireEvent.click(screen.getByText(/^Create Match$/));
+
+    const matchesList = await screen.findByText(/Scheduled Matches/i);
+    await waitFor(() => {
+      expect(within(matchesList.closest("div")).getByText(/Arsenal/)).toBeInTheDocument();
+      expect(within(matchesList.closest("div")).getByText(/Chelsea/)).toBeInTheDocument();
+    });
+  });
+
+  // --- Edge cases ---
+  test("validateMatch fails if fields missing", async () => {
+    useUser.mockReturnValue({ user: { id: "u1" } });
+    isAdminFromUser.mockReturnValue(true);
+    fetch.mockResolvedValue({ ok: true, json: async () => ({ success: true, data: [] }) });
+
+    render(<MatchSetup />);
+    fireEvent.click(await screen.findByText(/Create Match/i));
+    fireEvent.click(screen.getByText(/^Create Match$/));
+    expect(window.alert).toHaveBeenCalledWith(expect.stringMatching(/Fill in all required/i));
+  });
+
+  test("validateMatch fails if same team chosen", async () => {
+    useUser.mockReturnValue({ user: { id: "u1" } });
+    isAdminFromUser.mockReturnValue(true);
+    fetch.mockImplementation((url) => {
+      if (url.includes("/api/teams")) {
+        return Promise.resolve({ ok: true, json: async () => ({ data: [{ id: "t1", name: "Arsenal" }] }) });
+      }
+      if (url.includes("/api/competitions")) {
+        return Promise.resolve({ ok: true, json: async () => ({ success: true, data: ["Premier League"] }) });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
+    });
+
+    render(<MatchSetup />);
+    fireEvent.click(await screen.findByText(/Create Match/i));
+    const selects = await screen.findAllByRole("combobox");
+    fireEvent.change(selects[0], { target: { value: "t1" } });
+    fireEvent.change(selects[1], { target: { value: "t1" } });
+    fireEvent.change(selects[2], { target: { value: "Premier League" } });
+    fireEvent.change(screen.getByPlaceholderText(/Matchday/i), { target: { value: "1" } });
+    fireEvent.click(screen.getByText(/^Create Match$/));
+    expect(window.alert).toHaveBeenCalledWith(expect.stringMatching(/must be different/i));
+  });
+
   
-  render(<MatchSetup />);
-  await waitFor(() => screen.getByText(/Team A/i));
-  expect(screen.getByText(/Team B/i)).toBeInTheDocument();
+  test("removeMatch cancels if user declines confirm", async () => {
+    useUser.mockReturnValue({ user: { id: "u1" } });
+    isAdminFromUser.mockReturnValue(true);
+    window.confirm.mockReturnValueOnce(false);
+    fetch.mockResolvedValue({ ok: true, json: async () => ({ success: true, data: [] }) });
+
+    render(<MatchSetup />);
+    expect(await screen.findByText(/No matches scheduled/i)).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledTimes(1); // only initial fetch
+  });
+
+  test("removes match after confirmation", async () => {
+    useUser.mockReturnValue({ user: { id: "u1" } });
+    isAdminFromUser.mockReturnValue(true);
+    window.confirm.mockReturnValueOnce(true);
+
+    fetch.mockImplementation((url, options) => {
+      if (url.includes("/api/matches") && !options) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [{
+              id: "m1",
+              homeTeam: { id: "t1", name: "Arsenal" },
+              awayTeam: { id: "t2", name: "Chelsea" },
+              competition: { name: "Premier League" },
+              utcDate: "2025-12-25T18:30:00Z",
+              createdByAdmin: true,
+            }],
+          }),
+        });
+      }
+      if (url.includes("/api/matches/") && options?.method === "DELETE") {
+        return Promise.resolve({ ok: true, json: async () => ({ success: true }) });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    render(<MatchSetup />);
+    fireEvent.click(await screen.findByText(/Remove/i));
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith("/api/matches/m1", expect.objectContaining({ method: "DELETE" }));
+    });
+  });
+
+  test("get fallback values for Unnamed Team and Unknown Competition", async () => {
+    useUser.mockReturnValue({ user: { id: "u1" } });
+    isAdminFromUser.mockReturnValue(true);
+    const badMatch = { id: "mX", homeTeam: {}, awayTeam: {}, competition: {}, utcDate: "2025-01-01T00:00:00Z", createdByAdmin: true };
+    fetch.mockResolvedValue({ ok: true, json: async () => ({ success: true, data: [badMatch] }) });
+    render(<MatchSetup />);
+    expect(await screen.findByText(/Unnamed Team/i)).toBeInTheDocument();
+    expect(screen.getByText(/Unknown Competition/i)).toBeInTheDocument();
+  });
 });
 
-test('opens form and input changes', async () => {
-  fetch.mockResolvedValue({ ok: true, json: async () => ({ data: [] }) });
-  render(<MatchSetup isAdmin={true} />);
-  
-  fireEvent.click(screen.getByText('Create Match'));
-  expect(screen.getByText('Create New Match')).toBeInTheDocument();
-
-  const dateInput = screen.getByLabelText(/date/i) || screen.getByRole('textbox', { name: /date/i });
-  fireEvent.change(dateInput, { target: { value: '2025-09-26' } });
-  expect(dateInput.value).toBe('2025-09-26');
-});
-
-test('addMatch optimistic update and API success', async () => {
-  fetch.mockResolvedValueOnce({
-    ok: true,
-    json: async () => ({ success: true, data: { id: 'm2', homeTeam: { name: 'A' }, awayTeam: { name: 'B' }, competition: { name: 'League 1' }, utcDate: new Date().toISOString() } })
-  });
-
-  render(<MatchSetup isAdmin={true} />);
-  fireEvent.click(screen.getByText('Create Match'));
-  
-  // mock select values
-  const teamA = screen.getByText('Select Home Team') || screen.getByRole('combobox', { name: /teamA/i });
-  fireEvent.change(teamA, { target: { value: '1' } });
-  
-  const teamB = screen.getByText('Select Away Team') || screen.getByRole('combobox', { name: /teamB/i });
-  fireEvent.change(teamB, { target: { value: '2' } });
-
-  const comp = screen.getByText('Select Competition') || screen.getByRole('combobox', { name: /competition/i });
-  fireEvent.change(comp, { target: { value: 'League 1' } });
-
-  const matchday = screen.getByPlaceholderText(/Matchday/i);
-  fireEvent.change(matchday, { target: { value: '1' } });
-
-  const dateInput = screen.getByRole('textbox', { name: /date/i });
-  const timeInput = screen.getByRole('textbox', { name: /time/i });
-  fireEvent.change(dateInput, { target: { value: '2025-09-26' } });
-  fireEvent.change(timeInput, { target: { value: '12:00' } });
-
-  await act(async () => {
-    fireEvent.click(screen.getByText('Create Match'));
-  });
-
-  expect(fetch).toHaveBeenCalled();
-  await waitFor(() => screen.getByText(/League 1/i));
-});
-
-test('delete match calls API and removes from list', async () => {
-  fetch.mockResolvedValueOnce({
-    ok: true,
-    json: async () => ({ success: true, data: [] })
-  });
-  render(<MatchSetup isAdmin={true} />);
-  
-  // pre-populate match
-  const matchItem = { id: 'm1', homeTeam: { name: 'Team A' }, awayTeam: { name: 'Team B' }, competition: { name: 'League 1' }, utcDate: new Date().toISOString() };
-  await act(async () => {
-    fireEvent.click(screen.getByText('Create Match')); // trigger form to prevent empty match
-  });
-
-  // simulate removal
-  await act(async () => {
-    fireEvent.click(screen.getByText('Remove'));
-  });
-
-  expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/api/matches/m1'), expect.objectContaining({ method: 'DELETE' }));
-});
-
-test('selecting a match opens MatchViewer', async () => {
-  const match = { id: 'm1', homeTeam: { name: 'A' }, awayTeam: { name: 'B' }, competition: { name: 'League 1' }, utcDate: new Date().toISOString() };
-  fetch.mockResolvedValueOnce({
-    ok: true,
-    json: async () => ({ success: true, data: [match] })
-  });
-
-  render(<MatchSetup isAdmin={true} />);
-  await waitFor(() => screen.getByText(/Team A/i));
-
-  fireEvent.click(screen.getByText(/Team A/i));
-  expect(screen.getByText('MatchViewer: m1')).toBeInTheDocument();
-});

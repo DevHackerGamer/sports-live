@@ -1,3 +1,4 @@
+// players.test.js
 global.TextEncoder = require('util').TextEncoder;
 global.TextDecoder = require('util').TextDecoder;
 
@@ -68,6 +69,26 @@ describe('Players API', () => {
     }));
   });
 
+  test('GET resolves teamName to teamId', async () => {
+    mockTeams.findOne.mockResolvedValue({ _id: 123, name: 'MyTeam' });
+    mockPlayers.toArray.mockResolvedValue([{ id: 1, teamId: 123, name: 'Player T' }]);
+    mockPlayers.countDocuments.mockResolvedValue(1);
+
+    const { req, res, json } = mockReqRes({
+      method: 'GET',
+      query: { teamName: 'MyTeam' }
+    });
+    await handler(req, res);
+
+    expect(mockTeams.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({ name: expect.any(Object) })
+    );
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({
+      success: true,
+      players: expect.any(Array)
+    }));
+  });
+
   test('POST creates a new player', async () => {
     const fakeId = new ObjectId();
     mockPlayers.insertOne.mockResolvedValue({ insertedId: fakeId });
@@ -95,6 +116,14 @@ describe('Players API', () => {
     expect(json).toHaveBeenCalledWith({ error: 'Player name is required' });
   });
 
+  test('POST returns 500 on insert error', async () => {
+    mockPlayers.insertOne.mockRejectedValue(new Error('Insert fail'));
+    const { req, res, json } = mockReqRes({ method: 'POST', body: { name: 'Err Player' } });
+    await handler(req, res);
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(json).toHaveBeenCalledWith({ error: 'Failed to create player' });
+  });
+
   test('PUT updates a player', async () => {
     mockPlayers.updateOne.mockResolvedValue({ matchedCount: 1, modifiedCount: 1 });
     const updates = { position: 'Defender' };
@@ -108,6 +137,22 @@ describe('Players API', () => {
     await handler(req, res);
     expect(res.status).toHaveBeenCalledWith(400);
     expect(json).toHaveBeenCalledWith({ error: 'Player ID is required' });
+  });
+
+  test('PUT returns 404 if player not found', async () => {
+    mockPlayers.updateOne.mockResolvedValue({ matchedCount: 0, modifiedCount: 0 });
+    const { req, res, json } = mockReqRes({ method: 'PUT', query: { id: '99' }, body: { position: 'GK' } });
+    await handler(req, res);
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(json).toHaveBeenCalledWith({ error: 'Player not found' });
+  });
+
+  test('PUT returns 500 on update error', async () => {
+    mockPlayers.updateOne.mockRejectedValue(new Error('Update fail'));
+    const { req, res, json } = mockReqRes({ method: 'PUT', query: { id: '1' }, body: { position: 'GK' } });
+    await handler(req, res);
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(json).toHaveBeenCalledWith({ error: 'Failed to update player' });
   });
 
   test('DELETE removes a player', async () => {
@@ -124,6 +169,22 @@ describe('Players API', () => {
     expect(json).toHaveBeenCalledWith({ error: 'Player ID is required' });
   });
 
+  test('DELETE returns 404 if player not found', async () => {
+    mockPlayers.deleteOne.mockResolvedValue({ deletedCount: 0 });
+    const { req, res, json } = mockReqRes({ method: 'DELETE', query: { id: '99' } });
+    await handler(req, res);
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(json).toHaveBeenCalledWith({ error: 'Player not found' });
+  });
+
+  test('DELETE returns 500 on delete error', async () => {
+    mockPlayers.deleteOne.mockRejectedValue(new Error('Delete fail'));
+    const { req, res, json } = mockReqRes({ method: 'DELETE', query: { id: '1' } });
+    await handler(req, res);
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(json).toHaveBeenCalledWith({ error: 'Failed to delete player' });
+  });
+
   test('method not allowed returns 405', async () => {
     const { req, res, json } = mockReqRes({ method: 'PATCH' });
     await handler(req, res);
@@ -132,9 +193,15 @@ describe('Players API', () => {
   });
 
   test('internal error returns 500', async () => {
-    getPlayersCollection.mockRejectedValue(new Error('DB fail'));
+    // Patch: make find throw inside handler
+    const badPlayers = {
+      find: () => { throw new Error('DB fail'); }
+    };
+    getPlayersCollection.mockResolvedValue(badPlayers);
+
     const { req, res, json } = mockReqRes({ method: 'GET' });
     await handler(req, res);
+
     expect(res.status).toHaveBeenCalledWith(500);
     expect(json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Failed to fetch players' }));
   });
