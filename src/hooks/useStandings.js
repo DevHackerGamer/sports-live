@@ -1,33 +1,70 @@
-import { useState, useEffect } from 'react';
-import { apiClient } from '../lib/api';
+import { renderHook, waitFor } from '@testing-library/react';
+import { useLeagueStandings } from '../../hooks/useStandings';
+import { apiClient } from '../../lib/api';
 
-export function useLeagueStandings({ competition, season, type = 'TOTAL', stage = 'REGULAR_SEASON', limit = 20 }) {
-  const [standings, setStandings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+// Mock apiClient
+jest.mock('../../lib/api', () => ({
+  apiClient: {
+    getStandings: jest.fn(),
+  },
+}));
 
-  useEffect(() => {
-    if (!competition || !season) return;
+describe('useLeagueStandings', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+  });
 
-    const fetchStandings = async () => {
-      try {
-        setLoading(true);
-        const res = await apiClient.getStandings({ competition, season, type, stage, limit });
-        setStandings(res.data || []);
-        setLoading(false);
-      } catch (err) {
-        console.error('Error fetching standings:', err);
-        setError(err);
-        setLoading(false);
-      }
-    };
+  afterEach(() => {
+    jest.useRealTimers();
+  });
 
-    fetchStandings();
+  it('fetches and sets standings data', async () => {
+    const mockData = [{ team: 'Team A', points: 42 }];
+    apiClient.getStandings.mockResolvedValueOnce({ data: mockData });
 
-    // Poll every 60 seconds for updates
-    const interval = setInterval(fetchStandings, 60000);
-    return () => clearInterval(interval);
-  }, [competition, season, type, stage, limit]);
+    const { result } = renderHook(() =>
+      useLeagueStandings({ competition: 'PL', season: 2024 })
+    );
 
-  return { standings, loading, error };
-}
+    expect(result.current.loading).toBe(true);
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.standings).toEqual(mockData);
+      expect(result.current.error).toBeNull();
+    });
+  });
+
+  it('handles API error', async () => {
+    apiClient.getStandings.mockRejectedValueOnce(new Error('API failed'));
+
+    const { result } = renderHook(() =>
+      useLeagueStandings({ competition: 'PL', season: 2024 })
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.error).toBeTruthy();
+    });
+  });
+
+  it('does not fetch when competition or season missing', () => {
+    renderHook(() => useLeagueStandings({ competition: null, season: null }));
+
+    expect(apiClient.getStandings).not.toHaveBeenCalled();
+  });
+
+  it('polls data every 60 seconds', async () => {
+    const mockData = [{ team: 'Team B', points: 55 }];
+    apiClient.getStandings.mockResolvedValue({ data: mockData });
+
+    renderHook(() =>
+      useLeagueStandings({ competition: 'PL', season: 2024 })
+    );
+
+    jest.advanceTimersByTime(60000);
+
+    expect(apiClient.getStandings).toHaveBeenCalledTimes(2); // initial + poll
+  });
+});
