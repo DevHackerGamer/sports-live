@@ -77,7 +77,11 @@
       "src/components/**/*.{js,jsx}",
       "api/**/*.js",
       "!api/**/__tests__/**",
-      "!src/**/*.test.{js,jsx}"
+      "!src/**/*.test.{js,jsx}",
+       "!src/components/EventFeeds/**",
+      "!src/components/sports/**",
+      "!src/components/matchViewer/**",
+      "!src/components/liveInput/**"
     ]
   }
 }
