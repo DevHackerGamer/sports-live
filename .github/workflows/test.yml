@@ -1,0 +1,47 @@
+name: Tests and Coverage
+
+on: [push, pull_request]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18.x
+
+      # 3. Install dependencies
+      - name: Install dependencies
+        run : npm install --legacy-peer-deps
+        env:
+          NPM_CONFIG_LOGLEVEL: error
+
+      # 4. Run tests with coverage
+      - name: Run Tests with Coverage
+        id: run-tests
+        continue-on-error: true
+        run: npm run test -- --coverage
+        env:
+          CI: true
+          NODE_OPTIONS: --max-old-space-size=4096 --no-warnings
+          GENERATE_SOURCEMAP: false
+          ESLINT_NO_DEV_ERRORS: true
+          NPM_CONFIG_LOGLEVEL: error
+
+     
+      # 6. Job Summary
+      - name: Test Results Summary
+        if: always()
+        run: |
+          echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.run-tests.outcome }}" = "failure" ]; then
+            echo "⚠️ Tests failed but coverage was uploaded" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "✅ All tests passed successfully" >> $GITHUB_STEP_SUMMARY
+          fi
