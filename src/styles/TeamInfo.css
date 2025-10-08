@@ -1,4 +1,21 @@
 /* TeamInfo.css */
+
+
+:root {
+  --primary: #e63946;
+  --primary-light: #ff6b7a;
+  --dark-bg: #121212;
+  --dark-card: #1e1e1e;
+  --dark-text: #f5f5f5;
+  --dark-border: #2d2d2d;
+  --light-border: #3d3d3d;
+  --transition: all 0.3s ease;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --shadow-sm: 0 4px 12px rgba(0,0,0,0.25);
+  --shadow-md: 0 8px 24px rgba(0,0,0,0.35);
+}
+
 .team-info-container {
   padding: 2rem;
   max-width: 1200px;
@@ -143,4 +160,99 @@
     position: relative;
     margin-bottom: 1rem;
   }
+
+  
+
+
+/* Matches list */
+.team-next-matches {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Individual match card */
+.team-next-match {
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  background: var(--dark-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--dark-border);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.team-next-match:hover {
+  transform: translateY(-4px) scale(1.02);
+  border-color: var(--primary);
+  box-shadow: var(--shadow-md);
+  background: rgba(230, 57, 70, 0.05);
+}
+
+/* Match header - date & time */
+.match-date,
+.match-time {
+  font-size: 0.9rem;
+  color: var(--primary-light);
+  margin-bottom: 0.5rem;
+}
+
+/* Teams section */
+.match-teams {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-weight: 600;
+  font-size: 1rem;
+  overflow-x: auto;
+}
+
+.match-teams img.team-crest {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 50%;
+  border: 1px solid var(--light-border);
+  padding: 2px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.match-teams img.team-crest:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 8px rgba(230, 57, 70, 0.4);
+}
+
+/* VS separator */
+.match-teams::before {
+  content: "vs";
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--primary-light);
+  margin: 0 0.5rem;
+}
+
+/* Responsive tweaks */
+@media (max-width: 768px) {
+  .team-next-matches {
+    grid-template-columns: 1fr;
+  }
+
+  .match-teams {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .match-teams img.team-crest {
+    width: 24px;
+    height: 24px;
+  }
+}
+
 }

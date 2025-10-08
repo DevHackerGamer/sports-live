@@ -118,39 +118,72 @@ const TeamInfo = ({ team, onBack }) => {
         )}
         
         {activeTab === 'matches' && (
-          <div className="tab-content">
-            <h2>Upcoming Matches</h2>
-            {loadingMatches ? (
-  <p>Loading upcoming matches...</p>
-) : nextMatches.length ? (
-  <ul className="team-next-matches">
-    {nextMatches.map(match => (
-      <li key={match.id} className="team-next-match ls-clickable" onClick={() => onBack(match)}>
-        <span className="match-date">
-          {new Date(match.utcDate).toLocaleDateString([], { weekday:'short', month:'short', day:'numeric' })}
-        </span>
-        <span className="match-teams">
-          {match.homeTeam?.crest && (
-            <img src={match.homeTeam.crest} alt={`${match.homeTeam.name} crest`} className="team-crest" />
-          )}
-          {match.homeTeam?.name} vs {match.awayTeam?.name}
-          {match.awayTeam?.crest && (
-            <img src={match.awayTeam.crest} alt={`${match.awayTeam.name} crest`} className="team-crest" />
-          )}
-        </span>
-        <span className="match-time">
-          {new Date(match.utcDate).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })}
-        </span>
-      </li>
-    ))}
-  </ul>
-) : (
-  <p>No upcoming matches scheduled for {teamDetails.name}.</p>
+  <div className="tab-content">
+    <h2>Upcoming Matches</h2>
+    {loadingMatches ? (
+      <p>Loading upcoming matches...</p>
+    ) : nextMatches.length ? (
+      <div className="team-next-matches">
+        {nextMatches.map((match) => (
+          <div
+            key={match.id}
+            className="team-next-match ls-clickable"
+            onClick={() => onBack(match)} // Opens MatchViewer
+          >
+            {/* Match header: Date & Time */}
+            <div className="match-header">
+              <span className="match-date">
+                {new Date(match.utcDate).toLocaleDateString([], {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric',
+                })}
+              </span>
+              <span className="match-time">
+                {new Date(match.utcDate).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
+            </div>
+
+            {/* Teams section */}
+            <div className="match-teams">
+              <div className="team-info-match-team">
+                {match.homeTeam?.crest && (
+                  <img
+                    src={match.homeTeam.crest}
+                    alt={`${match.homeTeam.name} crest`}
+                    className="team-crest"
+                    onClick={(e) => e.stopPropagation()} // optional: prevent triggering card click
+                  />
+                )}
+                <span>{match.homeTeam?.name}</span>
+              </div>
+
+              <div className="team-info-match-vs">vs</div>
+
+              <div className="team-info-match-team">
+                {match.awayTeam?.crest && (
+                  <img
+                    src={match.awayTeam.crest}
+                    alt={`${match.awayTeam.name} crest`}
+                    className="team-crest"
+                    onClick={(e) => e.stopPropagation()} // optional
+                  />
+                )}
+                <span>{match.awayTeam?.name}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <p>No upcoming matches scheduled for {teamDetails.name}.</p>
+    )}
+  </div>
 )}
 
-          </div>
-        )}
-        
        
       </div>
     </div>
