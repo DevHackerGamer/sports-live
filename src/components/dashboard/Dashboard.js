@@ -309,6 +309,21 @@ const renderContent = () => {
     );
   }
 
+  // from match cards
+  const handleMatchSelect = (match) => {
+  setSelectedMatch(match);
+  setActiveTab('matches'); // 
+};
+
+const handleBackFromViewer = () => {
+  setSelectedMatch(null);
+  setActiveTab('leagueStandings');
+};
+
+
+
+
+
   switch (activeTab) {
     case 'home':
       return <HomeScreen />;
@@ -319,7 +334,7 @@ const renderContent = () => {
     case 'liveInput':
       return <LiveInput isAdmin={isAdmin} match={selectedMatch} onBackToMatch={() => setActiveTab('matches')} />;
     case 'leagueStandings':
-      return <LeagueView initialLeague={selectedLeague || "PL"} onBack={() => setActiveTab('home')} onTeamSelect={handleTeamSelect} />;
+      return <LeagueView initialLeague={selectedLeague || "PL"} onBack={() => setActiveTab('home')} onTeamSelect={handleTeamSelect} onMatchSelect={handleMatchSelect} />;
     case 'reports':
       return <ReportsPage isAdmin={isAdmin} />;
     case 'favorites':
