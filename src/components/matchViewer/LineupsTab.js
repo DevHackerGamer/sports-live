@@ -2,153 +2,154 @@ import React, { useEffect, useState } from 'react';
 import { apiClient } from '../../lib/api';
 import '../../styles/LineupsTab.css';
 
-const LineupsTab = ({ match }) => {
-  const [homeLineup, setHomeLineup] = useState(null);
-  const [awayLineup, setAwayLineup] = useState(null);
-  const [homePlayers, setHomePlayers] = useState([]);
-  const [awayPlayers, setAwayPlayers] = useState([]);
+const LineupsTab = ({ match, matchDetails }) => {
+  const [lineups, setLineups] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [teamLogos, setTeamLogos] = useState({ home: '', away: '' });
+  const [teamIds, setTeamIds] = useState({ home: null, away: null });
+  const [teamNames, setTeamNames] = useState({ home: '', away: '' });
 
   useEffect(() => {
     if (!match) return;
 
-    const fetchData = async () => {
-      setLoading(true);
+    const fetchLineupsAndTeams = async () => {
+     
+
       try {
-        // 1️⃣ Normalize team references
-        const homeTeamObj = match.homeTeam || { name: match.homeTeam };
-        const awayTeamObj = match.awayTeam || { name: match.awayTeam };
+        setLoading(true);
 
-        // 2️⃣ Fetch saved lineups (if any)
-        const savedLineups = await apiClient.getLineupsByMatch(match.id);
-        const lineupMap = Array.isArray(savedLineups)
-          ? savedLineups.reduce((acc, l) => {
-              acc[l.teamId] = l;
-              return acc;
-            }, {})
-          : {};
+        // 1️⃣ Determine display names
+        const displayMatchRaw = matchDetails || match;
+        const homeName = displayMatchRaw?.homeTeam?.name || displayMatchRaw?.homeTeam || '';
+        const awayName = displayMatchRaw?.awayTeam?.name || displayMatchRaw?.awayTeam || '';
+        setTeamNames({ home: homeName, away: awayName });
+       
 
-        setHomeLineup(lineupMap[homeTeamObj.id] || null);
-        setAwayLineup(lineupMap[awayTeamObj.id] || null);
+        // 2️⃣ Fetch all teams to resolve IDs & logos
+        const teamsRes = await apiClient.getTeams();
+        const teams = teamsRes.data || [];
+        
 
-        // 3️⃣ Define safe player fetch helper
-        const fetchPlayers = async (teamObj, fallbackName) => {
-          if (!teamObj && !fallbackName) return [];
-          let teamId = teamObj?.id || teamObj?._id;
-          if (teamId && typeof teamId === 'string' && /^\d+$/.test(teamId))
-            teamId = parseInt(teamId, 10);
+        const homeTeamObj = teams.find(
+          (t) => (t.name || '').toLowerCase() === homeName.toLowerCase()
+        );
+        const awayTeamObj = teams.find(
+          (t) => (t.name || '').toLowerCase() === awayName.toLowerCase()
+        );
 
-          if (teamId) {
-            try {
-              const res = await fetch(`/api/players?teamId=${encodeURIComponent(teamId)}`);
-              if (res.ok) {
-                const pdata = await res.json();
-                if (Array.isArray(pdata.players) && pdata.players.length)
-                  return pdata.players;
-              }
-            } catch (err) {
-              console.warn('Player fetch by teamId failed', teamId, err);
-            }
-          }
-          console.info(`No players found for ${fallbackName}`);
-          return [];
-        };
+        const homeTeamId = homeTeamObj?.id || homeTeamObj?._id;
+        const awayTeamId = awayTeamObj?.id || awayTeamObj?._id;
+        setTeamIds({ home: homeTeamId, away: awayTeamId });
+        
 
-        // 4️⃣ Fetch players for both teams
-        const [homeRes, awayRes] = await Promise.all([
-          fetchPlayers(homeTeamObj, homeTeamObj.name),
-          fetchPlayers(awayTeamObj, awayTeamObj.name),
-        ]);
+        // 3️⃣ Set team logos (matchDetails first, fallback to teams collection)
+        setTeamLogos({
+          home:
+            displayMatchRaw.homeTeam?.crest ||
+            displayMatchRaw.homeTeam?.logo ||
+            homeTeamObj?.crest ||
+            homeTeamObj?.logo ||
+            '',
+          away:
+            displayMatchRaw.awayTeam?.crest ||
+            displayMatchRaw.awayTeam?.logo ||
+            awayTeamObj?.crest ||
+            awayTeamObj?.logo ||
+            '',
+        });
+        console.log('Resolved team logos:', teamLogos);
 
-        setHomePlayers(homeRes);
-        setAwayPlayers(awayRes);
+        // 4️⃣ Fetch lineups from API
+        const lineupData = await apiClient.getLineupsByMatch(match.id);
+        
+
+        setLineups(lineupData || []);
+        
+
       } catch (err) {
-        console.error('❌ Error fetching lineups tab data', err);
+        ;
+        setError(err.message || 'Failed to fetch lineups');
       } finally {
         setLoading(false);
+       
       }
     };
 
-    fetchData();
-  }, [match]);
+    fetchLineupsAndTeams();
+  }, [match, matchDetails]);
 
-  const calculateAge = (dob) =>
-    dob
-      ? Math.floor(
-          (new Date() - new Date(dob)) / (1000 * 60 * 60 * 24 * 365.25)
-        )
-      : 'N/A';
+  if (loading) return <div>Loading lineups...</div>;
+  if (error) return <div>Error: {error}</div>;
+  if (!lineups.length) return <div>⚠️ No lineup data found for this match.</div>;
 
-  if (loading) return <p>Loading Lineups...</p>;
+  // Find lineups by resolved IDs
+  const homeLineup = lineups.find((l) => String(l.teamId) === String(teamIds.home));
+  const awayLineup = lineups.find((l) => String(l.teamId) === String(teamIds.away));
 
-  const renderLineupSection = (title, lineup, allPlayers) => {
-    if (!lineup && allPlayers.length === 0)
-      return <p>No data for {title}</p>;
+  const renderTable = (lineup, teamName, logo) => (
+    <div className="lineup-section">
+      <h3>
+        <img src={logo} alt={teamName} style={{ width: 32, marginRight: 8 }} />
+        {teamName}
+      </h3>
 
-    const starters = lineup?.starters || [];
-    const subs = lineup?.substitutes || [];
+      <h4>Starters</h4>
+      <table className="lineups-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Player</th>
+            <th>Position</th>
+            <th>Nationality</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(lineup?.starters || []).map((p, i) => {
+           
+            return (
+              <tr key={p._id || i}>
+                <td>{i + 1}</td>
+                <td>{p.name}</td>
+                <td>{p.position}</td>
+                <td>{p.nationality}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
 
-    return (
-      <div className="team-lineup">
-        <h3>{title}</h3>
-
-        {lineup ? (
-          <>
-            <h4>Starters</h4>
-            <div className="players-list">
-              {starters.length ? (
-                starters.map((p) => (
-                  <div key={p.playerId} className="player-card starter">
-                    <strong>{p.name}</strong> ({p.position})
-                  </div>
-                ))
-              ) : (
-                <p>No starters recorded.</p>
-              )}
-            </div>
-
-            <h4>Substitutes</h4>
-            <div className="players-list">
-              {subs.length ? (
-                subs.map((p) => (
-                  <div key={p.playerId} className="player-card substitute">
-                    <strong>{p.name}</strong> ({p.position})
-                  </div>
-                ))
-              ) : (
-                <p>No substitutes recorded.</p>
-              )}
-            </div>
-          </>
-        ) : (
-          <>
-            <h4>Full Squad (no saved lineup)</h4>
-            <div className="players-list">
-              {allPlayers.map((p) => (
-                <div key={p._id} className="player-card">
-                  <strong>{p.name}</strong> ({p.position}) - {p.nationality} - Age:{' '}
-                  {calculateAge(p.dateOfBirth)}
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
-    );
-  };
+      <h4>Substitutes</h4>
+      <table className="lineups-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Player</th>
+            <th>Position</th>
+            <th>Nationality</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(lineup?.substitutes || []).map((p, i) => {
+            
+            return (
+              <tr key={p._id || i}>
+                <td>{i + 1}</td>
+                <td>{p.name}</td>
+                <td>{p.position}</td>
+                <td>{p.nationality}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
 
   return (
     <div className="lineups-tab">
-      {renderLineupSection(
-        match.homeTeam?.name || match.homeTeam,
-        homeLineup,
-        homePlayers
-      )}
-      {renderLineupSection(
-        match.awayTeam?.name || match.awayTeam,
-        awayLineup,
-        awayPlayers
-      )}
+      {renderTable(homeLineup, teamNames.home, teamLogos.home)}
+      {renderTable(awayLineup, teamNames.away, teamLogos.away)}
     </div>
   );
 };

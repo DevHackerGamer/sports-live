@@ -1,82 +1,64 @@
 .lineups-tab {
-  padding: 1rem 1.5rem;
-  background: var(--dark-bg, rgba(0, 0, 0, 0.6));
-  border-radius: 12px;
-  color: var(--light-text, #fff);
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
-
-.team-lineup {
-  background: var(--dark-card, rgba(0, 0, 0, 0.4));
-  padding: 1rem;
-  border-radius: 10px;
-  box-shadow: var(--shadow-md, 0 4px 10px rgba(0, 0, 0, 0.4));
-}
-
-.team-lineup h3 {
-  margin-bottom: 0.75rem;
-  font-size: 1.3rem;
-  font-weight: 700;
+  padding: 1rem 2rem;
   color: #fff;
+  background-color: #111;
+  border-radius: 12px;
+}
+
+/* Horizontal layout for home and away */
+.lineups-tab.horizontal {
+  display: flex;
+  gap: 2rem; /* space between home and away */
+  flex-wrap: wrap; /* stack on smaller screens */
+}
+
+.lineup-section {
+  flex: 1; /* equal width for both teams */
+  min-width: 300px;
+}
+
+.lineup-section h3 {
   text-align: center;
+  color: #f1f1f1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
-.team-lineup h4 {
-  margin: 0.5rem 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #ddd;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  padding-bottom: 4px;
-}
-
-.players-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 10px;
+.lineups-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #1b1b1b;
+  border-radius: 8px;
+  overflow: hidden;
   margin-bottom: 1rem;
 }
 
-.player-card {
-  background: rgba(255, 255, 255, 0.08);
-  padding: 10px;
-  border-radius: 8px;
-  text-align: center;
-  transition: all 0.2s ease;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #fff;
+.lineups-table th,
+.lineups-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid #333;
+}
+
+.lineups-table th {
+  background-color: #222;
+  font-weight: 600;
+  text-transform: uppercase;
   font-size: 0.9rem;
 }
 
-.player-card:hover {
-  transform: scale(1.05);
-  background: rgba(255, 255, 255, 0.15);
+.lineups-table tr:hover {
+  background-color: #2a2a2a;
 }
 
-.player-card.starter {
-  background-color: #28a745; /* Green for starters */
-  color: #fff;
-  font-weight: 600;
-  border: 1px solid #1e7e34;
-}
 
-.player-card.substitute {
-  background-color: #e0e0e0; /* Light grey for subs */
-  color: #333;
-  font-weight: 500;
-}
 
-p {
-  color: #ccc;
-  margin: 0.5rem 0;
+.lineups-loading,
+.lineups-error,
+.lineups-empty {
   text-align: center;
-  font-size: 0.95rem;
-}
-
-@media (max-width: 600px) {
-  .players-list {
-    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-  }
+  padding: 1rem;
+  color: #ccc;
 }

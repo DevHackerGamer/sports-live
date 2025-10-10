@@ -84,88 +84,128 @@ const LineupsAdminModal = ({ match, onClose }) => {
     fetchData();
   }, [match]);
 
-  // ✅ Fix toggle logic (consistent with player.id)
-  const handleToggleStarter = (teamId, player) => {
-    const teamLineup = lineups[teamId] || { starters: [], substitutes: [] };
+  // Inside the component, add a helper to get remaining starter slots
+const getRemainingStarters = (teamId) => {
+  const teamLineup = lineups[teamId] || { starters: [] };
+  return 11 - teamLineup.starters.length;
+};
 
-    const isStarter = teamLineup.starters.find((p) => p.id === player.id);
+// Updated toggle logic
+const handleToggleStarter = (teamId, player) => {
+  const teamLineup = lineups[teamId] || { starters: [], substitutes: [] };
+  const isStarter = teamLineup.starters.find((p) => p.id === player.id);
 
-    if (isStarter) {
-      teamLineup.starters = teamLineup.starters.filter((p) => p.id !== player.id);
-      teamLineup.substitutes.push(player);
-    } else {
+  if (isStarter) {
+    // Move starter to substitutes
+    teamLineup.starters = teamLineup.starters.filter((p) => p.id !== player.id);
+    teamLineup.substitutes.push(player);
+  } else {
+    if (teamLineup.starters.length < 11) {
+      // Move from substitutes or new player to starters
       teamLineup.substitutes = teamLineup.substitutes.filter((p) => p.id !== player.id);
       teamLineup.starters.push(player);
+    } else {
+      // If 11 starters, add to substitutes only if not already there
+      if (!teamLineup.substitutes.find((p) => p.id === player.id)) {
+        teamLineup.substitutes.push(player);
+      }
     }
+  }
 
-    setLineups({ ...lineups, [teamId]: teamLineup });
-  };
+  setLineups({ ...lineups, [teamId]: teamLineup });
+};
+
 
   const handleSave = async () => {
-    try {
-      for (const teamId in lineups) {
-        const lineupToSave = {
-          ...lineups[teamId],
-          matchId: match.id,
-          teamId,
-          teamName:
-            teamId === match.homeTeam?.id
-              ? match.homeTeam?.name
-              : match.awayTeam?.name,
-          lastUpdated: new Date().toISOString(),
-        };
+  try {
+    const homeTeamId = String(match.homeTeam?.id);
+    const awayTeamId = String(match.awayTeam?.id);
 
-        await apiClient.saveLineup(lineupToSave);
-      }
-      alert('✅ Lineups saved successfully');
-      onClose();
-    } catch (e) {
-      console.error('Error saving lineups:', e);
-      alert('❌ Failed to save lineups');
+    for (const teamId in lineups) {
+     
+
+      const teamPlayers =
+        teamId === homeTeamId ? homePlayers : awayPlayers;
+
+      const teamLineup = lineups[teamId] || { starters: [], substitutes: [] };
+
+      // Ensure substitutes include all non-starters
+      const startersIds = teamLineup.starters.map((p) => p.id);
+      const allSubstitutes = [
+        ...teamLineup.substitutes,
+        ...teamPlayers.filter((p) => !startersIds.includes(p.id)),
+      ];
+
+      const lineupToSave = {
+  ...teamLineup,
+  matchId: match.id,
+  teamId,
+  teamName:
+    teamId === String(match.homeTeam?.id)
+      ? match.homeTeam?.name
+      : match.awayTeam?.name,
+  lastUpdated: new Date().toISOString(),
+  substitutes: allSubstitutes,
+};
+
+
+      await apiClient.saveLineup(lineupToSave);
     }
-  };
+    alert('✅ Lineups saved successfully');
+    onClose();
+  } catch (e) {
+    console.error('Error saving lineups:', e);
+    alert('❌ Failed to save lineups');
+  }
+};
 
   if (loading) return <div>Loading lineups...</div>;
 
   return (
     <div className="lineups-modal">
-      <h3>{match.homeTeam?.name} Lineup</h3>
-      <p>Click a player to toggle Starter/Substitute</p>
-
-      <div className="lineup-grid">
-        {homePlayers.map((player) => {
-          const isStarter = lineups[match.homeTeam?.id]?.starters?.find(
-            (p) => p.id === player.id
-          );
-          return (
-            <div
-              key={player.id}
-              className={`player-card ${isStarter ? 'starter' : 'substitute'}`}
-              onClick={() => handleToggleStarter(match.homeTeam?.id, player)}
-            >
-              {player.name} ({player.position})
-            </div>
-          );
-        })}
+     <h3>{match.homeTeam?.name} Lineup</h3>
+<p>
+  Click a player to toggle Starter/Substitute. 
+  <strong>{getRemainingStarters(match.homeTeam?.id)} starter slots remaining</strong>
+</p>
+<div className="lineup-grid">
+  {homePlayers.map((player) => {
+    const isStarter = lineups[match.homeTeam?.id]?.starters?.find(
+      (p) => p.id === player.id
+    );
+    return (
+      <div
+        key={player.id}
+        className={`player-card ${isStarter ? 'starter' : 'substitute'}`}
+        onClick={() => handleToggleStarter(match.homeTeam?.id, player)}
+      >
+        {player.name} ({player.position})
       </div>
+    );
+  })}
+</div>
 
-      <h3>{match.awayTeam?.name} Lineup</h3>
-      <div className="lineup-grid">
-        {awayPlayers.map((player) => {
-          const isStarter = lineups[match.awayTeam?.id]?.starters?.find(
-            (p) => p.id === player.id
-          );
-          return (
-            <div
-              key={player.id}
-              className={`player-card ${isStarter ? 'starter' : 'substitute'}`}
-              onClick={() => handleToggleStarter(match.awayTeam?.id, player)}
-            >
-              {player.name} ({player.position})
-            </div>
-          );
-        })}
+<h3>{match.awayTeam?.name} Lineup</h3>
+<p>
+  Click a player to toggle Starter/Substitute. 
+  <strong>{getRemainingStarters(match.awayTeam?.id)} starter slots remaining</strong>
+</p>
+<div className="lineup-grid">
+  {awayPlayers.map((player) => {
+    const isStarter = lineups[match.awayTeam?.id]?.starters?.find(
+      (p) => p.id === player.id
+    );
+    return (
+      <div
+        key={player.id}
+        className={`player-card ${isStarter ? 'starter' : 'substitute'}`}
+        onClick={() => handleToggleStarter(match.awayTeam?.id, player)}
+      >
+        {player.name} ({player.position})
       </div>
+    );
+  })}
+</div>
 
       {/* ✅ Starter summary display */}
       <div className="lineup-summary">
