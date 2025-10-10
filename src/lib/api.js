@@ -194,6 +194,36 @@ async deleteReport(id) {
     return this.request(`/api/standings/${id}`);
   }
 
+  //players API
+ async getPlayersByTeam(teamId) {
+  const res = await this.request(`/api/players?teamId=${teamId}`);
+  if (!res.success) throw new Error('Failed to fetch players');
+  return res.players || []; 
+}
+
+
+ // Get lineups for a match
+async getLineupsByMatch(matchId) {
+  return this.request(`/api/match-lineups?matchId=${matchId}`);
+}
+
+// Create/update a lineup
+async saveLineup(lineup) {
+  return this.request('/api/match-lineups', {
+    method: 'POST',
+    body: lineup
+  });
+}
+
+// Delete a lineup
+async deleteLineup(matchId, teamId) {
+  return this.request(`/api/match-lineups?matchId=${matchId}&teamId=${teamId}`, {
+    method: 'DELETE'
+  });
+}
+
+
+
   // Users API
   async getUserFavorites(userId) {
     return this.request(`/api/users/${userId}/favorites`);

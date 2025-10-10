@@ -3,6 +3,10 @@ import { useUser } from '@clerk/clerk-react';
 import { isAdminFromUser } from '../../lib/roles';
 import '../../styles/LiveInput.css';
 import { apiClient } from '../../lib/api';
+import LineupsTab from '../matchViewer/LineupsTab'; 
+
+import LineupsAdminModal from './LineupsAdminModal';
+
 
 // Admin-only screen for entering live match data for a specific selected match.
 // Visibility Rules:
@@ -51,6 +55,8 @@ const LiveInput = ({ isAdmin: isAdminProp, match, onBackToMatch }) => {
   const [homePlayers, setHomePlayers] = useState([]);
   const [awayPlayers, setAwayPlayers] = useState([]);
   const [teamLogos, setTeamLogos] = useState({ home: '', away: '' });
+  const [showLineupsModal, setShowLineupsModal] = useState(false);
+
   
   // Match statistics state
   const [matchStats, setMatchStats] = useState({
@@ -1246,6 +1252,16 @@ const LiveInput = ({ isAdmin: isAdminProp, match, onBackToMatch }) => {
           </button>
         </div>
     </div>
+    {isAdmin && match && (
+  <button 
+    className="timer-btn"
+    onClick={() => setShowLineupsModal(true)}
+    style={{ marginLeft: 8 }}
+  >
+    Edit Lineups
+  </button>
+)}
+
       
   <div className="events-log">
         <h3>Events Timeline</h3>
@@ -1305,6 +1321,14 @@ const LiveInput = ({ isAdmin: isAdminProp, match, onBackToMatch }) => {
           })
         )}
   </div>
+
+  {showLineupsModal && (
+  <LineupsAdminModal
+    match={match}
+    onClose={() => setShowLineupsModal(false)}
+  />
+)}
+
 
   {showStatsPanel && (
     <div className="match-statistics-panel">
