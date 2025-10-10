@@ -62,3 +62,20 @@
   padding: 1rem;
   color: #ccc;
 }
+.lineup-header {
+  text-align: center;
+  margin: 0.5rem 0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #fff;
+}
+
+.lineup-header.starters {
+  background-color: #007bff; /* blue for starters */
+}
+
+.lineup-header.substitutes {
+  background-color: #28a745; /* green for substitutes */
+}

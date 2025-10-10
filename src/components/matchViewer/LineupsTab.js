@@ -94,7 +94,7 @@ const LineupsTab = ({ match, matchDetails }) => {
         {teamName}
       </h3>
 
-      <h4>Starters</h4>
+      <h4 className="lineup-header starters">Starters</h4>
       <table className="lineups-table">
         <thead>
           <tr>
@@ -119,7 +119,7 @@ const LineupsTab = ({ match, matchDetails }) => {
         </tbody>
       </table>
 
-      <h4>Substitutes</h4>
+     <h4 className="lineup-header substitutes">Substitutes</h4>
       <table className="lineups-table">
         <thead>
           <tr>
@@ -147,10 +147,11 @@ const LineupsTab = ({ match, matchDetails }) => {
   );
 
   return (
-    <div className="lineups-tab">
-      {renderTable(homeLineup, teamNames.home, teamLogos.home)}
-      {renderTable(awayLineup, teamNames.away, teamLogos.away)}
-    </div>
+ <div className="lineups-tab horizontal">
+  {renderTable(homeLineup, teamNames.home, teamLogos.home)}
+  {renderTable(awayLineup, teamNames.away, teamLogos.away)}
+</div>
+
   );
 };
 
