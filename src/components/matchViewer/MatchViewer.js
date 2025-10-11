@@ -3,6 +3,7 @@ import { useUser } from '@clerk/clerk-react';
 import { apiClient } from '../../lib/api';
 import MatchStatistics from './MatchStatistics';
 import LineupsTab from './LineupsTab';
+import LiveCommentaryFeed from './LiveCommentaryFeed';
 
 import '../../styles/MatchViewer.css';
 
@@ -24,8 +25,7 @@ const MatchViewer = ({ match, initialSection = 'details', onBack }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [teamLogos, setTeamLogos] = useState({ home: '', away: '' });
   const [showEventList, setShowEventList] = useState(false);
-  const [lineups, setLineups] = useState([]);
-  const [loadingLineups, setLoadingLineups] = useState(false);
+ 
 
 
   useEffect(() => {
@@ -551,6 +551,13 @@ const MatchViewer = ({ match, initialSection = 'details', onBack }) => {
 >
   Lineups
 </button>
+           <button 
+  className={activeSection === 'live-commentary' ? 'nav-btn active' : 'nav-btn'}
+  onClick={() => setActiveSection('live-commentary')}
+>
+  Live Commentary
+</button>
+
 
         {isAdmin && (
           <button 
@@ -650,6 +657,9 @@ const MatchViewer = ({ match, initialSection = 'details', onBack }) => {
 
       {activeSection === 'lineups' && (
         <LineupsTab match={displayMatch} />
+      )}
+      {activeSection === 'live-commentary' && (
+      <LiveCommentaryFeed matchId={displayMatch?.id} />
       )}
 
       {activeSection === 'events' && (

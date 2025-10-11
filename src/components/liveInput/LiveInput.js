@@ -2,10 +2,12 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { isAdminFromUser } from '../../lib/roles';
 import '../../styles/LiveInput.css';
-import { apiClient } from '../../lib/api';
+import { apiClient } from '../../lib/api'
 import LineupsTab from '../matchViewer/LineupsTab'; 
-
 import LineupsAdminModal from './LineupsAdminModal';
+
+import LiveCommentaryFeed from '../matchViewer/LiveCommentaryFeed';
+import CommentaryAdminModal from './CommentaryAdminModal'
 
 
 // Admin-only screen for entering live match data for a specific selected match.
@@ -56,6 +58,7 @@ const LiveInput = ({ isAdmin: isAdminProp, match, onBackToMatch }) => {
   const [awayPlayers, setAwayPlayers] = useState([]);
   const [teamLogos, setTeamLogos] = useState({ home: '', away: '' });
   const [showLineupsModal, setShowLineupsModal] = useState(false);
+  const [showCommentaryModal, setShowCommentaryModal] = useState(false);
 
   
   // Match statistics state
@@ -1252,6 +1255,7 @@ const LiveInput = ({ isAdmin: isAdminProp, match, onBackToMatch }) => {
           </button>
         </div>
     </div>
+
     {isAdmin && match && (
   <button 
     className="timer-btn"
@@ -1259,6 +1263,19 @@ const LiveInput = ({ isAdmin: isAdminProp, match, onBackToMatch }) => {
     style={{ marginLeft: 8 }}
   >
     Edit Lineups
+  </button>
+)}
+
+ {isAdmin && match && (
+  <button 
+    className="timer-btn"
+    onClick={() => {
+    console.log('Opening commentary modal'); 
+    setShowCommentaryModal(true);
+  }}
+    style={{ marginLeft: 8 }}
+  >
+    Edit/Input Live Commentary
   </button>
 )}
 
@@ -1326,6 +1343,14 @@ const LiveInput = ({ isAdmin: isAdminProp, match, onBackToMatch }) => {
   <LineupsAdminModal
     match={match}
     onClose={() => setShowLineupsModal(false)}
+  />
+)}
+
+  {showCommentaryModal && (
+  <CommentaryAdminModal
+     matchId={match.id}
+      isOpen={showCommentaryModal}
+    onClose={() => setShowCommentaryModal(false)}
   />
 )}
 

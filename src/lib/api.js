@@ -221,6 +221,30 @@ async deleteLineup(matchId, teamId) {
     method: 'DELETE'
   });
 }
+// --- Match Commentary APIs ---
+async getCommentary(matchId) {
+  return this.request(`/api/match-commentary?matchId=${matchId}`);
+}
+
+async addCommentary(matchId, newComment) {
+  return this.request('/api/match-commentary', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ matchId, newComment }),
+  });
+}
+
+async overwriteCommentary(matchId, commentary) {
+  return this.request('/api/match-commentary', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ matchId, commentary, overwrite: true }),
+  });
+}
+
+async deleteCommentary(matchId) {
+  return this.request(`/api/match-commentary?matchId=${matchId}`, { method: 'DELETE' });
+}
 
 
 

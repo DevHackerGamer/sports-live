@@ -66,6 +66,7 @@ app.all('/api/matches/:id/events', delegate('./api/matches.js'));
 app.all('/api/matches/:id/events/:eventId', delegate('./api/matches.js'));
 app.all('/api/match-statistics', delegate('./api/match-statistics.js'));
 app.all('/api/match-lineups', delegate('./api/match-lineups.js'));
+app.all('/api/match-commentary', delegate('./api/match-commentary.js'));
 app.all('/api/teams', delegate('./api/teams.js'));
 app.all('/api/competitions', delegate('./api/competitions.js'));
 app.all('/api/users/:userId/favorites', delegate('./api/users.js'));
