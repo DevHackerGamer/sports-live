@@ -22,6 +22,30 @@ import championsLogo from '../../assets/UCL.jpg';
 
 import '../../styles/Dashboard.css';
 
+
+//refreshing page logic usin states
+// --- Dashboard State Persistence Helpers ---
+const DASHBOARD_STATE_KEY = "sportslive-dashboard-state";
+
+const saveDashboardState = (state) => {
+  try {
+    localStorage.setItem(DASHBOARD_STATE_KEY, JSON.stringify(state));
+  } catch (err) {
+    console.error("Error saving dashboard state:", err);
+  }
+};
+
+const loadDashboardState = () => {
+  try {
+    const saved = localStorage.getItem(DASHBOARD_STATE_KEY);
+    return saved ? JSON.parse(saved) : null;
+  } catch (err) {
+    console.error("Error loading dashboard state:", err);
+    return null;
+  }
+};
+
+
 const Dashboard = () => {
   const { user } = useUser();
   const { getToken, isSignedIn } = useAuth();
@@ -38,6 +62,33 @@ const Dashboard = () => {
   useEffect(() => {
     setIsAdmin(isAdminFromUser(user));
   }, [user]);
+
+  //refreshing page logic usin states
+// --- Dashboard State Persistence Helpers ---
+useEffect(() => {
+  const saved = loadDashboardState();
+  if (saved) {
+    if (saved.activeTab) setActiveTab(saved.activeTab);
+    if (saved.selectedMatch) setSelectedMatch(saved.selectedMatch);
+    if (saved.selectedTeam) setSelectedTeam(saved.selectedTeam);
+    if (saved.selectedLeague) setSelectedLeague(saved.selectedLeague);
+    if (saved.showAboutUs !== undefined) setShowAboutUs(saved.showAboutUs);
+  }
+}, []);
+
+useEffect(() => {
+  saveDashboardState({
+    activeTab,
+    selectedMatch,
+    selectedTeam,
+    selectedLeague,
+    showAboutUs,
+  });
+}, [activeTab, selectedMatch, selectedTeam, selectedLeague, showAboutUs]);
+
+
+
+
 
   // Resolve role from backend
   useEffect(() => {
