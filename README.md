@@ -69,7 +69,7 @@ npm install
 npm run dev
 ```
 
-> ⚠️ Ensure your `.env` is configured with valid `REACT_APP_CLERK_PUBLISHABLE_KEY`, MONGODB_URI, and Search API keys.
+> ⚠️ Ensure your `.env` is configured with valid `REACT_APP_CLERK_PUBLISHABLE_KEY`, MONGODB_URI, and FootballData.org API keys.
 
 ---
 
