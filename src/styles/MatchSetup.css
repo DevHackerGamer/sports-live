@@ -230,4 +230,34 @@
     align-items: flex-start;
     gap: 1rem;
   }
+
+  .file-import-panel {
+  background: var(--dark-card);
+  border: 1px solid var(--dark-border);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  margin-top: 1rem;
+  box-shadow: var(--shadow-md);
+}
+
+.file-import-panel input[type="file"] {
+  display: block;
+  margin-top: 0.5rem;
+}
+
+.bulk-import button.btn-secondary {
+  background: var(--secondary);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-weight: 500;
+  transition: var(--transition);
+  border: none;
+}
+
+.bulk-import button.btn-secondary:hover {
+  background: var(--secondary-dark);
+  transform: translateY(-2px) scale(1.02);
+}
 }

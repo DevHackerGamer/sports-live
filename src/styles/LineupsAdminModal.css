@@ -1,0 +1,102 @@
+/* LineupsAdminModal.css */
+
+.lineups-modal {
+  background: var(--dark-card, rgba(0,0,0,0.85));
+  padding: 1rem;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 800px;
+  margin: 2rem auto;
+  color: var(--light-text, #fff);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  box-shadow: var(--shadow-md, 0 4px 12px rgba(0,0,0,0.5));
+}
+
+/* Grid layout */
+.lineup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+/* Player cards */
+.player-card {
+  padding: 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255,255,255,0.05);
+  transition: all 0.2s ease;
+  color: #fff;
+}
+
+.player-card:hover {
+  transform: scale(1.05);
+  background: rgba(255,255,255,0.1);
+}
+
+/* Starter & Substitute states */
+.player-card.starter {
+  background: var(--gradient-primary, linear-gradient(90deg, #e63946, #ff7b86));
+  color: #fff;
+  font-weight: 700;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.player-card.substitute {
+  background: rgba(255,255,255,0.1);
+  color: #ddd;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+/* Buttons */
+.btn {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.2s;
+}
+
+.btn-primary {
+  background: var(--gradient-primary, linear-gradient(90deg, #e63946, #ff7b86));
+  color: #fff;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-secondary {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+}
+
+.btn-secondary:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+.btn + .btn {
+  margin-left: 0.5rem;
+}
+
+/* Summary section */
+.lineup-summary {
+  margin-top: 1rem;
+  border-top: 1px solid rgba(255,255,255,0.2);
+  padding-top: 1rem;
+}
+
+.summary-section ul {
+  list-style-type: none;
+  padding-left: 0;
+}
+
+.summary-section li {
+  padding: 3px 0;
+}

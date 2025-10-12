@@ -899,4 +899,12 @@
   cursor: default;
 }
 
+.match-lineups { display: flex; flex-direction: column; gap: 2rem; padding: 1rem; }
+.team-lineup h3 { color: var(--primary); margin-bottom: 1rem; }
+.pitch-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; background: var(--dark-card); padding: 1rem; border-radius: var(--radius-md); }
+.player-card { background: var(--dark-bg); color: #fff; padding: 0.5rem; border-radius: var(--radius-sm); text-align: center; font-size: 0.9rem; }
+.substitutes { margin-top: 1rem; }
+.sub-player-card { background: var(--dark-bg); color: #ccc; padding: 0.3rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.85rem; margin-bottom: 0.25rem; }
+
+
 }
