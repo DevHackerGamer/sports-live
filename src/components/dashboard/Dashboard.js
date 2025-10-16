@@ -10,6 +10,7 @@ import LeagueView from '../LeagueView/LeagueView';
 import ReportsPage from '../ReportsPage/ReportsPage';
 import PlayersPage from '../PlayersPage/PlayersPage';
 import TeamInfo from '../TeamInfo/TeamInfo';
+import FootballNewsPage from '../FootballNews/FootballNews';
 import { isAdminFromUser, getUserRoles } from '../../lib/roles';
 
 // Import league images
@@ -22,30 +23,6 @@ import championsLogo from '../../assets/UCL.jpg';
 
 import '../../styles/Dashboard.css';
 
-
-//refreshing page logic usin states
-// --- Dashboard State Persistence Helpers ---
-const DASHBOARD_STATE_KEY = "sportslive-dashboard-state";
-
-const saveDashboardState = (state) => {
-  try {
-    localStorage.setItem(DASHBOARD_STATE_KEY, JSON.stringify(state));
-  } catch (err) {
-    console.error("Error saving dashboard state:", err);
-  }
-};
-
-const loadDashboardState = () => {
-  try {
-    const saved = localStorage.getItem(DASHBOARD_STATE_KEY);
-    return saved ? JSON.parse(saved) : null;
-  } catch (err) {
-    console.error("Error loading dashboard state:", err);
-    return null;
-  }
-};
-
-
 const Dashboard = () => {
   const { user } = useUser();
   const { getToken, isSignedIn } = useAuth();
@@ -57,38 +34,13 @@ const Dashboard = () => {
   const [selectedLeague, setSelectedLeague] = useState(null);
   const [selectedTeam, setSelectedTeam] = useState(null); 
   const [selectedTabTitle, setSelectedTabTitle] = useState('home');
+  const [leagueCode, setLeagueCode] = useState('eng.1'); 
+
 
   // Sync isAdmin with Clerk
   useEffect(() => {
     setIsAdmin(isAdminFromUser(user));
   }, [user]);
-
-  //refreshing page logic usin states
-// --- Dashboard State Persistence Helpers ---
-useEffect(() => {
-  const saved = loadDashboardState();
-  if (saved) {
-    if (saved.activeTab) setActiveTab(saved.activeTab);
-    if (saved.selectedMatch) setSelectedMatch(saved.selectedMatch);
-    if (saved.selectedTeam) setSelectedTeam(saved.selectedTeam);
-    if (saved.selectedLeague) setSelectedLeague(saved.selectedLeague);
-    if (saved.showAboutUs !== undefined) setShowAboutUs(saved.showAboutUs);
-  }
-}, []);
-
-useEffect(() => {
-  saveDashboardState({
-    activeTab,
-    selectedMatch,
-    selectedTeam,
-    selectedLeague,
-    showAboutUs,
-  });
-}, [activeTab, selectedMatch, selectedTeam, selectedLeague, showAboutUs]);
-
-
-
-
 
   // Resolve role from backend
   useEffect(() => {
@@ -310,6 +262,7 @@ useEffect(() => {
             <li><button onClick={() => { setActiveTab('matches'); setShowAboutUs(false); setSelectedMatch(null); setSelectedTeam(null); }}>Matches</button></li>
             <li><button onClick={() => { setActiveTab('favorites'); setShowAboutUs(false); setSelectedMatch(null); setSelectedTeam(null); }}>Favorites</button></li>
             <li><button onClick={() => { setActiveTab('players'); setShowAboutUs(false); setSelectedMatch(null); setSelectedTeam(null); }}>Players</button></li>
+            <li><button onClick={() => { setActiveTab('news'); setShowAboutUs(false); setSelectedMatch(null); setSelectedTeam(null); }}>News</button></li>
           </ul>
         </div>
         
@@ -360,21 +313,6 @@ const renderContent = () => {
     );
   }
 
-  // from match cards
-  const handleMatchSelect = (match) => {
-  setSelectedMatch(match);
-  setActiveTab('matches'); // 
-};
-
-const handleBackFromViewer = () => {
-  setSelectedMatch(null);
-  setActiveTab('leagueStandings');
-};
-
-
-
-
-
   switch (activeTab) {
     case 'home':
       return <HomeScreen />;
@@ -385,8 +323,10 @@ const handleBackFromViewer = () => {
     case 'liveInput':
       return <LiveInput isAdmin={isAdmin} match={selectedMatch} onBackToMatch={() => setActiveTab('matches')} />;
     case 'leagueStandings':
-      return <LeagueView initialLeague={selectedLeague || "PL"} onBack={() => setActiveTab('home')} onTeamSelect={handleTeamSelect} onMatchSelect={handleMatchSelect} />;
+      return <LeagueView initialLeague={selectedLeague || "PL"} onBack={() => setActiveTab('home')} onTeamSelect={handleTeamSelect} />;
     case 'reports':
+      case 'news': 
+    return <FootballNewsPage onBack={() => setActiveTab('home')} />;
       return <ReportsPage isAdmin={isAdmin} />;
     case 'favorites':
       return <FavoritesPanel onMatchSelect={handleMatchSelect} />;
