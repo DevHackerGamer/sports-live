@@ -89,6 +89,10 @@ app.all('/api/createdMatches/:id', createdMatchesHandler);
 app.all('/api/standings', delegate('./api/standings.js'));
 app.all('/api/standings/:id', delegate('./api/standings.js'));
 
+// Football News APIs
+app.all('/api/football-news', delegate('./api/football-news.js'));
+
+
 // RESTful CRUD for Reports
 const reportsHandler = require('./api/reporting.js');
 app.all('/api/reporting', reportsHandler);

@@ -10,6 +10,7 @@ import LeagueView from '../LeagueView/LeagueView';
 import ReportsPage from '../ReportsPage/ReportsPage';
 import PlayersPage from '../PlayersPage/PlayersPage';
 import TeamInfo from '../TeamInfo/TeamInfo';
+import FootballNewsPage from '../FootballNews/FootballNews';
 import { isAdminFromUser, getUserRoles } from '../../lib/roles';
 
 // Import league images
@@ -33,6 +34,8 @@ const Dashboard = () => {
   const [selectedLeague, setSelectedLeague] = useState(null);
   const [selectedTeam, setSelectedTeam] = useState(null); 
   const [selectedTabTitle, setSelectedTabTitle] = useState('home');
+  const [leagueCode, setLeagueCode] = useState('eng.1'); 
+
 
   // Sync isAdmin with Clerk
   useEffect(() => {
@@ -259,6 +262,7 @@ const Dashboard = () => {
             <li><button onClick={() => { setActiveTab('matches'); setShowAboutUs(false); setSelectedMatch(null); setSelectedTeam(null); }}>Matches</button></li>
             <li><button onClick={() => { setActiveTab('favorites'); setShowAboutUs(false); setSelectedMatch(null); setSelectedTeam(null); }}>Favorites</button></li>
             <li><button onClick={() => { setActiveTab('players'); setShowAboutUs(false); setSelectedMatch(null); setSelectedTeam(null); }}>Players</button></li>
+            <li><button onClick={() => { setActiveTab('news'); setShowAboutUs(false); setSelectedMatch(null); setSelectedTeam(null); }}>News</button></li>
           </ul>
         </div>
         
@@ -321,6 +325,8 @@ const renderContent = () => {
     case 'leagueStandings':
       return <LeagueView initialLeague={selectedLeague || "PL"} onBack={() => setActiveTab('home')} onTeamSelect={handleTeamSelect} />;
     case 'reports':
+      case 'news': 
+    return <FootballNewsPage onBack={() => setActiveTab('home')} />;
       return <ReportsPage isAdmin={isAdmin} />;
     case 'favorites':
       return <FavoritesPanel onMatchSelect={handleMatchSelect} />;

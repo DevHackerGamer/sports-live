@@ -92,6 +92,13 @@ class ApiClient {
     });
   }
 
+  // Get all news or by league
+  async getFootballNews(leagueCode = null, limit = 20) {
+    let url = `/api/football-news?limit=${limit}`;
+    if (leagueCode) url += `&leagueCode=${leagueCode}`;
+    return this.request(url);
+  }
+
   async createMatches(matches) {
     return this.request('/api/matches', {
       method: 'POST',
