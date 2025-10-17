@@ -36,10 +36,21 @@ const FootballNewsPage = ({ onBack }) => {
     fetchNews();
   }, [fetchNews]);
 
+  const handleImageError = (e) => {
+    e.target.style.display = 'none';
+    // Show the placeholder by finding the next sibling
+    const placeholder = e.target.nextSibling;
+    if (placeholder && placeholder.className === 'news-image-placeholder') {
+      placeholder.style.display = 'flex';
+    }
+  };
+
   return (
     <div className="football-news-page">
       <div className="news-header">
-        {onBack && <button onClick={onBack} className="back-btn">← Home</button>}
+        <div>
+          {onBack && <button onClick={onBack} className="back-btn">← Back to Home</button>}
+        </div>
         <h2>Football News</h2>
         <div className="league-selector">
           <label>Filter by League:</label>
@@ -52,42 +63,64 @@ const FootballNewsPage = ({ onBack }) => {
       </div>
 
       {loading ? (
-        <p>Loading news...</p>
+        <div className="news-list">
+          <p>Loading latest news...</p>
+        </div>
       ) : error ? (
         <div className="news-error">
           <p>{error}</p>
-          <button onClick={fetchNews}>Retry</button>
+          <button onClick={fetchNews}>Try Again</button>
         </div>
       ) : (
         <div className="news-list">
           {news.length > 0 ? (
             news.map(article => (
               <div key={article._id} className="news-card">
-                <h3>{article.headline}</h3>
-                {article.images?.length > 0 && (
-                  <img
-                    src={article.images[0].url}
-                    alt={article.images[0].caption || ''}
-                    className="news-image"
-                  />
-                )}
-                <p>{article.description}</p>
-                <p><strong>By:</strong> {article.byline || 'Unknown'}</p>
-                <p><small>{new Date(article.published).toLocaleString()}</small></p>
-                {article.link && (
-                  <a href={article.link} target="_blank" rel="noopener noreferrer">
-                    Read more
-                  </a>
-                )}
-                {article.categories?.length > 0 && (
-                  <p className="news-categories">
-                    Categories: {article.categories.filter(Boolean).join(', ')}
-                  </p>
-                )}
+                <div className="news-image-container">
+                  {article.images?.length > 0 ? (
+                    <>
+                      <img
+                        src={article.images[0].url}
+                        alt={article.images[0].caption || article.headline}
+                        className="news-image"
+                        onError={handleImageError}
+                      />
+                      <div className="news-image-placeholder" style={{ display: 'none' }}>
+                        No Image Available
+                      </div>
+                    </>
+                  ) : (
+                    <div className="news-image-placeholder">
+                      No Image Available
+                    </div>
+                  )}
+                </div>
+                <div className="news-content">
+                  <h3>{article.headline}</h3>
+                  <p className="news-description">{article.description}</p>
+                  <div className="news-meta">
+                    <span className="news-author">{article.byline || 'Unknown Author'}</span>
+                    <span className="news-date">
+                      {new Date(article.published).toLocaleDateString()}
+                    </span>
+                  </div>
+                  {article.link && (
+                    <a href={article.link} target="_blank" rel="noopener noreferrer" className="news-link">
+                      Read Full Article
+                    </a>
+                  )}
+                  {article.categories?.length > 0 && (
+                    <p className="news-categories">
+                      <strong>Categories:</strong> {article.categories.filter(Boolean).join(', ')}
+                    </p>
+                  )}
+                </div>
               </div>
             ))
           ) : (
-            <p>No news available for this league.</p>
+            <div className="news-list">
+              <p>No news available for this league at the moment.</p>
+            </div>
           )}
         </div>
       )}

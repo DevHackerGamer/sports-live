@@ -62,7 +62,7 @@ body, html {
 
 .league-view-header h2 {
   margin: 0;
-  color: #ffffff; /* Pure white - FOR NOW I really don't know what colours to use honestly*/
+  color: #ffffff;
   font-size: 2.5rem;
   font-weight: 800;
   font-family: "Montserrat", sans-serif;
@@ -172,7 +172,7 @@ body, html {
   color: #ffffff;
 }
 
-/* Table - Will probably make a better design but for now this will do */
+/* Table */
 .league-view-standings-table {
   width: 100%;
   border-collapse: collapse;
@@ -273,93 +273,209 @@ body, html {
   font-size: 1.1rem;
 }
 
-/* Matches *//* Matches - enhanced */
+/* ===== PERFECTLY SIZED MATCH CARDS ===== */
+.league-view-matches-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
 .league-view-match-card {
   padding: 1.5rem;
-  background: var(--dark-card);
+  background: var(--gradient-dark);
   border-radius: var(--radius-md);
   border: 1px solid var(--dark-border);
-  transition: var(--transition);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   box-shadow: var(--shadow-sm);
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 1rem;
+  min-height: 140px;
+  position: relative;
+  overflow: hidden;
+}
+
+.league-view-match-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-primary);
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+}
+
+.league-view-match-card:hover::before {
+  transform: scaleX(1);
 }
 
 .league-view-match-card:hover {
-  transform: translateY(-4px) scale(1.02);
-  border-color: var(--primary);
+  transform: translateY(-4px);
+  border-color: var(--primary-light);
   box-shadow: var(--shadow-md);
-  background: rgba(230, 57, 70, 0.05);
+  background: linear-gradient(145deg, #1e1e1e, #2a2a2a);
 }
 
-/* Match teams with crests */
+/* Match Header - Compact */
+.league-view-match-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+  position: relative;
+  z-index: 2;
+}
+
+.league-view-match-date {
+  color: var(--primary-light);
+  font-weight: 600;
+  font-size: 0.9rem;
+  background: rgba(230, 57, 70, 0.1);
+  padding: 0.3rem 0.8rem;
+  border-radius: 12px;
+  border: 1px solid rgba(230, 57, 70, 0.2);
+}
+
+.league-view-match-time {
+  color: var(--primary-light);
+  font-weight: 600;
+  font-size: 0.9rem;
+  background: rgba(230, 57, 70, 0.1);
+  padding: 0.3rem 0.8rem;
+  border-radius: 12px;
+  border: 1px solid rgba(230, 57, 70, 0.2);
+}
+
+/* Teams Display - Compact Layout */
 .league-view-match-teams {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  font-weight: 600;
-  font-size: 1rem;
-  overflow-x: auto;
+  font-weight: 700;
+  font-size: 1.1rem;
+  position: relative;
+  z-index: 2;
+  flex: 1;
 }
 
 .league-view-match-team {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.8rem;
+  flex: 1;
+  transition: all 0.2s ease;
+  padding: 0.5rem;
+  border-radius: var(--radius-sm);
+  min-width: 0;
 }
 
+.league-view-match-team:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.league-view-match-team:last-child {
+  justify-content: flex-end;
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+/* Perfectly Sized Crests */
 .league-view-match-crest {
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   object-fit: contain;
   border-radius: 50%;
-  border: 1px solid var(--light-border);
-  padding: 2px;
-  transition: transform 0.2s ease;
+  border: 2px solid var(--light-border);
+  background: white;
+  padding: 3px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .league-view-match-team:hover .league-view-match-crest {
-  transform: scale(1.2);
+  transform: scale(1.1);
+  border-color: var(--primary);
 }
 
-/* Date & time */
-.league-view-match-date,
-.league-view-match-time {
-  font-size: 0.9rem;
-  color: var(--primary-light);
-}
-
-/* Status badge (Optional enhancement) */
-.league-view-match-status {
-  align-self: flex-start;
-  padding: 2px 8px;
+/* VS Label - Compact */
+.league-view-vs {
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: var(--primary);
+  font-family: "Montserrat", sans-serif;
+  padding: 0.4rem 0.8rem;
+  background: rgba(230, 57, 70, 0.1);
   border-radius: var(--radius-sm);
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #fff;
-  background-color: var(--primary-dark);
-  text-transform: uppercase;
+  border: 1px solid rgba(230, 57, 70, 0.2);
+  margin: 0 0.5rem;
+  flex-shrink: 0;
 }
 
-/* Responsive tweaks */
-@media (max-width: 768px) {
-  .league-view-match-card {
-    padding: 1rem;
-  }
+/* Competition Tag - Compact */
+.league-view-match-competition {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  color: var(--primary-light);
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  background: rgba(230, 57, 70, 0.1);
+  padding: 0.3rem 0.8rem;
+  border-radius: 12px;
+  border: 1px solid rgba(230, 57, 70, 0.2);
+  align-self: flex-end;
+  margin-top: 0.5rem;
+}
 
-  .league-view-match-crest {
-    width: 24px;
-    height: 24px;
-  }
+/* Match Status - Compact Badges */
+.league-view-match-status {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.8rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  z-index: 3;
+  border: 1px solid;
+}
 
-  .league-view-match-teams {
-    flex-direction: column;
-    gap: 0.3rem;
-    align-items: flex-start;
-  }
+.league-view-match-status.live {
+  background: var(--primary);
+  color: white;
+  border-color: rgba(255, 255, 255, 0.2);
+  animation: livePulse 2s infinite;
+}
+
+.league-view-match-status.finished {
+  background: #2a9d8f;
+  color: white;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.league-view-match-status.scheduled {
+  background: #3a86ff;
+  color: white;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+/* Team name text truncation */
+.league-view-match-team span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
 }
 
 /* Players */
@@ -459,7 +575,7 @@ body, html {
   }
   
   .league-view-matches-list {
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   }
 }
 
@@ -496,6 +612,39 @@ body, html {
     align-items: flex-start;
     gap: 1rem;
   }
+  
+  .league-view-match-card {
+    padding: 1.25rem;
+    min-height: 130px;
+  }
+  
+  .league-view-match-teams {
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+  
+  .league-view-match-team {
+    justify-content: center !important;
+    flex-direction: row;
+  }
+  
+  .league-view-match-team:last-child {
+    flex-direction: row;
+  }
+  
+  .league-view-vs {
+    order: -1;
+    margin-bottom: 0.5rem;
+  }
+  
+  .league-view-match-crest {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .league-view-match-team span {
+    max-width: 140px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -522,189 +671,33 @@ body, html {
     width: 70px;
     height: 70px;
   }
-
-  .league-view-match-teams {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.league-view-match-crest {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
-}
-
-/* Enhanced Matches Grid */
-.league-view-matches-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 1.5rem;
-  margin-top: 1.5rem;
-}
-
-/* Match header */
-.league-view-match-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.9rem;
-  color: #bbb;
-  margin-bottom: 0.5rem;
-  opacity: 0.85;
-}
-
-/* Match competition label */
-.league-view-match-competition {
-  font-size: 0.8rem;
-  color: #aaa;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-top: 0.5rem;
-}
-
-/* VS separator */
-.league-view-vs {
-  font-weight: 700;
-  font-size: 0.95rem;
-  color: var(--primary-light);
-}
-
-/* Clickable team names inside match card */
-.league-view-match-team span {
-  cursor: pointer;
-  transition: color 0.25s ease;
-}
-
-.league-view-match-team span:hover {
-  color: var(--primary-light);
-}
-
-/* Subtle press animation */
-.league-view-match-card:active {
-  transform: scale(0.98);
-  opacity: 0.9;
-}
-
-/* Add glow on hover for crest */
-.league-view-match-crest:hover {
-  box-shadow: 0 0 8px rgba(230, 57, 70, 0.4);
-}
-
-/* === Larger, bolder Match Cards === */
-.league-view-matches-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-  gap: 1.8rem;
-  margin-top: 1.5rem;
-}
-
-.league-view-match-card {
-  padding: 2rem 2.5rem;
-  background: var(--gradient-dark);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--dark-border);
-  transition: var(--transition);
-  box-shadow: var(--shadow-md);
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 1rem;
-  min-height: 160px;
-}
-
-.league-view-match-card:hover {
-  transform: translateY(-6px) scale(1.03);
-  border-color: var(--primary-light);
-  box-shadow: var(--shadow-lg);
-  background: linear-gradient(145deg, #222, #1a1a1a);
-}
-
-/* Bigger team display */
-.league-view-match-teams {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.2rem;
-  font-weight: 600;
-  font-size: 1.2rem;
-}
-
-.league-view-match-team {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-}
-
-/* Larger crests */
-.league-view-match-crest {
-  width: 48px;
-  height: 48px;
-  object-fit: contain;
-  border-radius: 50%;
-  border: 1px solid var(--light-border);
-  background: white;
-  padding: 3px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.league-view-match-team:hover .league-view-match-crest {
-  transform: scale(1.15);
-  box-shadow: 0 0 10px rgba(230, 57, 70, 0.5);
-}
-
-/* Match date/time */
-.league-view-match-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: #bbb;
-  font-size: 1rem;
-  opacity: 0.85;
-}
-
-.league-view-match-date,
-.league-view-match-time {
-  color: var(--primary-light);
-  font-weight: 500;
-}
-
-/* VS label */
-.league-view-vs {
-  font-weight: 700;
-  font-size: 1.1rem;
-  color: var(--primary);
-}
-
-/* Competition tag */
-.league-view-match-competition {
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  color: #999;
-  letter-spacing: 0.6px;
-  margin-top: 0.6rem;
-  align-self: flex-end;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
+  
   .league-view-match-card {
-    padding: 1.5rem;
+    padding: 1rem;
+    min-height: 120px;
   }
-
-  .league-view-match-crest {
-    width: 36px;
-    height: 36px;
-  }
-
+  
   .league-view-match-teams {
-    flex-direction: column;
-    gap: 0.4rem;
-    text-align: center;
+    font-size: 1rem;
   }
-}
-
-
-
+  
+  .league-view-match-crest {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .league-view-vs {
+    font-size: 1rem;
+    padding: 0.3rem 0.6rem;
+  }
+  
+  .league-view-match-date,
+  .league-view-match-time {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.6rem;
+  }
+  
+  .league-view-match-team span {
+    max-width: 100px;
+  }
 }

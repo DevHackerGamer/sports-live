@@ -23,9 +23,12 @@
     "mongoose": "^8.18.0",
     "node-cron": "^4.2.1",
     "node-fetch": "^3.3.2",
+    "postprocessing": "^6.37.8",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "react-router-dom": "^7.9.4",
     "react-window": "^1.8.10",
+    "three": "^0.180.0",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
@@ -38,7 +41,7 @@
     "start:prod": "node server.js",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d build",
-    "dev": "concurrently -k -n server,ui -c green,cyan \"PORT=8080 nodemon --watch server.js --watch api --watch lib --ext js server.js\" \"react-scripts start\""
+    "dev": "concurrently -k -n server,ui -c green,cyan \"cross-env PORT=8080 node server.js\" \"react-scripts start\""
   },
   "eslintConfig": {
     "extends": [
@@ -62,6 +65,7 @@
     "@babel/core": "^7.28.3",
     "@babel/eslint-parser": "^7.28.0",
     "concurrently": "^9.2.0",
+    "cross-env": "^10.1.0",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
