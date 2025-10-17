@@ -12,6 +12,7 @@ import PlayersPage from '../PlayersPage/PlayersPage';
 import TeamInfo from '../TeamInfo/TeamInfo';
 import FootballNewsPage from '../FootballNews/FootballNews';
 import HomeScreen from '../HomeScreen/HomeScreen';
+import HighlightsTab from '../HighlightsTab/HighlightsTab';
 
 const MainContent = ({
   showAboutUs,
@@ -60,6 +61,8 @@ const MainContent = ({
         return <ReportsPage isAdmin={isAdmin} />;
       case 'favorites':
         return <FavoritesPanel onMatchSelect={setSelectedMatch} />;
+      case 'highlights':
+        return <HighlightsTab />;
       case 'watchlist':
         return <WatchlistPage onMatchSelect={setSelectedMatch} />;
       case 'matches':

@@ -41,6 +41,8 @@ const Footer = ({
               <li><button onClick={() => handleNavClick('favorites')}>Favorites</button></li>
               <li><button onClick={() => handleNavClick('players')}>Players</button></li>
               <li><button onClick={() => handleNavClick('news')}>News</button></li>
+              <li><button onClick={() => handleNavClick('highlights')}>Highlights</button></li>
+
             </ul>
           </div>
 

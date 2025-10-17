@@ -8,6 +8,7 @@ import Footer from '../../components/Footer/Footer';
 import MainContent from '../../components/MainContent/MainContent';
 import HomeScreen from '../../components/HomeScreen/HomeScreen';
 import AboutUs from '../../components/AboutUs/AboutUs';
+import HighlightsTab from '../HighlightsTab/HighlightsTab';
 
 // Import league images
 import plLogo from '../../assets/pl_logo.jpg';
@@ -169,6 +170,7 @@ const Dashboard = () => {
             newsLoading={newsLoading}
           />
         )}
+        HighlightsTab={() => <HighlightsTab />}
       />
       
       <Footer
