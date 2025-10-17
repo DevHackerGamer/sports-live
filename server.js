@@ -98,6 +98,9 @@ const reportsHandler = require('./api/reporting.js');
 app.all('/api/reporting', reportsHandler);
 app.all('/api/reporting/:id', reportsHandler);
 
+// Football Highlights APIs
+app.all('/api/football-highlights', delegate('./api/football-highlights.js'));
+
 
 
 // Admin utility: trigger on-demand matches refresh (development only)

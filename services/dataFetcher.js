@@ -6,6 +6,7 @@ const {
   getTeamsCollection, // Now points to Teams
   getPlayersCollection,
   getDisplayStateCollection,
+  getFootballHighlightsCollection,
   getDatabase
 } = require('../lib/mongodb');
 
@@ -326,6 +327,93 @@ async fetchAndStoreStandings() {
     throw error;
   }
 }
+// Fetch and store YouTube highlights
+async fetchAndStoreFootballHighlights() {
+  console.log('🎥 Fetching football highlights...');
+
+  const leagues = [
+    { name: 'Premier League', channelId: 'UCxZf3zG2q1oVmtz0gW1yj9Q' },
+    { name: 'Champions League', channelId: 'UCpcTrCXblq78GZrTUTLWeBw' },
+    { name: 'La Liga', channelId: 'UCxm7h3Jv2uG0d6zOQeqnqTw' },
+    { name: 'Serie A', channelId: 'UCz1hQvN3E_0gxH3JUbj3c1Q' },
+    { name: 'Ligue 1', channelId: 'UC-VK0tmIu3W2oKMzOJDC0pQ' },
+    { name: 'Bundesliga', channelId: 'UCVCx8sY5ETRWRzYzYkz3rTQ' },
+  ];
+
+  const apiKey = process.env.REACT_APP_YT_API_KEY;
+  if (!apiKey) {
+    console.warn('⚠️ Missing REACT_APP_YT_API_KEY in environment.');
+    return;
+  }
+
+  const highlightsCollection = await getFootballHighlightsCollection();
+
+  for (const league of leagues) {
+    try {
+      console.log(`▶ Fetching highlights for ${league.name}`);
+
+      // 1️⃣ Try official channel first
+      const channelUrl = new URL('https://www.googleapis.com/youtube/v3/search');
+      channelUrl.search = new URLSearchParams({
+        part: 'snippet',
+        channelId: league.channelId,
+        q: 'highlights',
+        type: 'video',
+        order: 'date',
+        videoDuration: 'short',
+        maxResults: '12',
+        key: apiKey,
+      });
+
+      const channelRes = await fetch(channelUrl);
+      const channelData = await channelRes.json();
+
+      let videos = channelData.items || [];
+
+      // 2️⃣ Fallback search if channel is empty
+      if (!videos.length) {
+        console.warn(`No channel highlights for ${league.name}, using search fallback.`);
+        const searchUrl = new URL('https://www.googleapis.com/youtube/v3/search');
+        searchUrl.search = new URLSearchParams({
+          part: 'snippet',
+          q: `${league.name} football 2025/26 highlights`,
+          type: 'video',
+          order: 'relevance',
+          videoDuration: 'short',
+          maxResults: '12',
+          key: apiKey,
+        });
+        const searchRes = await fetch(searchUrl);
+        const searchData = await searchRes.json();
+        videos = searchData.items || [];
+      }
+
+      if (!videos.length) continue;
+
+      // Prepare DB docs
+      const docs = videos.map(v => ({
+        leagueName: league.name,
+        videoId: v.id.videoId,
+        title: v.snippet.title,
+        description: v.snippet.description,
+        thumbnail:
+          v.snippet.thumbnails.high?.url || v.snippet.thumbnails.medium?.url,
+        channelTitle: v.snippet.channelTitle,
+        publishedAt: v.snippet.publishedAt,
+        fetchedAt: new Date(),
+      }));
+
+      // Save in Mongo (replace old league data)
+      await highlightsCollection.deleteMany({ leagueName: league.name });
+      await highlightsCollection.insertMany(docs);
+
+      console.log(`✅ Saved ${docs.length} ${league.name} highlights`);
+    } catch (err) {
+      console.error(`❌ Error fetching highlights for ${league.name}:`, err.message);
+    }
+  }
+}
+
 
 
   // Fetch and store matches data
@@ -747,6 +835,18 @@ try {
   console.warn('⚠️ Football news fetch failed:', err.message);
   await this.logEvent('WARNING', 'Football news fetch failed', { error: err.message });
 }
+// Fetch football highlights
+try {
+  if (!this.apiDisabled) {
+    await this.fetchAndStoreFootballHighlights();
+  } else {
+    console.log('⏭️ Skipping highlights fetch: API disabled');
+  }
+} catch (err) {
+  console.warn('⚠️ Highlights fetch failed:', err.message);
+  await this.logEvent('WARNING', 'Highlights fetch failed', { error: err.message });
+}
+
 
 
       this.lastFetchTime = new Date();

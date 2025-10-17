@@ -98,6 +98,11 @@ class ApiClient {
     if (leagueCode) url += `&leagueCode=${leagueCode}`;
     return this.request(url);
   }
+// Get football highlights
+async getFootballHighlights(leagueName) {
+  return this.request(`/api/football-highlights?leagueName=${encodeURIComponent(leagueName)}`);
+}
+
 
   async createMatches(matches) {
     return this.request('/api/matches', {

@@ -1,7 +1,7 @@
 // src/components/HighlightsTab/HighlightsTab.jsx
 import React, { useEffect, useState } from "react";
+import { apiClient } from "../../lib/api";
 import "../../styles/HighlightsTab.css";
-
 
 const leagues = [
   { name: "Premier League", channelId: "UCxZf3zG2q1oVmtz0gW1yj9Q" },
@@ -20,86 +20,31 @@ const HighlightsTab = () => {
   const [modalVideo, setModalVideo] = useState(null);
 
   useEffect(() => {
-    const apiKey = process.env.REACT_APP_YT_API_KEY;
-
-    if (!apiKey) {
-      setError("YouTube API key is missing. Add REACT_APP_YT_API_KEY to your .env");
-      setLoading(false);
-      return;
-    }
-
-    // use channel first, fallback to keyword search
-    const fetchLeagueVideos = async (league) => {
-      const base = `https://www.googleapis.com/youtube/v3/search`;
-
-      try {
-        // 1️⃣ Try fetching from official channel
-        const channelParams = new URLSearchParams({
-          part: "snippet",
-          channelId: league.channelId,
-          q: "highlights",
-          type: "video",
-          order: "date",
-          videoDuration: "short",
-          maxResults: "8",
-          key: apiKey,
-        });
-
-        const channelRes = await fetch(`${base}?${channelParams.toString()}`);
-        const channelData = await channelRes.json();
-
-        if (channelData.items && channelData.items.length > 0) {
-          return channelData.items;
-        }
-
-        // 2️⃣ Fallback: keyword-based search
-        console.warn(
-          `⚠️ No results from ${league.name} official channel. Falling back to keyword search.`
-        );
-
-        const queryParams = new URLSearchParams({
-          part: "snippet",
-          q: `${league.name} football 2025/26 highlights`,
-          type: "video",
-          order: "relevance",
-          videoDuration: "short",
-          maxResults: "8",
-          key: apiKey,
-        });
-
-        const queryRes = await fetch(`${base}?${queryParams.toString()}`);
-        const queryData = await queryRes.json();
-
-        return queryData.items || [];
-      } catch (err) {
-        console.error("Error fetching YouTube videos for", league.name, err);
-        return [];
-      }
-    };
-
-    const loadAll = async () => {
+    const loadHighlights = async () => {
       setLoading(true);
       try {
-        const resultsArray = await Promise.all(
-          leagues.map(async (league) => {
-            const vids = await fetchLeagueVideos(league);
-            return { [league.name]: vids };
-          })
-        );
-        const results = Object.assign({}, ...resultsArray);
+        const results = {};
+        for (const league of leagues) {
+          const data = await apiClient.getFootballHighlights(league.name);
+          results[league.name] = data || [];
+        }
         setVideos(results);
       } catch (err) {
-        console.error("Error loading highlights:", err);
+        console.error("❌ Error loading highlights:", err);
         setError("Failed to load highlights. Try again later.");
       } finally {
         setLoading(false);
       }
     };
 
-    loadAll();
+    loadHighlights();
   }, []);
 
+  const openModal = (videoId, title) => setModalVideo({ videoId, title });
+  const closeModal = () => setModalVideo(null);
+
   if (loading) return <p className="highlights-loading">Loading highlights...</p>;
+
   if (error)
     return (
       <div className="highlights-error">
@@ -107,12 +52,6 @@ const HighlightsTab = () => {
         <button onClick={() => window.location.reload()}>Retry</button>
       </div>
     );
-
-  const openModal = (videoId, title) => {
-    setModalVideo({ videoId, title });
-  };
-
-  const closeModal = () => setModalVideo(null);
 
   return (
     <div className="highlights-page">
@@ -135,37 +74,36 @@ const HighlightsTab = () => {
       </div>
 
       <div className="highlights-grid">
-        {videos[selectedLeague]?.map((v) => (
-          <div
-            key={v.id.videoId}
-            className="highlight-card"
-            onClick={() => openModal(v.id.videoId, v.snippet.title)}
-          >
-            <div className="highlight-thumbnail">
-              <img
-                src={
-                  v.snippet.thumbnails.high?.url ||
-                  v.snippet.thumbnails.medium.url
-                }
-                alt={v.snippet.title}
-                loading="lazy"
-              />
+        {videos[selectedLeague]?.length ? (
+          videos[selectedLeague].map((v) => (
+            <div
+              key={v.videoId}
+              className="highlight-card"
+              onClick={() => openModal(v.videoId, v.title)}
+            >
+              <div className="highlight-thumbnail">
+                <img
+                  src={v.thumbnail}
+                  alt={v.title}
+                  loading="lazy"
+                />
+                <div className="highlight-overlay">▶ Watch</div>
+              </div>
+              <div className="highlight-info">
+                <h3>{v.title}</h3>
+                <p>{v.channelTitle}</p>
+              </div>
             </div>
-            <div className="highlight-info">
-              <h3>{v.snippet.title}</h3>
-              <p>{v.snippet.channelTitle}</p>
-            </div>
-          </div>
-        ))}
+          ))
+        ) : (
+          <p>No highlights found for {selectedLeague}.</p>
+        )}
       </div>
 
-      {/* Modal */}
+      {/* Modal for video playback */}
       {modalVideo && (
         <div className="highlight-modal" onClick={closeModal}>
-          <div
-            className="highlight-modal-content"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="highlight-modal-content" onClick={(e) => e.stopPropagation()}>
             <button className="highlight-modal-close" onClick={closeModal}>
               ×
             </button>
