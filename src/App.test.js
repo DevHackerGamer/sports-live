@@ -15,11 +15,11 @@ jest.mock('@clerk/clerk-react', () => {
 });
 
 // Mock Pages
-jest.mock('../components/landing/LandingPage', () => () => <div>LandingPage</div>);
-jest.mock('../components/dashboard/Dashboard', () => () => <div>Dashboard</div>);
-jest.mock('../components/LeagueView/LeagueView', () => () => <div>LeagueView</div>);
-jest.mock('../components/auth/SignInPage', () => () => <div>SignInPage</div>);
-jest.mock('../components/auth/SignUpPage', () => () => <div>SignUpPage</div>);
+jest.mock('./components/landing/LandingPage', () => () => <div>LandingPage</div>);
+jest.mock('./components/dashboard/Dashboard', () => () => <div>Dashboard</div>);
+jest.mock('./components/LeagueView/LeagueView', () => () => <div>LeagueView</div>);
+jest.mock('./components/auth/SignInPage', () => () => <div>SignInPage</div>);
+jest.mock('./components/auth/SignUpPage', () => () => <div>SignUpPage</div>);
 
 describe('App routing', () => {
   it('renders LandingPage for "/" when signed out', () => {
