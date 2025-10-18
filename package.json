@@ -89,7 +89,7 @@
       "!src/components/EventFeeds/**",
       "!src/components/sports/**",
       "!src/components/matchViewer/MatchViewer**",
-      "!src/components/liveInput/liveInput**"
+      "!src/components/liveInput/LiveInput**"
      
     ]
   }
