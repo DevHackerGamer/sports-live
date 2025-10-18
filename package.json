@@ -88,7 +88,7 @@
       "src/App.js",
       "!src/components/EventFeeds/**",
       "!src/components/sports/**",
-      "!src/components/matchViewer/**",
+     
       "!src/components/liveInput/**"
     ]
   }

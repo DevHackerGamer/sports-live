@@ -1,44 +1,45 @@
-import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
-import LineupsTab from "../matchViewer/LineupsTab";
-import { apiClient } from "../../lib/api";
+import React from 'react';
+import { render, screen, waitFor } from '@testing-library/react';
+import LineupsTab from '../matchViewer/LineupsTab';
+import { apiClient } from '../../lib/api';
 
-jest.mock("../../lib/api", () => ({
+// Mock the apiClient
+jest.mock('../../lib/api', () => ({
   apiClient: {
-    getLineupsByMatch: jest.fn(),
     getTeams: jest.fn(),
+    getLineupsByMatch: jest.fn(),
   },
 }));
 
-describe("LineupsTab Component", () => {
-  const mockMatch = {
-    id: "match123",
-    homeTeam: { id: "1", name: "Team A", crest: "/teamA.png" },
-    awayTeam: { id: "2", name: "Team B", crest: "/teamB.png" },
+describe('LineupsTab', () => {
+  const match = {
+    id: 'match1',
+    homeTeam: { name: 'Team A', crest: 'home-logo.png' },
+    awayTeam: { name: 'Team B', crest: 'away-logo.png' },
   };
 
-  const mockTeams = [
-    { id: "1", name: "Team A", crest: "/teamA.png" },
-    { id: "2", name: "Team B", crest: "/teamB.png" },
+  const teams = [
+    { id: 'teamA', name: 'Team A', crest: 'teamA-logo.png' },
+    { id: 'teamB', name: 'Team B', crest: 'teamB-logo.png' },
   ];
 
-  const mockLineups = [
+  const lineups = [
     {
-      teamId: "1",
+      teamId: 'teamA',
       starters: [
-        { _id: "H1", name: "Home Player 1", position: "GK", nationality: "SA" },
+        { _id: '1', name: 'Player A1', position: 'Forward', nationality: 'ENG' },
       ],
       substitutes: [
-        { _id: "H2", name: "Home Player 2", position: "DF", nationality: "BR" },
+        { _id: '2', name: 'Player A2', position: 'Midfielder', nationality: 'ENG' },
       ],
     },
     {
-      teamId: "2",
+      teamId: 'teamB',
       starters: [
-        { _id: "A1", name: "Away Player 1", position: "MF", nationality: "EN" },
+        { _id: '3', name: 'Player B1', position: 'Defender', nationality: 'ESP' },
       ],
       substitutes: [
-        { _id: "A2", name: "Away Player 2", position: "FW", nationality: "FR" },
+        { _id: '4', name: 'Player B2', position: 'Goalkeeper', nationality: 'ESP' },
       ],
     },
   ];
@@ -47,69 +48,71 @@ describe("LineupsTab Component", () => {
     jest.clearAllMocks();
   });
 
-  test("renders loading state initially", () => {
-    apiClient.getTeams.mockResolvedValueOnce({ data: [] });
-    apiClient.getLineupsByMatch.mockResolvedValueOnce([]);
+  it('shows loading state initially', async () => {
+    apiClient.getTeams.mockResolvedValue({ data: teams });
+    apiClient.getLineupsByMatch.mockResolvedValue(lineups);
 
-    render(<LineupsTab match={mockMatch} />);
-    expect(screen.getByText(/loading lineups/i)).toBeInTheDocument();
+    render(<LineupsTab match={match} />);
+    expect(screen.getByText(/Loading lineups/i)).toBeInTheDocument();
+    await waitFor(() => screen.getByText('Team A'));
   });
 
-  test("renders lineups correctly after API call", async () => {
-    apiClient.getTeams.mockResolvedValueOnce({ data: mockTeams });
-    apiClient.getLineupsByMatch.mockResolvedValueOnce(mockLineups);
+  it('renders lineup tables when data is fetched', async () => {
+    apiClient.getTeams.mockResolvedValue({ data: teams });
+    apiClient.getLineupsByMatch.mockResolvedValue(lineups);
 
-    render(<LineupsTab match={mockMatch} />);
+    render(<LineupsTab match={match} />);
 
-    // Wait for table to appear
     await waitFor(() => {
-      expect(screen.getByText("Team A")).toBeInTheDocument();
-      expect(screen.getByText("Team B")).toBeInTheDocument();
+      // Team names
+      expect(screen.getByText('Team A')).toBeInTheDocument();
+      expect(screen.getByText('Team B')).toBeInTheDocument();
 
-      // Check starter player names
-      expect(screen.getByText("Home Player 1")).toBeInTheDocument();
-      expect(screen.getByText("Away Player 1")).toBeInTheDocument();
+      // Starters
+      expect(screen.getByText('Player A1')).toBeInTheDocument();
+      expect(screen.getByText('Player B1')).toBeInTheDocument();
 
-      // Check substitute player names
-      expect(screen.getByText("Home Player 2")).toBeInTheDocument();
-      expect(screen.getByText("Away Player 2")).toBeInTheDocument();
+      // Substitutes
+      expect(screen.getByText('Player A2')).toBeInTheDocument();
+      expect(screen.getByText('Player B2')).toBeInTheDocument();
     });
   });
 
-  test("renders error state if API call fails", async () => {
-    apiClient.getTeams.mockRejectedValueOnce(new Error("Teams API Error"));
-    apiClient.getLineupsByMatch.mockResolvedValueOnce([]);
+  it('shows error message if API fails', async () => {
+    apiClient.getTeams.mockRejectedValue(new Error('API Error'));
+    apiClient.getLineupsByMatch.mockResolvedValue([]);
 
-    render(<LineupsTab match={mockMatch} />);
+    render(<LineupsTab match={match} />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Teams API Error/i)).toBeInTheDocument();
+      expect(screen.getByText(/Error: API Error/i)).toBeInTheDocument();
     });
   });
 
-  test("renders empty state if no lineup data", async () => {
-    apiClient.getTeams.mockResolvedValueOnce({ data: mockTeams });
-    apiClient.getLineupsByMatch.mockResolvedValueOnce([]);
+  it('shows no lineup data message if empty', async () => {
+    apiClient.getTeams.mockResolvedValue({ data: teams });
+    apiClient.getLineupsByMatch.mockResolvedValue([]);
 
-    render(<LineupsTab match={mockMatch} />);
+    render(<LineupsTab match={match} />);
 
     await waitFor(() => {
       expect(screen.getByText(/No lineup data found/i)).toBeInTheDocument();
     });
   });
 
-  test("resolves team logos correctly", async () => {
-    apiClient.getTeams.mockResolvedValueOnce({ data: mockTeams });
-    apiClient.getLineupsByMatch.mockResolvedValueOnce(mockLineups);
+  it('uses matchDetails for team names and logos if provided', async () => {
+    const matchDetails = {
+      homeTeam: { name: 'Team A', crest: 'home-detail-logo.png' },
+      awayTeam: { name: 'Team B', crest: 'away-detail-logo.png' },
+    };
+    apiClient.getTeams.mockResolvedValue({ data: teams });
+    apiClient.getLineupsByMatch.mockResolvedValue(lineups);
 
-    render(<LineupsTab match={mockMatch} />);
+    render(<LineupsTab match={match} matchDetails={matchDetails} />);
 
     await waitFor(() => {
-      const homeLogo = screen.getByAltText("Team A");
-      const awayLogo = screen.getByAltText("Team B");
-
-      expect(homeLogo).toHaveAttribute("src", "/teamA.png");
-      expect(awayLogo).toHaveAttribute("src", "/teamB.png");
+      expect(screen.getByAltText('Team A').src).toContain('home-detail-logo.png');
+      expect(screen.getByAltText('Team B').src).toContain('away-detail-logo.png');
     });
   });
 });

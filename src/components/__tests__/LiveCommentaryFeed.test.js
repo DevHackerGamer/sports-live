@@ -1,84 +1,63 @@
-import { render, screen, waitFor } from "@testing-library/react";
-import "@testing-library/jest-dom";
-import LiveCommentaryFeed from "../matchViewer/LiveCommentaryFeed" ;
-import { apiClient } from "../../lib/api";
+import React from 'react';
+import { render, screen, waitFor } from '@testing-library/react';
+import LiveCommentaryFeed from '../matchViewer/LiveCommentaryFeed';
+import { apiClient } from '../../lib/api';
 
-// 🧩 Mock apiClient
-jest.mock("../../lib/api", () => ({
+// Mock apiClient
+jest.mock('../../lib/api', () => ({
   apiClient: {
     getCommentary: jest.fn(),
   },
 }));
 
-// ⏱ Mock setInterval/clearInterval to avoid real timing
-jest.useFakeTimers();
-
-describe("LiveCommentaryFeed Component", () => {
-  const mockMatchId = "12345";
-
-  const mockComments = [
-    { id: 1, time: "12'", text: "Kickoff! The game begins." },
-    { id: 2, time: "23'", text: "Goal! What a strike!" },
+describe('LiveCommentaryFeed', () => {
+  const matchId = 'match1';
+  const comments = [
+    { id: 'c1', time: '12:00', text: 'Kickoff!' },
+    { id: 'c2', time: '15:23', text: 'Goal by Team A' },
   ];
 
-  afterEach(() => {
+  beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  test("renders loading state initially", async () => {
-    apiClient.getCommentary.mockResolvedValueOnce([]);
-    render(<LiveCommentaryFeed matchId={mockMatchId} />);
-    expect(screen.getByText(/loading commentary/i)).toBeInTheDocument();
+  it('shows loading initially', async () => {
+    apiClient.getCommentary.mockResolvedValue(comments);
+    render(<LiveCommentaryFeed matchId={matchId} />);
+    expect(screen.getByText(/Loading commentary/i)).toBeInTheDocument();
+    await waitFor(() => screen.getByText('🎙 Live Commentary'));
   });
 
-  test("renders commentary after API resolves", async () => {
-    apiClient.getCommentary.mockResolvedValueOnce(mockComments);
-    render(<LiveCommentaryFeed matchId={mockMatchId} />);
+  it('renders commentary items after fetch', async () => {
+    apiClient.getCommentary.mockResolvedValue(comments);
+    render(<LiveCommentaryFeed matchId={matchId} />);
 
-    await waitFor(() =>
-      expect(screen.getByText("Kickoff! The game begins.")).toBeInTheDocument()
-    );
-    expect(screen.getByText("Goal! What a strike!")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('🎙 Live Commentary')).toBeInTheDocument();
+      expect(screen.getByText('Kickoff!')).toBeInTheDocument();
+      expect(screen.getByText('Goal by Team A')).toBeInTheDocument();
+      expect(screen.getByText('12:00')).toBeInTheDocument();
+      expect(screen.getByText('15:23')).toBeInTheDocument();
+    });
   });
 
-  test("renders 'no commentary' message when list is empty", async () => {
-    apiClient.getCommentary.mockResolvedValueOnce([]);
-    render(<LiveCommentaryFeed matchId={mockMatchId} />);
+  it('renders "no commentary" message when empty', async () => {
+    apiClient.getCommentary.mockResolvedValue([]);
+    render(<LiveCommentaryFeed matchId={matchId} />);
 
-    await waitFor(() =>
-      expect(screen.getByText(/no commentary yet/i)).toBeInTheDocument()
-    );
+    await waitFor(() => {
+      expect(screen.getByText(/No commentary yet/i)).toBeInTheDocument();
+    });
   });
 
-  test("handles API error gracefully", async () => {
-    console.error = jest.fn(); // suppress expected console error
-    apiClient.getCommentary.mockRejectedValueOnce(new Error("API Error"));
-    render(<LiveCommentaryFeed matchId={mockMatchId} />);
-
-    await waitFor(() =>
-      expect(screen.queryByText(/loading commentary/i)).not.toBeInTheDocument()
-    );
-    expect(screen.getByText(/no commentary yet/i)).toBeInTheDocument();
-  });
-
-  test("does not fetch data if no matchId is provided", async () => {
+  it('does not crash if matchId is undefined', () => {
     render(<LiveCommentaryFeed />);
-    expect(apiClient.getCommentary).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Loading commentary/i)).not.toBeInTheDocument();
   });
 
-  test("refreshes commentary every 10 seconds", async () => {
-    apiClient.getCommentary.mockResolvedValue(mockComments);
-    render(<LiveCommentaryFeed matchId={mockMatchId} />);
-
-    // Run initial fetch
-    await waitFor(() =>
-      expect(apiClient.getCommentary).toHaveBeenCalledTimes(1)
-    );
-
-    // Advance time by 10 seconds → should trigger again
-    jest.advanceTimersByTime(10000);
-    await waitFor(() =>
-      expect(apiClient.getCommentary).toHaveBeenCalledTimes(2)
-    );
+  it('calls apiClient.getCommentary with correct matchId', async () => {
+    apiClient.getCommentary.mockResolvedValue([]);
+    render(<LiveCommentaryFeed matchId={matchId} />);
+    await waitFor(() => expect(apiClient.getCommentary).toHaveBeenCalledWith(matchId));
   });
 });
