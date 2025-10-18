@@ -1,72 +1,89 @@
-import '@testing-library/jest-dom';
+// __tests__/App.test.js
+import React from 'react';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import App from '../App';
 
-// Ensure env is set BEFORE importing App (App reads env at module load)
-process.env.REACT_APP_CLERK_PUBLISHABLE_KEY = 'test_publishable_key';
+// Mock Clerk components
+jest.mock('@clerk/clerk-react', () => {
+  const React = require('react');
+  return {
+    ClerkProvider: ({ children }) => <div>{children}</div>,
+    SignedIn: ({ children }) => <div data-testid="signed-in">{children}</div>,
+    SignedOut: ({ children }) => <div data-testid="signed-out">{children}</div>,
+  };
+});
 
-// Mock Clerk SDK used by App
-const mockUseAuth = jest.fn();
-const mockUseUser = jest.fn();
-jest.mock('@clerk/clerk-react', () => ({
-  ClerkProvider: ({ children }) => <div>{children}</div>,
-  useAuth: () => mockUseAuth(),
-  useUser: () => mockUseUser(),
-}));
+// Mock Pages
+jest.mock('../components/landing/LandingPage', () => () => <div>LandingPage</div>);
+jest.mock('../components/dashboard/Dashboard', () => () => <div>Dashboard</div>);
+jest.mock('../components/LeagueView/LeagueView', () => () => <div>LeagueView</div>);
+jest.mock('../components/auth/SignInPage', () => () => <div>SignInPage</div>);
+jest.mock('../components/auth/SignUpPage', () => () => <div>SignUpPage</div>);
 
-// Mock child pages to keep App test focused on routing logic
-jest.mock('./components/auth/LoginPage', () => () => <div>LoginPage Component</div>);
-jest.mock('./components/dashboard/Dashboard', () => () => <div>Dashboard Component</div>);
+describe('App routing', () => {
+  it('renders LandingPage for "/" when signed out', () => {
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>
+    );
 
-// Now import App
-import App from './App';
-
-describe('App Component (auth gating)', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
+    expect(screen.getByText('LandingPage')).toBeInTheDocument();
   });
 
-  test('shows LoginPage when not signed in', () => {
-    mockUseAuth.mockReturnValue({ isSignedIn: false, isLoaded: true });
-    mockUseUser.mockReturnValue({ user: null, isLoaded: true });
+  it('renders SignInPage for "/sign-in" when signed out', () => {
+    render(
+      <MemoryRouter initialEntries={['/sign-in']}>
+        <App />
+      </MemoryRouter>
+    );
 
-    render(<App />);
-    expect(screen.getByText('LoginPage Component')).toBeInTheDocument();
+    expect(screen.getByText('SignInPage')).toBeInTheDocument();
   });
 
-  test('shows Dashboard when signed in', () => {
-    mockUseAuth.mockReturnValue({ isSignedIn: true, isLoaded: true });
-    mockUseUser.mockReturnValue({ user: { id: 'user_1' }, isLoaded: true });
+  it('renders SignUpPage for "/sign-up" when signed out', () => {
+    render(
+      <MemoryRouter initialEntries={['/sign-up']}>
+        <App />
+      </MemoryRouter>
+    );
 
-    render(<App />);
-    expect(screen.getByText('Dashboard Component')).toBeInTheDocument();
+    expect(screen.getByText('SignUpPage')).toBeInTheDocument();
   });
 
-  test('throws when publishable key is missing', () => {
-    const prev = process.env.REACT_APP_CLERK_PUBLISHABLE_KEY;
-    // Temporarily unset key and re-require App fresh
-    process.env.REACT_APP_CLERK_PUBLISHABLE_KEY = '';
-    jest.resetModules();
+  it('renders Dashboard for protected route "/dashboard" when signed in', () => {
+    // Override SignedIn to render children
+    jest.mocked(require('@clerk/clerk-react').SignedIn).mockImplementation(({ children }) => <>{children}</>);
 
-    // Re-mock Clerk and children for fresh module load
-    jest.doMock('@clerk/clerk-react', () => ({
-      ClerkProvider: ({ children }) => <div>{children}</div>,
-      useAuth: () => ({ isSignedIn: false, isLoaded: true }),
-      useUser: () => ({ user: null, isLoaded: true }),
-    }));
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <App />
+      </MemoryRouter>
+    );
 
-    const FreshApp = require('./App').default;
-    expect(() => render(<FreshApp />)).toThrow('Missing Publishable Key');
-
-    // Restore env and module state
-    process.env.REACT_APP_CLERK_PUBLISHABLE_KEY = prev;
-    jest.resetModules();
+    expect(screen.getByText('Dashboard')).toBeInTheDocument();
   });
 
-  test('shows Loading while Clerk is not yet loaded', () => {
-    mockUseAuth.mockReturnValue({ isSignedIn: false, isLoaded: false });
-    mockUseUser.mockReturnValue({ user: null, isLoaded: false });
+  it('renders LeagueView for protected route "/league/:id" when signed in', () => {
+    jest.mocked(require('@clerk/clerk-react').SignedIn).mockImplementation(({ children }) => <>{children}</>);
 
-    render(<App />);
-    expect(screen.getByText(/Loading.../i)).toBeInTheDocument();
+    render(
+      <MemoryRouter initialEntries={['/league/123']}>
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('LeagueView')).toBeInTheDocument();
+  });
+
+  it('redirects unknown route "*" to "/"', () => {
+    render(
+      <MemoryRouter initialEntries={['/unknown']}>
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('LandingPage')).toBeInTheDocument();
   });
 });
