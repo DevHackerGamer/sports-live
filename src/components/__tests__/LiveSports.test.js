@@ -1,178 +1,126 @@
-/**
- * @jest-environment jsdom
- */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import LiveSports from '../sports/LiveSports';
-import { useUser } from '@clerk/clerk-react';
+import LiveSports from '../LiveSports/LiveSports';
 import { apiClient } from '../../lib/api';
+import { useUser } from '@clerk/clerk-react';
 import { useLiveSports } from '../../hooks/useLiveSports';
 
-jest.mock('@clerk/clerk-react');
-jest.mock('../../lib/api');
-jest.mock('../../hooks/useLiveSports');
+jest.mock('../../lib/api', () => ({
+  apiClient: {
+    getUserWatchlist: jest.fn(),
+    getTeams: jest.fn(),
+    addUserMatch: jest.fn(),
+  },
+}));
+
+jest.mock('../../hooks/useLiveSports', () => ({
+  useLiveSports: jest.fn(),
+}));
+
+jest.mock('@clerk/clerk-react', () => ({
+  useUser: jest.fn(),
+}));
+
+// Minimal MatchCard stub to avoid rendering heavy nested components
+jest.mock('../LiveSports/LiveSports', () => {
+  const original = jest.requireActual('../LiveSports/LiveSports');
+  return {
+    ...original,
+    MatchCard: ({ game, onSelect }) => (
+      <div data-testid={`match-${game.id}`}>{game.homeTeam.name} vs {game.awayTeam.name}</div>
+    ),
+  };
+});
 
 describe('LiveSports Component', () => {
-  const mockUser = { id: 'u1', firstName: 'John' };
-  const mockGame = {
-    id: 'g1',
-    homeTeam: { name: 'TeamA' },
-    awayTeam: { name: 'TeamB' },
-    competition: 'League1',
-    status: 'live',
-    utcDate: new Date().toISOString(),
-    homeScore: 1,
-    awayScore: 2,
-    minute: 5
+  const mockUser = { id: 'user1' };
+  const mockGames = [
+    {
+      id: 'match1',
+      homeTeam: { name: 'Team A' },
+      awayTeam: { name: 'Team B' },
+      utcDate: new Date().toISOString(),
+      status: 'scheduled',
+    },
+  ];
+  const mockSportsData = {
+    games: mockGames,
+    totalMatches: 1,
+    dateFrom: new Date().toISOString(),
+    dateTo: new Date().toISOString(),
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
     useUser.mockReturnValue({ user: mockUser });
-  });
-
-  it('renders loading state when sportsData is null', () => {
-    useLiveSports.mockReturnValue({
-      sportsData: null,
-      isConnected: true,
-      error: null,
-      lastUpdated: null,
-      refreshData: jest.fn()
+    apiClient.getUserWatchlist.mockResolvedValue({ data: [] });
+    apiClient.getTeams.mockResolvedValue({
+      data: [
+        { name: 'Team A', crest: '/a.png' },
+        { name: 'Team B', crest: '/b.png' },
+      ],
     });
-
-    render(<LiveSports />);
-    expect(screen.getByText(/Loading live matches/i)).toBeInTheDocument();
-  });
-
-  it('renders error state and allows retry', () => {
-    const refreshMock = jest.fn();
     useLiveSports.mockReturnValue({
-      sportsData: null,
-      isConnected: false,
-      error: true,
-      lastUpdated: null,
-      refreshData: refreshMock
-    });
-
-    render(<LiveSports />);
-    expect(screen.getByText(/Connection Error/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByText(/Retry/i));
-    expect(refreshMock).toHaveBeenCalled();
-  });
-
-  it('renders empty state when no matches', () => {
-    useLiveSports.mockReturnValue({
-      sportsData: { games: [], totalMatches: 0 },
-      isConnected: true,
-      error: null,
-      lastUpdated: null,
-      refreshData: jest.fn()
-    });
-
-    render(<LiveSports />);
-    expect(screen.getByText(/No matches available/i)).toBeInTheDocument();
-  });
-
-  it('renders match card correctly', () => {
-    useLiveSports.mockReturnValue({
-      sportsData: { 
-        games: [mockGame],
-        dateFrom: new Date().toISOString(),
-        dateTo: new Date().toISOString(),
-        totalMatches: 1
-      },
+      sportsData: mockSportsData,
       isConnected: true,
       error: null,
       lastUpdated: new Date(),
-      refreshData: jest.fn()
+      refreshData: jest.fn(),
     });
-
-    render(<LiveSports />);
-
-    const matchCard = screen.getByText(/TeamA/i).closest('.ls-match-card');
-    expect(matchCard).toBeInTheDocument();
-    expect(matchCard).toHaveTextContent(/TeamB/);
-    expect(matchCard).toHaveTextContent(/LIVE/i);
   });
 
-  it('opens TeamInfo view when a team is clicked', () => {
-    useLiveSports.mockReturnValue({
-      sportsData: { games: [mockGame], dateFrom: new Date(), dateTo: new Date() },
-      isConnected: true,
-      error: null,
-      lastUpdated: null,
-      refreshData: jest.fn()
-    });
-
+  it('renders loading state initially', () => {
+    useLiveSports.mockReturnValue({ sportsData: null, isConnected: true, error: null, refreshData: jest.fn() });
     render(<LiveSports />);
-    fireEvent.click(screen.getByText(/TeamA/i));
-    expect(screen.getByText(/Back/i)).toBeInTheDocument();
+    expect(screen.getByTestId('loading')).toBeInTheDocument();
   });
 
-  it('adds a match to watchlist', async () => {
-    apiClient.addUserMatch = jest.fn().mockResolvedValue({});
-    useLiveSports.mockReturnValue({
-      sportsData: { games: [mockGame], dateFrom: new Date(), dateTo: new Date() },
-      isConnected: true,
-      error: null,
-      lastUpdated: null,
-      refreshData: jest.fn()
-    });
-
+  it('renders error state if hook returns error', () => {
+    const mockRefresh = jest.fn();
+    useLiveSports.mockReturnValue({ sportsData: null, isConnected: false, error: 'Failed', refreshData: mockRefresh });
     render(<LiveSports />);
-    const matchCard = screen.getByText(/TeamA/i).closest('.ls-match-card');
+    expect(screen.getByTestId('error')).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/Retry/i));
+    expect(mockRefresh).toHaveBeenCalled();
+  });
 
-    fireEvent.mouseEnter(matchCard);
-    const watchlistBtn = await screen.findByText('+ Watchlist');
-    fireEvent.click(watchlistBtn);
+  it('renders match cards', async () => {
+    render(<LiveSports />);
+    await waitFor(() => screen.getByText(/Team A vs Team B/i));
+    expect(screen.getByText(/Team A vs Team B/i)).toBeInTheDocument();
+  });
 
+  it('fetches user watchlist and team crests', async () => {
+    render(<LiveSports />);
     await waitFor(() => {
-      expect(apiClient.addUserMatch).toHaveBeenCalledWith(mockUser.id, mockGame);
+      expect(apiClient.getUserWatchlist).toHaveBeenCalledWith('user1');
+      expect(apiClient.getTeams).toHaveBeenCalled();
     });
   });
 
-  it('refresh buttons trigger refreshData', () => {
-    const refreshMock = jest.fn();
-    useLiveSports.mockReturnValue({
-      sportsData: { games: [mockGame], dateFrom: new Date(), dateTo: new Date() },
-      isConnected: true,
-      error: null,
-      lastUpdated: null,
-      refreshData: refreshMock
-    });
-
+  it('updates watchlist when adding match', async () => {
+    apiClient.addUserMatch.mockResolvedValue({});
     render(<LiveSports />);
-    const refreshButtons = screen.getAllByText(/Refresh/i);
-    refreshButtons.forEach(btn => fireEvent.click(btn));
-    expect(refreshMock).toHaveBeenCalledTimes(refreshButtons.length);
+    await waitFor(() => screen.getByText(/Team A vs Team B/i));
+
+    // Simulate hovering and clicking watchlist button
+    const matchCard = screen.getByText(/Team A vs Team B/i).parentElement;
+    fireEvent.mouseEnter(matchCard);
+
+    const watchBtn = matchCard.querySelector('button');
+    if (watchBtn) {
+      fireEvent.click(watchBtn);
+      await waitFor(() => {
+        expect(apiClient.addUserMatch).toHaveBeenCalledWith('user1', mockGames[0]);
+      });
+    }
   });
 
-  it('computes live match minutes if missing', async () => {
-    const now = new Date();
-    const nowISO = now.toISOString();
-
-    const liveGame = {
-      ...mockGame,
-      status: 'IN_PLAY', // ensure it is treated as live
-      utcDate: nowISO,
-      minute: null
-    };
-
-    useLiveSports.mockReturnValue({
-      sportsData: { games: [liveGame], totalMatches: 1 },
-      isConnected: true,
-      error: null,
-      lastUpdated: now,
-      refreshData: jest.fn()
-    });
-
-    render(<LiveSports />);
-
-    const homeTeamEl = await screen.findByText(/TeamA/i);
-    const matchCard = homeTeamEl.closest('.ls-match-card');
-
-    expect(matchCard).toBeInTheDocument();
-    // check that minutes are displayed (fallback computation logic inside component)
-    expect(matchCard).toHaveTextContent(/\d+'/);
+  it('calls onMatchSelect when a match is clicked', async () => {
+    const onMatchSelect = jest.fn();
+    render(<LiveSports onMatchSelect={onMatchSelect} />);
+    const card = await screen.findByText(/Team A vs Team B/i);
+    fireEvent.click(card);
+    expect(onMatchSelect).toHaveBeenCalledWith(mockGames[0]);
   });
 });

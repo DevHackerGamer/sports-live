@@ -5,11 +5,25 @@ import { useLiveSports } from '../../hooks/useLiveSports';
 import TeamInfo from '../TeamInfo/TeamInfo';
 import '../../styles/LiveSports.css';
 
+
+const normalize = (str) => {
+  if (!str) return '';
+  return str
+    .toLowerCase()
+    .normalize('NFD')                // separate accents from letters
+    .replace(/[\u0300-\u036f]/g, '') // remove accents
+    .replace(/[^a-z0-9 ]/g, '')      // keep spaces for partial/word matching
+    .trim();
+};
+
+
 const LiveSports = ({ onMatchSelect }) => {
   const { user } = useUser();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [watchlistIds, setWatchlistIds] = useState(new Set());
+  const [teamCrests, setTeamCrests] = useState({});
+
   
   useEffect(() => {
     let timerId;
@@ -151,6 +165,98 @@ const groupByDateAndLeague = React.useCallback((games) => {
     });
     return arr.sort((a, b) => (a.__utcMs || 0) - (b.__utcMs || 0));
   }, [sportsData?.games]);
+// Fetch team crests/logos and map to team names
+useEffect(() => {
+  let cancelled = false;
+const stripCommonPrefixes = (name) => {
+  if (!name) return '';
+  return name
+    // Remove common letter prefixes but keep numbers and words
+    .replace(/\b(fc|sc|rc|ac|cd|sv|us|ss|cf|cs)\b/gi, '')
+    // Remove leading/trailing punctuation like ".", "-" after numbers
+    .replace(/^[\s\d\.-]+/, '')  
+    .trim();
+};
+
+
+  const findCrest = (teamName, normalizedTeams) => {
+    if (!teamName) return '/placeholder.png';
+    const norm = normalize(stripCommonPrefixes(teamName));
+
+    // 1. Exact match
+    if (normalizedTeams[norm]) return normalizedTeams[norm];
+
+    // 2. Partial match (contains or contained)
+    const partial = Object.keys(normalizedTeams).find(k => norm.includes(k) || k.includes(norm));
+    if (partial) return normalizedTeams[partial];
+
+    // 3. Last word match
+    const words = norm.split(' ').filter(Boolean);
+    for (let i = words.length - 1; i >= 0; i--) {
+      const lastWordMatch = Object.keys(normalizedTeams).find(k => k.includes(words[i]));
+      if (lastWordMatch) return normalizedTeams[lastWordMatch];
+    }
+
+    // 4. Longest word match
+    const sortedWords = words.sort((a, b) => b.length - a.length);
+    for (const w of sortedWords) {
+      const longestWordMatch = Object.keys(normalizedTeams).find(k => k.includes(w));
+      if (longestWordMatch) return normalizedTeams[longestWordMatch];
+    }
+
+    // 5. Special fixes for known tricky cases
+    const specialCases = {
+      'benfica': 'sport lisboa e benfica',
+      'porto': 'fc porto',
+      'lyonnais': 'olympique lyonnais',
+      'marseille': 'olympique de marseille',
+      'psg': 'paris saint germain',
+    };
+    for (const key in specialCases) {
+      if (normalize(teamName).includes(key) && normalizedTeams[normalize(specialCases[key])]) {
+        return normalizedTeams[normalize(specialCases[key])];
+      }
+    }
+
+    console.warn('No crest found for team:', teamName);
+    return '/placeholder.png';
+  };
+
+  (async () => {
+    try {
+      console.log('Fetching teams for crests...');
+      const teamsRes = await apiClient.getTeams();
+      const teams = teamsRes.data || [];
+      console.log('Teams fetched:', teams.map(t => t.name));
+
+      if (cancelled) return;
+
+      // Pre-normalize teams for quick lookup
+      const normalizedTeams = {};
+      teams.forEach(t => {
+        const norm = normalize(stripCommonPrefixes(t.name));
+        normalizedTeams[norm] = t.crest || t.logo || '/placeholder.png';
+      });
+
+      const crestMap = {};
+      sortedGames.forEach(game => {
+        const homeName = normalize(game.homeTeam?.name);
+        const awayName = normalize(game.awayTeam?.name);
+
+        crestMap[homeName] = findCrest(game.homeTeam?.name, normalizedTeams);
+        crestMap[awayName] = findCrest(game.awayTeam?.name, normalizedTeams);
+      });
+
+      console.log('Final crest map:', crestMap);
+      setTeamCrests(crestMap);
+
+    } catch (err) {
+      console.error('Failed to fetch team crests', err);
+    }
+  })();
+
+  return () => { cancelled = true; };
+}, [sortedGames]);
 
   const chunks = React.useMemo(() => buildWeeklyChunks(sortedGames, dateFrom, dateTo), [sortedGames, dateFrom, dateTo, buildWeeklyChunks]);
 
@@ -285,6 +391,7 @@ const groupByDateAndLeague = React.useCallback((games) => {
                         getStatusBadge={getStatusBadge}
                         formatDate={formatDate}
                         formatTime={formatTime}
+                        teamCrests={teamCrests} 
                         inWatchlist={watchlistIds.has(String(game.id ?? game._id ?? game.matchId))}
                         onWatchlistAdded={(mid) => {
                           setWatchlistIds(prev => {
@@ -339,6 +446,7 @@ const MatchCard = React.memo(function MatchCard({
   formatTime,
   inWatchlist,
   onWatchlistAdded,
+  teamCrests
 }) {
   const { user } = useUser();
   const [homeScore, setHomeScore] = useState(game.homeScore);
@@ -349,6 +457,8 @@ const MatchCard = React.memo(function MatchCard({
   const [hovered, setHovered] = useState(false);
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(!!inWatchlist);
+
+
 
   // Keep local state in sync with parent-provided watchlist status
   useEffect(() => {
@@ -405,6 +515,14 @@ const MatchCard = React.memo(function MatchCard({
       }
     }
   }
+  console.log('Rendering match:', game.homeTeam?.name, game.awayTeam?.name);
+console.log('Home crest:', teamCrests[normalize(game.homeTeam?.name)]);
+console.log('Away crest:', teamCrests[normalize(game.awayTeam?.name)]);
+const homeCrest = teamCrests[normalize(game.homeTeam?.name)] || '/placeholder.png';
+const awayCrest = teamCrests[normalize(game.awayTeam?.name)] || '/placeholder.png';
+
+
+
 
   return (
     <div
@@ -453,14 +571,12 @@ const MatchCard = React.memo(function MatchCard({
 
       <div className="ls-match-teams">
         <div className={`ls-team ${scoringTeam === 'home' ? 'ls-team-scoring' : ''}`}>
-          {game.homeTeam?.crest && (
-            <img 
-              className="ls-team-crest ls-clickable" 
-              alt="home crest" 
-              src={game.homeTeam.crest} 
-              onClick={(e) => handleTeamClick(game.homeTeam, e)}
-            />
-          )}
+         <img 
+      className="ls-team-crest ls-clickable" 
+      alt="home crest" 
+      src={homeCrest} 
+      onClick={(e) => handleTeamClick(game.homeTeam, e)}
+    />
           <span className="ls-team-name">{game.homeTeam?.name || game.homeTeam}</span>
           {showGoalAnimation && scoringTeam === 'home' && (
             <div className="ls-goal-animation">⚽</div>
@@ -473,14 +589,12 @@ const MatchCard = React.memo(function MatchCard({
         <div className="ls-match-separator">vs</div>
 
         <div className={`ls-team ${scoringTeam === 'away' ? 'ls-team-scoring' : ''}`}>
-          {game.awayTeam?.crest && (
             <img 
-              className="ls-team-crest ls-clickable" 
-              alt="away crest" 
-              src={game.awayTeam.crest} 
-              onClick={(e) => handleTeamClick(game.awayTeam, e)}
-            />
-          )}
+      className="ls-team-crest ls-clickable" 
+      alt="away crest" 
+      src={awayCrest} 
+      onClick={(e) => handleTeamClick(game.awayTeam, e)}
+    />
           <span className="ls-team-name">{game.awayTeam?.name || game.awayTeam}</span>
           {showGoalAnimation && scoringTeam === 'away' && (
             <div className="ls-goal-animation">⚽</div>
