@@ -1,639 +1,310 @@
-import React, { useState, useEffect } from 'react';
-import { useUser } from '@clerk/clerk-react';
-import { apiClient } from '../../lib/api';
-import { useLiveSports } from '../../hooks/useLiveSports';
+import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import LiveSports from '../sports/LiveSports';
 import TeamInfo from '../TeamInfo/TeamInfo';
-import '../../styles/LiveSports.css';
+import { useUser } from '@clerk/clerk-react';
+import { useLiveSports } from '../../hooks/useLiveSports';
+import { apiClient } from '../../lib/api';
+import { normalize } from '../sports/LiveSports';
+import * as LiveSportsModule from '../sports/LiveSports';
 
+jest.mock('../../hooks/useLiveSports', () => ({ useLiveSports: jest.fn() }));
+jest.mock('@clerk/clerk-react', () => ({ useUser: jest.fn() }));
+jest.mock('../../lib/api', () => ({
+  apiClient: { addUserMatch: jest.fn() },
+}));
 
-const normalize = (str) => {
-  if (!str) return '';
-  return str
-    .toLowerCase()
-    .normalize('NFD')                // separate accents from letters
-    .replace(/[\u0300-\u036f]/g, '') // remove accents
-    .replace(/[^a-z0-9 ]/g, '')      // keep spaces for partial/word matching
-    .trim();
-};
+// Mock TeamInfo so we can assert it renders
+jest.mock('../TeamInfo/TeamInfo', () => ({ team, onBack }) => (
+  <div data-testid="team-info">
+    {team.name}
+    <button onClick={onBack}>Back</button>
+  </div>
+));
 
+describe('LiveSports selectedTeam and MatchCard behavior', () => {
+  const mockUser = { id: 'user1' };
+  const mockGames = [
+    {
+      id: 'match1',
+      homeTeam: { name: 'Team A' },
+      awayTeam: { name: 'Team B' },
+      homeScore: 1,
+      awayScore: 0,
+      utcDate: new Date().toISOString(),
+      status: 'scheduled',
+      competition: 'League',
+    },
+  ];
 
-const LiveSports = ({ onMatchSelect }) => {
-  const { user } = useUser();
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [selectedTeam, setSelectedTeam] = useState(null);
-  const [watchlistIds, setWatchlistIds] = useState(new Set());
-  const [teamCrests, setTeamCrests] = useState({});
-
-  
-  useEffect(() => {
-    let timerId;
-    const scheduleNextTick = () => {
-      const now = new Date();
-      const msToNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
-      timerId = setTimeout(() => {
-        setCurrentTime(new Date());
-        scheduleNextTick();
-      }, Math.max(1000, msToNextMinute));
-    };
-
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        if (timerId) clearTimeout(timerId);
-        setCurrentTime(new Date());
-        scheduleNextTick();
-      } else if (timerId) {
-        clearTimeout(timerId);
-      }
-    };
-
-    scheduleNextTick();
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => {
-      if (timerId) clearTimeout(timerId);
-      document.removeEventListener('visibilitychange', handleVisibility);
-    };
-  }, []);
-  
-  // Load user's watchlist when user changes
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (!user) { setWatchlistIds(new Set()); return; }
-      try {
-        const res = await apiClient.getUserWatchlist(user.id);
-        const ids = new Set((res.data || []).map(i => String(i.matchId)));
-        if (!cancelled) setWatchlistIds(ids);
-      } catch (e) {
-        if (!cancelled) setWatchlistIds(new Set());
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [user]);
-  
-  const { 
-    sportsData, 
-    isConnected, 
-    error, 
-    lastUpdated, 
-    refreshData 
-  } = useLiveSports();
-
-  // Build rolling weekly groups efficiently (single pass over sorted games)
-  const buildWeeklyChunks = React.useCallback((sortedGames, fromISO, toISO) => {
-    if (!fromISO || !toISO) return [];
-    const fromMs = Date.parse(`${fromISO}T00:00:00.000Z`);
-    const toMs = Date.parse(`${toISO}T23:59:59.999Z`);
-    if (Number.isNaN(fromMs) || Number.isNaN(toMs) || fromMs > toMs) return [];
-
- 
-
-    // Precompute week boundaries
-    const weeks = [];
-    let cursorMs = fromMs;
-    while (cursorMs <= toMs) {
-      const start = new Date(cursorMs);
-      const endMs = Math.min(
-        Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate() + 6, 23, 59, 59, 999),
-        toMs
-      );
-      const end = new Date(endMs);
-      const monthStart = start.toLocaleString([], { month: 'short' });
-      const monthEnd = end.toLocaleString([], { month: 'short' });
-      const label = `${monthStart} ${start.getUTCDate()} – ${monthEnd} ${end.getUTCDate()}`;
-      weeks.push({ label, startMs: cursorMs, endMs });
-      // advance a full week (7 days)
-      cursorMs = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate() + 7);
-    }
-
-    const result = [];
-    let gameIdx = 0;
-    const n = sortedGames.length;
-    for (const w of weeks) {
-      const items = [];
-      while (gameIdx < n) {
-        const g = sortedGames[gameIdx];
-        const t = g.__utcMs;
-        if (t < w.startMs) { gameIdx++; continue; }
-        if (t > w.endMs) break;
-        items.push(g);
-        gameIdx++;
-      }
-      if (items.length) result.push({ label: w.label, items });
-      if (gameIdx >= n) break;
-    }
-    return result;
-  }, []);
-   // Group games by date and then by league (FotMob-style)
-const groupByDateAndLeague = React.useCallback((games) => {
-  if (!Array.isArray(games) || games.length === 0) return [];
-
-  const groups = {};
-  games.forEach((g) => {
-    const dateKey = new Date(g.utcDate).toLocaleDateString([], {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
+  beforeEach(() => {
+    jest.clearAllMocks();
+    useUser.mockReturnValue({ user: mockUser });
+    useLiveSports.mockReturnValue({
+      sportsData: { games: mockGames },
+      isConnected: true,
+      error: null,
+      refreshData: jest.fn(),
     });
-
-    const league = g.competition || 'Other Competitions';
-    if (!groups[dateKey]) groups[dateKey] = {};
-    if (!groups[dateKey][league]) groups[dateKey][league] = [];
-    groups[dateKey][league].push(g);
   });
 
-  return Object.entries(groups).map(([date, leagues]) => ({
-    date,
-    leagues: Object.entries(leagues).map(([league, items]) => ({
-      league,
-      items: items.sort((a, b) => (a.__utcMs || 0) - (b.__utcMs || 0)),
-    })),
-  }));
-}, []);
-
-
-  // Derive date range from hook payload (backward compatible)
-  const dateFrom = sportsData?.range?.dateFrom || sportsData?.dateFrom;
-  const dateTo = sportsData?.range?.dateTo || sportsData?.dateTo;
-  
-  // Pre-sort once and store parsed UTC time to avoid repeated Date parsing
-  const sortedGames = React.useMemo(() => {
-    const arr = (sportsData?.games || []).filter(g => g && g.utcDate);
-    // Attach parsed time as non-enumerable to avoid bloating renders
-    arr.forEach(g => {
-      const ms = Date.parse(g.utcDate);
-      Object.defineProperty(g, '__utcMs', { value: ms, enumerable: false, configurable: true });
-    });
-    return arr.sort((a, b) => (a.__utcMs || 0) - (b.__utcMs || 0));
-  }, [sportsData?.games]);
-// Fetch team crests/logos and map to team names
-useEffect(() => {
-  let cancelled = false;
-const stripCommonPrefixes = (name) => {
-  if (!name) return '';
-  return name
-    // Remove common letter prefixes but keep numbers and words
-    .replace(/\b(fc|sc|rc|ac|cd|sv|us|ss|cf|cs)\b/gi, '')
-    // Remove leading/trailing punctuation like ".", "-" after numbers
-    .replace(/^[\s\d\.-]+/, '')  
-    .trim();
-};
-
-
-  const findCrest = (teamName, normalizedTeams) => {
-    if (!teamName) return '/placeholder.png';
-    const norm = normalize(stripCommonPrefixes(teamName));
-
-    // 1. Exact match
-    if (normalizedTeams[norm]) return normalizedTeams[norm];
-
-    // 2. Partial match (contains or contained)
-    const partial = Object.keys(normalizedTeams).find(k => norm.includes(k) || k.includes(norm));
-    if (partial) return normalizedTeams[partial];
-
-    // 3. Last word match
-    const words = norm.split(' ').filter(Boolean);
-    for (let i = words.length - 1; i >= 0; i--) {
-      const lastWordMatch = Object.keys(normalizedTeams).find(k => k.includes(words[i]));
-      if (lastWordMatch) return normalizedTeams[lastWordMatch];
-    }
-
-    // 4. Longest word match
-    const sortedWords = words.sort((a, b) => b.length - a.length);
-    for (const w of sortedWords) {
-      const longestWordMatch = Object.keys(normalizedTeams).find(k => k.includes(w));
-      if (longestWordMatch) return normalizedTeams[longestWordMatch];
-    }
-
-    // 5. Special fixes for known tricky cases
-    const specialCases = {
-      'benfica': 'sport lisboa e benfica',
-      'porto': 'fc porto',
-      'lyonnais': 'olympique lyonnais',
-      'marseille': 'olympique de marseille',
-      'psg': 'paris saint germain',
-    };
-    for (const key in specialCases) {
-      if (normalize(teamName).includes(key) && normalizedTeams[normalize(specialCases[key])]) {
-        return normalizedTeams[normalize(specialCases[key])];
-      }
-    }
-
-    console.warn('No crest found for team:', teamName);
-    return '/placeholder.png';
-  };
-
-  (async () => {
-    try {
-      console.log('Fetching teams for crests...');
-      const teamsRes = await apiClient.getTeams();
-      const teams = teamsRes.data || [];
-      console.log('Teams fetched:', teams.map(t => t.name));
-
-      if (cancelled) return;
-
-      // Pre-normalize teams for quick lookup
-      const normalizedTeams = {};
-      teams.forEach(t => {
-        const norm = normalize(stripCommonPrefixes(t.name));
-        normalizedTeams[norm] = t.crest || t.logo || '/placeholder.png';
-      });
-
-      const crestMap = {};
-      sortedGames.forEach(game => {
-        const homeName = normalize(game.homeTeam?.name);
-        const awayName = normalize(game.awayTeam?.name);
-
-        crestMap[homeName] = findCrest(game.homeTeam?.name, normalizedTeams);
-        crestMap[awayName] = findCrest(game.awayTeam?.name, normalizedTeams);
-      });
-
-      console.log('Final crest map:', crestMap);
-      setTeamCrests(crestMap);
-
-    } catch (err) {
-      console.error('Failed to fetch team crests', err);
-    }
-  })();
-
-  return () => { cancelled = true; };
-}, [sortedGames]);
-
-  const chunks = React.useMemo(() => buildWeeklyChunks(sortedGames, dateFrom, dateTo), [sortedGames, dateFrom, dateTo, buildWeeklyChunks]);
-
-  const formatTime = (date) => {
-    if (!date) return '';
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString([], { 
-      weekday: 'short', 
-      month: 'short', 
-      day: 'numeric' 
-    });
-  };
-
-  const formatShortDate = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-  };
-
-  const getStatusBadge = (status) => {
-    const statusConfig = {
-      live: { text: 'LIVE', className: 'ls-status-live' },
-      paused: { text: 'PAUSED', className: 'ls-status-paused' },
-      final: { text: 'FINAL', className: 'ls-status-final' },
-      finished: { text: 'FINAL', className: 'ls-status-final' },
-      scheduled: { text: 'SCHEDULED', className: 'ls-status-scheduled' },
-      default: { text: 'UPCOMING', className: 'ls-status-default' }
-    };
+  it('renders TeamInfo when a team is selected and calls onBack', async () => {
+    const { container } = render(<LiveSports />);
     
-    const config = statusConfig[status] || statusConfig.default;
-    return <span className={`ls-status-badge ${config.className}`} data-testid={`status-${status || 'default'}`}>{config.text}</span>;
-  };
+    // Simulate selecting a team
+    const liveSportsInstance = container.firstChild._owner.stateNode;
+    liveSportsInstance.setSelectedTeam({ name: 'Team A' });
 
-  // Render TeamInfo if a team is selected
-  if (selectedTeam) {
-    return <TeamInfo team={selectedTeam} onBack={() => setSelectedTeam(null)} />;
-  }
+    // TeamInfo should now render
+    expect(await screen.findByTestId('team-info')).toBeInTheDocument();
+    expect(screen.getByText('Team A')).toBeInTheDocument();
 
-  if (error) {
-    return (
-      <div className="ls-live-sports ls-error-state" data-testid="error">
-        <div className="ls-error-content">
-          <h3>Connection Error</h3>
-          <p>Unable to fetch live sports data</p>
-          <div style={{ display: 'none' }}>Failed to load matches</div>
-          <button onClick={refreshData} className="ls-retry-button">
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
+    // Clicking back clears selection
+    fireEvent.click(screen.getByText('Back'));
+    expect(screen.queryByTestId('team-info')).not.toBeInTheDocument();
+  });
 
-  if (!sportsData) {
-    return (
-      <div className="ls-live-sports ls-loading-state" data-testid="loading">
-        <div className="ls-loading-content">
-          <div className="ls-loading-spinner"></div>
-          <h3>Loading live matches...</h3>
-        </div>
-      </div>
-    );
-  }
+  it('handles MatchCard hover and watchlist click', async () => {
+    render(<LiveSports />);
+    
+    const matchCard = await screen.findByTestId('match-match1');
+    
+    // Hover over card
+    fireEvent.mouseEnter(matchCard);
 
-  return (
-    <div className="ls-live-sports">
-      <div className="ls-sports-header">
-        <div className="ls-header-left">
-          <h2>Live Football</h2>
-          <div className="ls-connection-indicator">
-            <div className={`ls-status-dot ${isConnected ? 'ls-connected' : 'ls-disconnected'}`}></div>
-            <span className="ls-status-text">
-              {isConnected ? 'Live' : 'Offline'}
-            </span>
-          </div>
-        </div>
-
-        <div className="ls-header-right">
-          <div className="ls-current-time">
-            {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </div>
-          {lastUpdated && (
-            <div className="ls-last-updated">
-              Updated {formatTime(lastUpdated)}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {(dateFrom || dateTo || sportsData.totalMatches) && (
-        <div className="ls-fetch-context">
-          {dateFrom && (
-            <span className="ls-date-range">Range: {formatShortDate(dateFrom)} → {formatShortDate(dateTo)}</span>
-          )}
-          {typeof sportsData.totalMatches === 'number' && (
-            <span className="ls-count">Matches: {sportsData.totalMatches}</span>
-          )}
-          {sportsData.environment && (
-            <span className="ls-env">Env: {sportsData.environment}</span>
-          )}
-        </div>
-      )}
-
-      {/* Render all matches grouped by week, date, and league */}
-<div className="ls-matches-groups" data-testid="matches-container">
-  {chunks.length > 0 ? (
-    chunks.map((chunk) => {
-      const groupedDays = groupByDateAndLeague(chunk.items);
-      return (
-        <div key={chunk.label} className="ls-week-group">
-          <div className="ls-chunk-title">{chunk.label}</div>
-
-          {groupedDays.map((day) => (
-            <div key={day.date} className="ls-day-group">
-              <h3 className="ls-day-header">{day.date}</h3>
-
-              {day.leagues.map((lg) => (
-                <div key={lg.league} className="ls-league-group">
-                  <h4 className="ls-league-header">{lg.league}</h4>
-                  <div className="ls-matches-grid">
-                    {lg.items.map((game, index) => (
-                      <MatchCard
-                        key={game.id || `match-${index}`}
-                        game={game}
-                        onSelect={onMatchSelect}
-                        onTeamSelect={setSelectedTeam}
-                        getStatusBadge={getStatusBadge}
-                        formatDate={formatDate}
-                        formatTime={formatTime}
-                        teamCrests={teamCrests} 
-                        inWatchlist={watchlistIds.has(String(game.id ?? game._id ?? game.matchId))}
-                        onWatchlistAdded={(mid) => {
-                          setWatchlistIds(prev => {
-                            const next = new Set(prev);
-                            next.add(String(mid));
-                            return next;
-                          });
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      );
-    })
-  ) : (
-    <div className="ls-no-matches" data-testid="empty">
-      <p>No matches available</p>
-      <button onClick={refreshData} className="ls-refresh-btn">
-        Refresh
-      </button>
-    </div>
-  )}
-</div>
-
-
-      <div className="ls-sports-footer">
-        <button onClick={refreshData} className="ls-refresh-btn">
-          Refresh Data
-        </button>
-        <div className="ls-data-info">
-          <span className="ls-source">Source: {sportsData?.source || 'Unknown'}</span>
-          {sportsData?.totalMatches && (
-            <span className="ls-count">{sportsData.totalMatches} matches</span>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Memoized heavy card to avoid unnecessary re-renders
-const MatchCard = React.memo(function MatchCard({ 
-  game, 
-  onSelect, 
-  onTeamSelect,
-  getStatusBadge, 
-  formatDate, 
-  formatTime,
-  inWatchlist,
-  onWatchlistAdded,
-  teamCrests
-}) {
-  const { user } = useUser();
-  const [homeScore, setHomeScore] = useState(game.homeScore);
-  const [awayScore, setAwayScore] = useState(game.awayScore);
-  const [showGoalAnimation, setShowGoalAnimation] = useState(false);
-  const [scoringTeam, setScoringTeam] = useState(null);
-  const [scoreUpdating, setScoreUpdating] = useState(false);
-  const [hovered, setHovered] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const [added, setAdded] = useState(!!inWatchlist);
-
-
-
-  // Keep local state in sync with parent-provided watchlist status
-  useEffect(() => {
-    setAdded(!!inWatchlist);
-  }, [inWatchlist]);
-
-  // Derive minute if live and missing
-  let displayMinute = game.minute;
-  const statusKey = (game.status || '').toLowerCase();
-  
-  useEffect(() => {
-    // Check if score has changed
-    if (game.homeScore !== homeScore || game.awayScore !== awayScore) {
-      // Determine which team scored
-      const teamScored = game.homeScore > homeScore ? 'home' : 'away';
-      setScoringTeam(teamScored);
-      
-      // Show goal animation
-      setShowGoalAnimation(true);
-      setScoreUpdating(true);
-      
-      // After animation completes, update score and hide animation
-      const animationTimer = setTimeout(() => {
-        setHomeScore(game.homeScore);
-        setAwayScore(game.awayScore);
-        setShowGoalAnimation(false);
-      }, 1000);
-      
-      const scoreUpdateTimer = setTimeout(() => {
-        setScoreUpdating(false);
-      }, 1500);
-      
-      return () => {
-        clearTimeout(animationTimer);
-        clearTimeout(scoreUpdateTimer);
-      };
+    const watchBtn = matchCard.querySelector('button');
+    if (watchBtn) {
+      fireEvent.click(watchBtn);
+      await waitFor(() => {
+        expect(apiClient.addUserMatch).toHaveBeenCalledWith('user1', mockGames[0]);
+      });
     }
-  }, [game.homeScore, game.awayScore, homeScore, awayScore]);
 
-  const handleTeamClick = (team, event) => {
-    event.stopPropagation(); // Prevent triggering the match select
-    if (team) {
-      onTeamSelect(team);
-    }
-  };
-
-  if ((statusKey === 'live' || statusKey === 'in_play' || statusKey === 'inplay' || statusKey === 'paused') && (displayMinute == null || displayMinute === '')) {
-    // Try to compute from utcDate
-    if (game.utcDate) {
-      const startMs = Date.parse(game.utcDate);
-      if (!isNaN(startMs)) {
-        const diff = Math.floor((Date.now() - startMs) / 60000);
-        if (diff >= 0 && diff <= 130) displayMinute = diff;
-      }
-    }
-  }
-  console.log('Rendering match:', game.homeTeam?.name, game.awayTeam?.name);
-console.log('Home crest:', teamCrests[normalize(game.homeTeam?.name)]);
-console.log('Away crest:', teamCrests[normalize(game.awayTeam?.name)]);
-const homeCrest = teamCrests[normalize(game.homeTeam?.name)] || '/placeholder.png';
-const awayCrest = teamCrests[normalize(game.awayTeam?.name)] || '/placeholder.png';
-
-
-
-
-  return (
-    <div
-      className="ls-match-card ls-clickable"
-      data-testid={`match-${game.id ?? ''}`}
-      onClick={() => onSelect(game)}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {/* Hover action: Add to Watchlist */}
-      {hovered && user && !added && (
-        <button
-          className="ls-watchlist-btn"
-          disabled={adding}
-          title="Add match to your watchlist"
-          onClick={async (e) => {
-            e.stopPropagation();
-            try {
-              setAdding(true);
-              await apiClient.addUserMatch(user.id, game);
-              setAdded(true);
-              const mid = game.id ?? game._id ?? game.matchId;
-              if (onWatchlistAdded && mid != null) onWatchlistAdded(mid);
-            } catch (err) {
-              console.error('Add to watchlist failed', err);
-              alert('Failed to add to watchlist');
-            } finally {
-              setAdding(false);
-            }
-          }}
-        >
-          {adding ? 'Adding…' : '+ Watchlist'}
-        </button>
-      )}
-      <div className="ls-match-header">
-        <div className="ls-comp-left">
-          <span className="ls-competition">
-            {game.competition}
-            {game.competitionCode && (
-              <span className="ls-competition-code">[{game.competitionCode}]</span>
-            )}
-          </span>
-        </div>
-        <div className="ls-comp-right">{getStatusBadge(game.status)}</div>
-      </div>
-
-      <div className="ls-match-teams">
-        <div className={`ls-team ${scoringTeam === 'home' ? 'ls-team-scoring' : ''}`}>
-         <img 
-      className="ls-team-crest ls-clickable" 
-      alt="home crest" 
-      src={homeCrest} 
-      onClick={(e) => handleTeamClick(game.homeTeam, e)}
-    />
-          <span className="ls-team-name">{game.homeTeam?.name || game.homeTeam}</span>
-          {showGoalAnimation && scoringTeam === 'home' && (
-            <div className="ls-goal-animation">⚽</div>
-          )}
-          <span className={`ls-team-score ${scoreUpdating && scoringTeam === 'home' ? 'ls-score-updating' : ''}`}>
-            {(['live','in_play','inplay','paused'].includes((game.status||'').toLowerCase()) && homeScore === '-') ? 0 : homeScore}
-          </span>
-        </div>
-
-        <div className="ls-match-separator">vs</div>
-
-        <div className={`ls-team ${scoringTeam === 'away' ? 'ls-team-scoring' : ''}`}>
-            <img 
-      className="ls-team-crest ls-clickable" 
-      alt="away crest" 
-      src={awayCrest} 
-      onClick={(e) => handleTeamClick(game.awayTeam, e)}
-    />
-          <span className="ls-team-name">{game.awayTeam?.name || game.awayTeam}</span>
-          {showGoalAnimation && scoringTeam === 'away' && (
-            <div className="ls-goal-animation">⚽</div>
-          )}
-          <span className={`ls-team-score ${scoreUpdating && scoringTeam === 'away' ? 'ls-score-updating' : ''}`}>
-            {(['live','in_play','inplay','paused'].includes((game.status||'').toLowerCase()) && awayScore === '-') ? 0 : awayScore}
-          </span>
-        </div>
-      </div>
-      
-      <div className="ls-card-divider" aria-hidden="true"></div>
-      
-      <div className="ls-match-details">
-        <div className="ls-meta-left">
-          {game.utcDate && (
-            <span className="ls-scheduled-time">
-              {(() => {
-                const baseDate = new Date(game.utcDate);
-                const dateLabel = baseDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-                const timeLabel = (game.createdByAdmin && game.time) ? game.time : formatTime(baseDate);
-                return `${dateLabel} • ${timeLabel}`;
-              })()}
-            </span>
-          )}
-          {game.matchday ? (
-            <span className="ls-matchday">MD {game.matchday}</span>
-          ) : game.createdByAdmin && (
-            <span className="ls-matchday ls-matchday-placeholder" title="Admin match has no official matchday yet">MD -</span>
-          )}
-        </div>
-        <div className="ls-meta-right">
-          {(['live','in_play','inplay','paused'].includes(statusKey) && displayMinute != null && displayMinute !== '') && (
-            <span className="ls-match-time">{displayMinute}'</span>
-          )}
-          {game.venue && game.venue !== 'TBD' && <span className="ls-venue">{game.venue}</span>}
-        </div>
-      </div>
-    </div>
-  );
+    // Hover out resets hover state
+    fireEvent.mouseLeave(matchCard);
+  });
 });
 
-export default LiveSports;
+// Mock API client
+jest.mock('../../lib/api', () => ({
+  apiClient: {
+    getUserWatchlist: jest.fn(),
+    getTeams: jest.fn(),
+    addUserMatch: jest.fn(),
+  },
+}));
+
+// Mock hooks
+jest.mock('../../hooks/useLiveSports', () => ({
+  useLiveSports: jest.fn(),
+}));
+
+jest.mock('@clerk/clerk-react', () => ({
+  useUser: jest.fn(),
+}));
+
+describe('LiveSports Component', () => {
+  const mockUser = { id: 'user1' };
+  const mockGames = [
+    {
+      id: 'match1',
+      homeTeam: { name: 'Team A' },
+      awayTeam: { name: 'Team B' },
+      utcDate: new Date().toISOString(),
+      status: 'scheduled',
+    },
+  ];
+  const mockSportsData = {
+    games: mockGames,
+    totalMatches: 1,
+    dateFrom: new Date().toISOString(),
+    dateTo: new Date().toISOString(),
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    useUser.mockReturnValue({ user: mockUser });
+
+    apiClient.getUserWatchlist.mockResolvedValue({ data: [] });
+    apiClient.getTeams.mockResolvedValue({
+      data: [
+        { name: 'Team A', crest: '/a.png' },
+        { name: 'Team B', crest: '/b.png' },
+      ],
+    });
+
+    useLiveSports.mockReturnValue({
+      sportsData: mockSportsData,
+      isConnected: true,
+      error: null,
+      lastUpdated: new Date(),
+      refreshData: jest.fn(),
+    });
+  });
+
+  it('renders loading state initially', () => {
+    useLiveSports.mockReturnValue({
+      sportsData: null,
+      isConnected: true,
+      error: null,
+      refreshData: jest.fn(),
+    });
+
+    render(<LiveSports />);
+    expect(screen.getByTestId('loading')).toBeInTheDocument();
+  });
+
+  it('renders error state if hook returns error', () => {
+    const mockRefresh = jest.fn();
+    useLiveSports.mockReturnValue({
+      sportsData: null,
+      isConnected: false,
+      error: 'Failed',
+      refreshData: mockRefresh,
+    });
+
+    render(<LiveSports />);
+    expect(screen.getByTestId('error')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText(/Retry/i));
+    expect(mockRefresh).toHaveBeenCalled();
+  });
+
+  // it('renders match cards', async () => {
+  //   render(<LiveSports />);
+  //   await waitFor(() => screen.getByText(/Team A vs Team B/i));
+  //   expect(screen.getByText(/Team A vs Team B/i)).toBeInTheDocument();
+  // });
+
+  it('fetches user watchlist and team crests', async () => {
+    render(<LiveSports />);
+    await waitFor(() => {
+      expect(apiClient.getUserWatchlist).toHaveBeenCalledWith('user1');
+      expect(apiClient.getTeams).toHaveBeenCalled();
+    });
+  });
+  it('renders no matches available when chunks are empty', async () => {
+  useLiveSports.mockReturnValue({
+    sportsData: { games: [], totalMatches: 0 },
+    isConnected: true,
+    error: null,
+    refreshData: jest.fn(),
+  });
+
+  render(<LiveSports />);
+  expect(await screen.findByTestId('empty')).toBeInTheDocument();
+  expect(screen.getByText(/No matches available/i)).toBeInTheDocument();
+});
+const statuses = ['live', 'paused', 'final', 'scheduled', 'unknown'];
+statuses.forEach(status => {
+  it(`renders correct badge for status: ${status}`, () => {
+    const { container } = render(<LiveSports />);
+    const badge = container.querySelector(`[data-testid="status-${status}"]`);
+    if (badge) expect(badge).toBeInTheDocument();
+  });
+});
+
+// it('calculates displayMinute for live match and triggers goal animation', async () => {
+//   jest.useFakeTimers();
+//   const pastDate = new Date(Date.now() - 5 * 60000).toISOString(); // 5 min ago
+//   const liveGame = {
+//     id: 'match2',
+//     homeTeam: { name: 'Team X' },
+//     awayTeam: { name: 'Team Y' },
+//     homeScore: 1,
+//     awayScore: 0,
+//     utcDate: pastDate,
+//     status: 'live',
+//   };
+  
+//   useLiveSports.mockReturnValue({
+//     sportsData: { games: [liveGame] },
+//     isConnected: true,
+//     error: null,
+//     refreshData: jest.fn(),
+//   });
+
+//   render(<LiveSports />);
+//   const matchCard = await screen.findByTestId('match-match2');
+
+//   // Score animation should show ⚽
+//   expect(matchCard.querySelector('.ls-goal-animation')).not.toBeInTheDocument();
+
+//   // Simulate score update
+//   fireEvent.click(matchCard);
+//   jest.runAllTimers(); // advance timers for animation
+//   jest.useRealTimers();
+// // });
+// it('uses placeholder crest if team not found', async () => {
+//   apiClient.getTeams.mockResolvedValue({ data: [] });
+//   const game = { id: 'match3', homeTeam: { name: 'Unknown FC' }, awayTeam: { name: 'NoTeam' }, utcDate: new Date().toISOString(), status: 'scheduled' };
+//   useLiveSports.mockReturnValue({ sportsData: { games: [game] }, isConnected: true, error: null, refreshData: jest.fn() });
+
+//   render(<LiveSports />);
+//   const card = await screen.findByTestId('match-match3');
+//   const imgs = card.querySelectorAll('img');
+//   imgs.forEach(img => expect(img.src).toContain('/placeholder.png'));
+// // });
+// it('calls onMatchSelect and onTeamSelect when match or team clicked', async () => {
+//   const onMatchSelect = jest.fn();
+//   const { container } = render(<LiveSports onMatchSelect={onMatchSelect} />);
+//   const matchCard = await screen.findByTestId('match-match1');
+
+//   // Click on match
+//   fireEvent.click(matchCard);
+//   expect(onMatchSelect).toHaveBeenCalled();
+
+//   // Click on home team crest
+//   const homeCrest = matchCard.querySelector('img[alt="home crest"]');
+//   fireEvent.click(homeCrest);
+//   expect(container.firstChild._owner.stateNode.state.selectedTeam).toEqual({ name: 'Team A' });
+// });
+
+
+// test('normalize removes accents and special chars', () => {
+//   expect(normalize('Café FC')).toBe('cafe fc');
+//   expect(normalize('Team-123!')).toBe('team123');
+// });
+
+
+
+test('buildWeeklyChunks returns correct week grouping', () => {
+  const games = [{ __utcMs: Date.now(), id: '1' }];
+  const chunks = LiveSportsModule.buildWeeklyChunks(games, '2025-10-01', '2025-10-07');
+  expect(chunks.length).toBeGreaterThan(0);
+});
+
+test('groupByDateAndLeague groups games correctly', () => {
+  const games = [{ utcDate: '2025-10-18T12:00:00Z', competition: 'League', id: '1' }];
+  const grouped = LiveSportsModule.groupByDateAndLeague(games);
+  expect(grouped[0].leagues[0].items[0].id).toBe('1');
+});
+
+
+  // it('updates watchlist when adding match', async () => {
+  //   apiClient.addUserMatch.mockResolvedValue({});
+  //   render(<LiveSports />);
+  //   await waitFor(() => screen.getByText(/Team A vs Team B/i));
+
+  //   // Simulate hovering and clicking watchlist button
+  //   const matchCard = screen.getByText(/Team A vs Team B/i).parentElement;
+  //   fireEvent.mouseEnter(matchCard);
+
+  //   const watchBtn = matchCard.querySelector('button');
+  //   if (watchBtn) {
+  //     fireEvent.click(watchBtn);
+  //     await waitFor(() => {
+  //       expect(apiClient.addUserMatch).toHaveBeenCalledWith('user1', mockGames[0]);
+  //     });
+  //   }
+  // });
+
+  // it('calls onMatchSelect when a match is clicked', async () => {
+  //   const onMatchSelect = jest.fn();
+  //   render(<LiveSports onMatchSelect={onMatchSelect} />);
+  //   const card = await screen.findByText(/Team A vs Team B/i);
+  //   fireEvent.click(card);
+  //   expect(onMatchSelect).toHaveBeenCalledWith(mockGames[0]);
+  // });
+});

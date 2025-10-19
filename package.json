@@ -82,11 +82,12 @@
     "collectCoverageFrom": [
       "src/components/**/*.{js,jsx}",
       "api/**/*.js",
+      "lib/**/*.js",
       "!api/**/__tests__/**",
       "!src/**/*.test.{js,jsx}",
       "src/hooks/**/*.{js,jsx}",
-      "src/App.js",
-      "!src/components/sports/**"
+      "src/App.js"
+     
     ]
   }
 }
