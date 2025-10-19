@@ -71,6 +71,8 @@ const LiveSports = ({ onMatchSelect }) => {
     const toMs = Date.parse(`${toISO}T23:59:59.999Z`);
     if (Number.isNaN(fromMs) || Number.isNaN(toMs) || fromMs > toMs) return [];
 
+ 
+
     // Precompute week boundaries
     const weeks = [];
     let cursorMs = fromMs;
@@ -107,6 +109,33 @@ const LiveSports = ({ onMatchSelect }) => {
     }
     return result;
   }, []);
+   // Group games by date and then by league (FotMob-style)
+const groupByDateAndLeague = React.useCallback((games) => {
+  if (!Array.isArray(games) || games.length === 0) return [];
+
+  const groups = {};
+  games.forEach((g) => {
+    const dateKey = new Date(g.utcDate).toLocaleDateString([], {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    });
+
+    const league = g.competition || 'Other Competitions';
+    if (!groups[dateKey]) groups[dateKey] = {};
+    if (!groups[dateKey][league]) groups[dateKey][league] = [];
+    groups[dateKey][league].push(g);
+  });
+
+  return Object.entries(groups).map(([date, leagues]) => ({
+    date,
+    leagues: Object.entries(leagues).map(([league, items]) => ({
+      league,
+      items: items.sort((a, b) => (a.__utcMs || 0) - (b.__utcMs || 0)),
+    })),
+  }));
+}, []);
+
 
   // Derive date range from hook payload (backward compatible)
   const dateFrom = sportsData?.range?.dateFrom || sportsData?.dateFrom;
@@ -230,44 +259,60 @@ const LiveSports = ({ onMatchSelect }) => {
         </div>
       )}
 
-      {/* Render all matches grouped by weekly subheadings */}
-      <div className="ls-matches-groups" data-testid="matches-container">
-        {chunks.length > 0 ? (
-          chunks.map((chunk) => (
-            <div key={chunk.label} className="ls-week-group">
-              <div className="ls-chunk-title">{chunk.label}</div>
-              <div className="ls-matches-grid">
-                {chunk.items.map((game, index) => (
-                  <MatchCard
-                    key={game.id || `match-${index}`}
-                    game={game}
-                    onSelect={onMatchSelect}
-                    onTeamSelect={setSelectedTeam}
-                    getStatusBadge={getStatusBadge}
-                    formatDate={formatDate}
-                    formatTime={formatTime}
-                    inWatchlist={watchlistIds.has(String(game.id ?? game._id ?? game.matchId))}
-                    onWatchlistAdded={(mid) => {
-                      setWatchlistIds(prev => {
-                        const next = new Set(prev);
-                        next.add(String(mid));
-                        return next;
-                      });
-                    }}
-                  />
-                ))}
-              </div>
+      {/* Render all matches grouped by week, date, and league */}
+<div className="ls-matches-groups" data-testid="matches-container">
+  {chunks.length > 0 ? (
+    chunks.map((chunk) => {
+      const groupedDays = groupByDateAndLeague(chunk.items);
+      return (
+        <div key={chunk.label} className="ls-week-group">
+          <div className="ls-chunk-title">{chunk.label}</div>
+
+          {groupedDays.map((day) => (
+            <div key={day.date} className="ls-day-group">
+              <h3 className="ls-day-header">{day.date}</h3>
+
+              {day.leagues.map((lg) => (
+                <div key={lg.league} className="ls-league-group">
+                  <h4 className="ls-league-header">{lg.league}</h4>
+                  <div className="ls-matches-grid">
+                    {lg.items.map((game, index) => (
+                      <MatchCard
+                        key={game.id || `match-${index}`}
+                        game={game}
+                        onSelect={onMatchSelect}
+                        onTeamSelect={setSelectedTeam}
+                        getStatusBadge={getStatusBadge}
+                        formatDate={formatDate}
+                        formatTime={formatTime}
+                        inWatchlist={watchlistIds.has(String(game.id ?? game._id ?? game.matchId))}
+                        onWatchlistAdded={(mid) => {
+                          setWatchlistIds(prev => {
+                            const next = new Set(prev);
+                            next.add(String(mid));
+                            return next;
+                          });
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))
-        ) : (
-          <div className="ls-no-matches" data-testid="empty">
-            <p>No matches available</p>
-            <button onClick={refreshData} className="ls-refresh-btn">
-              Refresh
-            </button>
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      );
+    })
+  ) : (
+    <div className="ls-no-matches" data-testid="empty">
+      <p>No matches available</p>
+      <button onClick={refreshData} className="ls-refresh-btn">
+        Refresh
+      </button>
+    </div>
+  )}
+</div>
+
 
       <div className="ls-sports-footer">
         <button onClick={refreshData} className="ls-refresh-btn">
