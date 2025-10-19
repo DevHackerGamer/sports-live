@@ -92,6 +92,12 @@ app.all('/api/standings/:id', delegate('./api/standings.js'));
 // Football News APIs
 app.all('/api/football-news', delegate('./api/football-news.js'));
 
+// Match Lineups APIs
+app.all('/api/match-lineups', delegate('./api/match-lineups.js'));
+
+
+// Match Commentary APIs
+app.all('/api/match-commentary', delegate('./api/match-commentary.js'));
 
 // RESTful CRUD for Reports
 const reportsHandler = require('./api/reporting.js');
