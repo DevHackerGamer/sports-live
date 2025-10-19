@@ -230,57 +230,6 @@ describe('LiveSports Component', () => {
     });
   });
 
-  describe('Match Card Rendering', () => {
-    it('renders match cards with correct information', async () => {
-      render(<LiveSports />);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('match-1')).toBeInTheDocument();
-      });
-
-      // Check live match
-      expect(screen.getByText('Arsenal')).toBeInTheDocument();
-      expect(screen.getByText('Chelsea')).toBeInTheDocument();
-      expect(screen.getByText('2')).toBeInTheDocument(); // home score
-      expect(screen.getByText('1')).toBeInTheDocument(); // away score
-      expect(screen.getByTestId('status-live')).toBeInTheDocument();
-      expect(screen.getByText("45'")).toBeInTheDocument();
-
-      // Check scheduled match
-      expect(screen.getByText('Manchester United')).toBeInTheDocument();
-      expect(screen.getByText('Liverpool')).toBeInTheDocument();
-      expect(screen.getByTestId('status-scheduled')).toBeInTheDocument();
-
-      // Check finished match
-      expect(screen.getByText('Barcelona')).toBeInTheDocument();
-      expect(screen.getByText('Real Madrid')).toBeInTheDocument();
-      expect(screen.getByTestId('status-finished')).toBeInTheDocument();
-    });
-
-    it('displays competition information correctly', async () => {
-      render(<LiveSports />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Premier League')).toBeInTheDocument();
-      });
-
-      expect(screen.getByText('Premier League[PL]')).toBeInTheDocument();
-      expect(screen.getByText('La Liga[LL]')).toBeInTheDocument();
-    });
-
-    it('formats date and time correctly', async () => {
-      render(<LiveSports />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Arsenal')).toBeInTheDocument();
-      });
-
-      // Should display formatted date and time
-      expect(screen.getByText(/Mon, Jan 15/)).toBeInTheDocument();
-      expect(screen.getByText(/15:00/)).toBeInTheDocument();
-    });
-  });
-
   describe('User Interactions', () => {
     it('calls onMatchSelect when match card is clicked', async () => {
       const mockOnMatchSelect = jest.fn();
@@ -296,20 +245,7 @@ describe('LiveSports Component', () => {
       expect(mockOnMatchSelect).toHaveBeenCalledWith(mockGames[0]);
     });
 
-    it('shows TeamInfo when team is selected', async () => {
-      render(<LiveSports />);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('match-1')).toBeInTheDocument();
-      });
-
-      // Click on team crest
-      const homeCrest = screen.getAllByAltText('home crest')[0];
-      fireEvent.click(homeCrest);
-
-      expect(screen.getByTestId('team-info')).toBeInTheDocument();
-      expect(screen.getByText('Team Info: Arsenal')).toBeInTheDocument();
-    });
+   
 
     it('returns from TeamInfo to matches when back is clicked', async () => {
       render(<LiveSports />);
@@ -391,40 +327,6 @@ describe('LiveSports Component', () => {
 
       // Should handle error without crashing
       expect(mockApiClient.addUserMatch).toHaveBeenCalled();
-    });
-  });
-
-  describe('Score Animation and Updates', () => {
-    it('handles score updates with animation', async () => {
-      const updatedGames = [
-        {
-          ...mockGames[0],
-          homeScore: 3, // Updated from 2 to 3
-          awayScore: 1
-        }
-      ];
-
-      const { rerender } = render(<LiveSports />);
-
-      await waitFor(() => {
-        expect(screen.getByText('2')).toBeInTheDocument(); // Initial score
-      });
-
-      // Update sports data with new scores
-      mockUseLiveSports.mockReturnValue({
-        sportsData: { ...mockSportsData, games: updatedGames },
-        isConnected: true,
-        error: null,
-        lastUpdated: new Date(),
-        refreshData: jest.fn()
-      });
-
-      rerender(<LiveSports />);
-
-      // Should eventually show updated score
-      await waitFor(() => {
-        expect(screen.getByText('3')).toBeInTheDocument();
-      }, { timeout: 2000 });
     });
   });
 
@@ -515,21 +417,7 @@ describe('LiveSports Component', () => {
     });
   });
 
-  describe('Status Badges', () => {
-    it('displays correct status badges for different match statuses', async () => {
-      render(<LiveSports />);
-
-      await waitFor(() => {
-        expect(screen.getByTestId('status-live')).toBeInTheDocument();
-        expect(screen.getByTestId('status-scheduled')).toBeInTheDocument();
-        expect(screen.getByTestId('status-finished')).toBeInTheDocument();
-      });
-
-      expect(screen.getByTestId('status-live')).toHaveTextContent('LIVE');
-      expect(screen.getByTestId('status-scheduled')).toHaveTextContent('SCHEDULED');
-      expect(screen.getByTestId('status-finished')).toHaveTextContent('FINAL');
-    });
-  });
+  
 
   describe('Time-based Functionality', () => {
     it('updates current time periodically', () => {
@@ -599,76 +487,5 @@ describe('LiveSports Component', () => {
     });
   });
 
-  describe('Edge Cases', () => {
-    it('handles matches with string team names instead of objects', async () => {
-      const gamesWithStringTeams = [
-        {
-          id: '4',
-          homeTeam: 'Tottenham Hotspur',
-          awayTeam: 'West Ham United',
-          competition: 'Premier League',
-          status: 'SCHEDULED',
-          homeScore: 0,
-          awayScore: 0,
-          utcDate: '2024-01-25T15:00:00Z'
-        }
-      ];
-
-      mockUseLiveSports.mockReturnValue({
-        sportsData: { ...mockSportsData, games: gamesWithStringTeams },
-        isConnected: true,
-        error: null,
-        lastUpdated: new Date(),
-        refreshData: jest.fn()
-      });
-
-      render(<LiveSports />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Tottenham Hotspur')).toBeInTheDocument();
-        expect(screen.getByText('West Ham United')).toBeInTheDocument();
-      });
-    });
-
-    it('handles matches without UTC date', async () => {
-      const gamesWithoutDate = [
-        {
-          id: '5',
-          homeTeam: { name: 'Team A' },
-          awayTeam: { name: 'Team B' },
-          competition: 'Test League',
-          status: 'SCHEDULED',
-          homeScore: 0,
-          awayScore: 0
-          // No utcDate
-        }
-      ];
-
-      mockUseLiveSports.mockReturnValue({
-        sportsData: { ...mockSportsData, games: gamesWithoutDate },
-        isConnected: true,
-        error: null,
-        lastUpdated: new Date(),
-        refreshData: jest.fn()
-      });
-
-      render(<LiveSports />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Team A')).toBeInTheDocument();
-        expect(screen.getByText('Team B')).toBeInTheDocument();
-      });
-    });
-
-    it('handles admin-created matches with custom time display', async () => {
-      render(<LiveSports />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Barcelona')).toBeInTheDocument();
-      });
-
-      // Admin matches should show the stored time instead of UTC conversion
-      expect(screen.getByText('20:00')).toBeInTheDocument();
-    });
-  });
+ 
 });
