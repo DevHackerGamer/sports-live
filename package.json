@@ -18,6 +18,7 @@
     "firebase": "^12.1.0",
     "firebase-admin": "^12.7.0",
     "framer-motion": "^12.23.24",
+    "install": "^0.13.0",
     "mongodb": "^6.19.0",
     "mongoose": "^8.18.0",
     "node-cron": "^4.2.1",
@@ -85,8 +86,8 @@
       "!api/**/__tests__/**",
       "!src/**/*.test.{js,jsx}",
       "src/hooks/**/*.{js,jsx}",
-      "src/App.js",
-      "!src/components/sports/**"
+      "src/App.js"
+     
     ]
   }
 }
