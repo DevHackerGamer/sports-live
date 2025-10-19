@@ -165,25 +165,24 @@ const groupByDateAndLeague = React.useCallback((games) => {
     });
     return arr.sort((a, b) => (a.__utcMs || 0) - (b.__utcMs || 0));
   }, [sportsData?.games]);
-// Fetch team crests/logos and map to team names
+
+// Fetch team crests/logos and map to team names// Fetch team crests/logos and map to team names
 useEffect(() => {
   let cancelled = false;
-const stripCommonPrefixes = (name) => {
-  if (!name) return '';
-  return name
-    // Remove common letter prefixes but keep numbers and words
-    .replace(/\b(fc|sc|rc|ac|cd|sv|us|ss|cf|cs)\b/gi, '')
-    // Remove leading/trailing punctuation like ".", "-" after numbers
-    .replace(/^[\s\d\.-]+/, '')  
-    .trim();
-};
-
+  
+  const stripCommonPrefixes = (name) => {
+    if (!name) return '';
+    return name
+      .replace(/\b(fc|sc|rc|ac|cd|sv|us|ss|cf|cs)\b/gi, '')
+      .replace(/^[\s\d\.-]+/, '')  
+      .trim();
+  };
 
   const findCrest = (teamName, normalizedTeams) => {
     if (!teamName) return '/placeholder.png';
     const norm = normalize(stripCommonPrefixes(teamName));
 
-    // 1. Exact match
+    // 1. Exact match with normalized name
     if (normalizedTeams[norm]) return normalizedTeams[norm];
 
     // 2. Partial match (contains or contained)
@@ -240,11 +239,18 @@ const stripCommonPrefixes = (name) => {
 
       const crestMap = {};
       sortedGames.forEach(game => {
-        const homeName = normalize(game.homeTeam?.name);
-        const awayName = normalize(game.awayTeam?.name);
-
-        crestMap[homeName] = findCrest(game.homeTeam?.name, normalizedTeams);
-        crestMap[awayName] = findCrest(game.awayTeam?.name, normalizedTeams);
+        const homeName = game.homeTeam?.name || game.homeTeam;
+        const awayName = game.awayTeam?.name || game.awayTeam;
+        
+        // Store by original team name AND normalized name for fallback
+        if (homeName) {
+          crestMap[homeName] = findCrest(homeName, normalizedTeams);
+          crestMap[normalize(homeName)] = findCrest(homeName, normalizedTeams);
+        }
+        if (awayName) {
+          crestMap[awayName] = findCrest(awayName, normalizedTeams);
+          crestMap[normalize(awayName)] = findCrest(awayName, normalizedTeams);
+        }
       });
 
       console.log('Final crest map:', crestMap);

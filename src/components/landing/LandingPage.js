@@ -1,4 +1,3 @@
-// src/components/landing/LandingPage.jsx
 import React from 'react';
 import { Link } from 'react-router-dom';
 import LandingFooter from './LandingFooter';
@@ -40,7 +39,7 @@ const LandingPage = () => {
     {
       title: "Personalized Experience",
       description: "Follow your favorite teams and players to get customized updates and notifications.",
-      icon: "❤️"
+      icon: "❤"
     }
   ];
 
@@ -90,14 +89,16 @@ const LandingPage = () => {
         <div className="landing-hero-content">
           <h1 className="landing-hero-title">Welcome to SportsLive</h1>
           <p className="landing-hero-subtitle">Your ultimate destination for real-time football updates, comprehensive statistics, and live scores from every major league around the globe.</p>
-          <div className="landing-hero-buttons">
-            <Link to="/sign-up" className="landing-btn landing-btn-join">
-              Join Now
-            </Link>
-            <Link to="/sign-in" className="landing-btn landing-btn-signin">
-              Sign In
-            </Link>
-          </div>
+          <div className="landing-cta-buttons">
+              <Link to="/sign-up" className="landing-btn landing-btn-join landing-btn-large">
+                Join Now
+              </Link>
+              <Link to="/sign-in" className="landing-btn landing-btn-signin landing-btn-large">
+                Sign In
+              </Link>
+            </div>
+
+
           <div className="landing-hero-stats">
             <div className="landing-stat">
               <span className="landing-stat-number">50+</span>
