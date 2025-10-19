@@ -12,8 +12,8 @@ A modern web platform for tracking live sports feeds, scores, and stats. Built w
 
 
 ## Admin Login Credintials
-email:bash_nonAdmin@gmail.com
-password :LegendStatus2
+- email:bash_nonAdmin@gmail.com
+- password :LegendStatus2
 ---
 
 ## 🌐 Live Links
