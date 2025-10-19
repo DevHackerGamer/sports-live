@@ -76,17 +76,19 @@ class ApiClient {
     });
   }
 
-  
+    //players API
+ async getPlayersByTeam(teamId) {
+  const res = await this.request(`/api/players?teamId=${teamId}`);
+  if (!res.success) throw new Error('Failed to fetch players');
+  return res.players || []; 
+}
  // Get lineups for a match
 async getLineupsByMatch(matchId) {
   return this.request(`/api/match-lineups?matchId=${matchId}`);
 }
 
 
- // Get lineups for a match
-async getLineupsByMatch(matchId) {
-  return this.request(`/api/match-lineups?matchId=${matchId}`);
-}
+ 
 
 // Create/update a lineup
 async saveLineup(lineup) {
