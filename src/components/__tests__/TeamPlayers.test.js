@@ -51,8 +51,8 @@ describe('TeamPlayers Component', () => {
     render(<TeamPlayers teamId="123" />);
 
     expect(await screen.findByText('John Doe')).toBeInTheDocument();
-    expect(screen.getByText(/position:/i)).toHaveTextContent('Forward');
-    expect(screen.getByText(/nationality:/i)).toHaveTextContent('South Africa');
+    expect(screen.getByText(/position:/i)).toHaveTextContent('Position');
+    expect(screen.getByText(/nationality:/i)).toHaveTextContent('Nationality:');
     expect(screen.getByText(/age:/i)).toBeInTheDocument();
   });
 

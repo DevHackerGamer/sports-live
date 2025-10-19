@@ -9,7 +9,6 @@
     "@astrojs/starlight": "^0.35.2",
     "@clerk/clerk-react": "^5.40.0",
     "@testing-library/dom": "^10.4.1",
-    "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
     "astro": "^5.12.8",
@@ -26,7 +25,7 @@
     "postprocessing": "^6.37.8",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "react-router-dom": "^7.9.4",
+    "react-router-dom": "^6.30.1",
     "react-window": "^1.8.10",
     "three": "^0.180.0",
     "web-vitals": "^2.1.4"
@@ -64,6 +63,7 @@
   "devDependencies": {
     "@babel/core": "^7.28.3",
     "@babel/eslint-parser": "^7.28.0",
+    "@testing-library/jest-dom": "^6.9.1",
     "@types/react-router-dom": "^5.3.3",
     "concurrently": "^9.2.0",
     "cross-env": "^10.1.0",
@@ -86,11 +86,7 @@
       "!src/**/*.test.{js,jsx}",
       "src/hooks/**/*.{js,jsx}",
       "src/App.js",
-      "!src/components/EventFeeds/**",
-      "!src/components/sports/**",
-      "!src/components/matchViewer/MatchViewer**",
-      "!src/components/liveInput/LiveInput**"
-     
+      "!src/components/sports/**"
     ]
   }
 }

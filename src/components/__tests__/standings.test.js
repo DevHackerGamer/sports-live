@@ -10,6 +10,14 @@ jest.mock('../../../lib/mongodb', () => ({
   getTeamsCollection: jest.fn(),
 }));
 
+// Add this after your MongoDB mocks
+jest.mock('../../../lib/auth', () => ({
+  isAdmin: jest.fn(),
+}));
+
+const { isAdmin } = require('../../../lib/auth');
+
+
 const { getStandingsCollection, getTeamsCollection } = require('../../../lib/mongodb');
 const handler = require('../../../api/standings');
 
@@ -45,6 +53,7 @@ describe('/api/standings', () => {
     getTeamsCollection.mockResolvedValue(mockTeamsCollection);
 
     jest.clearAllMocks();
+    isAdmin.mockResolvedValue(true);
   });
 
   it('responds to OPTIONS', async () => {

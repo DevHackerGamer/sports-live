@@ -9,6 +9,7 @@ jest.mock('../../../lib/mongodb.js', () => ({
 
 const { getMatchLineupsCollection } = require('../../../lib/mongodb');
 const handler = require('../../../api/match-lineups'); // adjust path if needed
+const { details } = require('framer-motion/client');
 
 // --- Mock response helper ---
 function mockResponse() {
@@ -105,7 +106,7 @@ describe('match-lineups API', () => {
   });
 
   it('POST missing required fields returns 400', async () => {
-    const req = { method: 'POST', body: { matchId: 300 } };
+    const req = { method: 'POST', query: {}, body: {} }; // add empty query
     const res = await runHandler(req);
 
     expect(res.status).toHaveBeenCalledWith(400);

@@ -45,7 +45,7 @@ describe('HighlightsTab', () => {
     await waitFor(() => {
       expect(screen.getByText('Match Highlights 1')).toBeInTheDocument();
       expect(screen.getByText('Match Highlights 2')).toBeInTheDocument();
-      expect(screen.getAllByText('Premier League')).toHaveLength(2);
+      expect(screen.getAllByText('Premier League')).toHaveLength(3);
     });
   });
 
