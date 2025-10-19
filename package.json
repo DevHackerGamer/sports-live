@@ -83,11 +83,8 @@
     "collectCoverageFrom": [
       "src/components/**/*.{js,jsx}",
       "api/**/*.js",
-      "!api/**/__tests__/**",
-      "!src/**/*.test.{js,jsx}",
       "src/hooks/**/*.{js,jsx}",
       "src/App.js"
-     
     ]
   }
 }
