@@ -2,6 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { apiClient } from '../../lib/api';
 import MatchStatistics from './MatchStatistics';
+import LineupsTab from './LineupsTab';
+import LiveCommentaryFeed from './LiveCommentaryFeed';
+
 import '../../styles/MatchViewer.css';
 
 const MatchViewer = ({ match, initialSection = 'details', onBack }) => {
@@ -22,6 +25,7 @@ const MatchViewer = ({ match, initialSection = 'details', onBack }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [teamLogos, setTeamLogos] = useState({ home: '', away: '' });
   const [showEventList, setShowEventList] = useState(false);
+ 
 
 
   useEffect(() => {
@@ -63,6 +67,10 @@ const MatchViewer = ({ match, initialSection = 'details', onBack }) => {
       try { if (bc) bc.close(); } catch {}
     };
   }, []);
+
+  
+  
+
 
   useEffect(() => {
     if (initialSection) {
@@ -474,6 +482,7 @@ const MatchViewer = ({ match, initialSection = 'details', onBack }) => {
     return { events: withMinute, maxMinute };
   }, [events, displayMatchRaw, teamLogos]);
 
+   
   if (!match) {
     return (
       <div className="match-viewer">
@@ -528,12 +537,28 @@ const MatchViewer = ({ match, initialSection = 'details', onBack }) => {
         >
           Statistics
         </button>
+
         <button 
           className={activeSection === 'events' ? 'nav-btn active' : 'nav-btn'}
           onClick={() => setActiveSection('events')}
         >
           Event Timeline
         </button>
+
+        <button 
+  className={activeSection === 'lineups' ? 'nav-btn active' : 'nav-btn'}
+  onClick={() => setActiveSection('lineups')}
+>
+  Lineups
+</button>
+           <button 
+  className={activeSection === 'live-commentary' ? 'nav-btn active' : 'nav-btn'}
+  onClick={() => setActiveSection('live-commentary')}
+>
+  Live Commentary
+</button>
+
+
         {isAdmin && (
           <button 
             className={activeSection === 'update' ? 'nav-btn active' : 'nav-btn'}
@@ -541,6 +566,10 @@ const MatchViewer = ({ match, initialSection = 'details', onBack }) => {
           >
             Update Events
           </button>
+
+          
+
+
         )}
       </div>
 
@@ -624,6 +653,13 @@ const MatchViewer = ({ match, initialSection = 'details', onBack }) => {
 
       {activeSection === 'stats' && (
         <MatchStatistics match={displayMatch} />
+      )}
+
+      {activeSection === 'lineups' && (
+        <LineupsTab match={displayMatch} />
+      )}
+      {activeSection === 'live-commentary' && (
+      <LiveCommentaryFeed matchId={displayMatch?.id} />
       )}
 
       {activeSection === 'events' && (

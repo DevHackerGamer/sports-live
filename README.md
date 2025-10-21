@@ -8,6 +8,13 @@ description: A modern web platform for tracking live sports feeds, scores, and s
 A modern web platform for tracking live sports feeds, scores, and stats. Built with **React**, **Node.js/Express**, and **MongoDB** for real-time updates and admin management
 
 ---
+![Code Coverage](https://img.shields.io/badge/coverage-80%25-yellowgreen)
+
+
+## Admin Login Credintials
+- email:bash_nonAdmin@gmail.com
+- password :LegendStatus2
+---
 
 ## 🌐 Live Links
 - 🌐 Hosted Here: [Sports Live](https://sports-live.onrender.com/)
@@ -42,7 +49,9 @@ A modern web platform for tracking live sports feeds, scores, and stats. Built w
   - Live feed display & scoreboards  
   - View Live Match Statistics & Events
   - View League Tables
-  - Mobile-friendly responsive UI  
+  - Mobile-friendly responsive UI 
+  - Watch Latest Match Highlights 
+  - Read Latest Football News
 
 ---
 
@@ -69,7 +78,7 @@ npm install
 npm run dev
 ```
 
-> ⚠️ Ensure your `.env` is configured with valid `REACT_APP_CLERK_PUBLISHABLE_KEY`, MONGODB_URI, and Search API keys.
+> ⚠️ Ensure your `.env` is configured with valid `REACT_APP_CLERK_PUBLISHABLE_KEY`, MONGODB_URI, and FootballData.org API keys.
 
 ---
 

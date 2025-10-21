@@ -1,0 +1,81 @@
+.lineups-tab {
+  padding: 1rem 2rem;
+  color: #fff;
+  background-color: #111;
+  border-radius: 12px;
+}
+
+/* Horizontal layout for home and away */
+.lineups-tab.horizontal {
+  display: flex;
+  gap: 2rem; /* space between home and away */
+  flex-wrap: wrap; /* stack on smaller screens */
+}
+
+.lineup-section {
+  flex: 1; /* equal width for both teams */
+  min-width: 300px;
+}
+
+.lineup-section h3 {
+  text-align: center;
+  color: #f1f1f1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.lineups-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #1b1b1b;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.lineups-table th,
+.lineups-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid #333;
+}
+
+.lineups-table th {
+  background-color: #222;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+}
+
+.lineups-table tr:hover {
+  background-color: #2a2a2a;
+}
+
+
+
+.lineups-loading,
+.lineups-error,
+.lineups-empty {
+  text-align: center;
+  padding: 1rem;
+  color: #ccc;
+}
+.lineup-header {
+  text-align: center;
+  margin: 0.5rem 0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #fff;
+}
+
+.lineup-header.starters {
+  background-color: #007bff; /* blue for starters */
+}
+
+.lineup-header.substitutes {
+  background-color: #28a745; /* green for substitutes */
+}

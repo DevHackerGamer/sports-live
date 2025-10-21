@@ -32,7 +32,7 @@ class ApiClient {
 
       return data;
     } catch (error) {
-      console.error(`API request failed: ${url}`, error);
+      console.error(`API reaquest failed: ${url}`, error);
       throw error;
     }
   }
@@ -75,6 +75,35 @@ class ApiClient {
       ...options,
     });
   }
+
+    //players API
+ async getPlayersByTeam(teamId) {
+  const res = await this.request(`/api/players?teamId=${teamId}`);
+  if (!res.success) throw new Error('Failed to fetch players');
+  return res.players || []; 
+}
+ // Get lineups for a match
+async getLineupsByMatch(matchId) {
+  return this.request(`/api/match-lineups?matchId=${matchId}`);
+}
+
+
+ 
+
+// Create/update a lineup
+async saveLineup(lineup) {
+  return this.request('/api/match-lineups', {
+    method: 'POST',
+    body: lineup
+  });
+}
+
+// Delete a lineup
+async deleteLineup(matchId, teamId) {
+  return this.request(`/api/match-lineups?matchId=${matchId}&teamId=${teamId}`, {
+    method: 'DELETE'
+  });
+}
   
   async deleteMatchEvent(id, eventId, options = {}) {
     return this.request(`/api/matches/${id}/events/${eventId}`, {
@@ -91,6 +120,47 @@ class ApiClient {
       ...options,
     });
   }
+
+
+// --- Match Commentary APIs ---
+async getCommentary(matchId) {
+  return this.request(`/api/match-commentary?matchId=${matchId}`);
+}
+
+async addCommentary(matchId, newComment) {
+  return this.request('/api/match-commentary', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ matchId, newComment }),
+  });
+}
+
+async overwriteCommentary(matchId, commentary) {
+  return this.request('/api/match-commentary', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ matchId, commentary, overwrite: true }),
+  });
+}
+
+async deleteCommentary(matchId) {
+  return this.request(`/api/match-commentary?matchId=${matchId}`, { method: 'DELETE' });
+}
+
+
+  // Get all news or by league
+  async getFootballNews(leagueCode = null, limit = 20) {
+    let url = `/api/football-news?limit=${limit}`;
+    if (leagueCode) url += `&leagueCode=${leagueCode}`;
+    return this.request(url);
+  }
+// Get football highlights
+async getFootballHighlights(leagueName) {
+  return this.request(`/api/football-highlights?leagueName=${encodeURIComponent(leagueName)}`);
+}
+
+
+
 
   async createMatches(matches) {
     return this.request('/api/matches', {

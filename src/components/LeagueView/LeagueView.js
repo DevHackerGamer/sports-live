@@ -30,7 +30,7 @@ const competitions = [
 
 const tabs = ['Standings', 'Matches', 'Players'];
 
-const LeagueView = ({ initialLeague = "PL", onBack, onTeamSelect }) => {
+const LeagueView = ({ initialLeague = "PL", onBack, onTeamSelect, onMatchSelect }) => {
   const getCompetitionCode = (league) => leagueKeyToCode[league] || league;
   
   const [competitionCode, setCompetitionCode] = useState(getCompetitionCode(initialLeague));
@@ -233,25 +233,78 @@ const calculateAge = (dob) =>
         })}
       </tbody>
     </table>
-  );
+  );// Inside LeagueView.jsx
 const renderMatches = () => (
   <div className="league-view-matches-list">
     {loadingMatches ? (
       <p>Loading upcoming matches...</p>
     ) : matches.length > 0 ? (
       matches.map((m) => (
-        <div key={m.id} className="league-view-match-card ls-clickable" onClick={() => handleTeamClick(m)}>
-          <div className="league-view-match-date">
-            {new Date(m.utcDate).toLocaleDateString([], { weekday:'short', month:'short', day:'numeric' })}
-            {' • '}
-            {new Date(m.utcDate).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })}
+        <div
+          key={m.id}
+          className="league-view-match-card"
+          onClick={() => onMatchSelect && onMatchSelect(m)}
+        >
+          {/* Match date & time */}
+          <div className="league-view-match-header">
+            <span className="league-view-match-date">
+              {new Date(m.utcDate).toLocaleDateString([], {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+              })}
+            </span>
+            <span className="league-view-match-time">
+              {new Date(m.utcDate).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
           </div>
+
+          {/* Teams section */}
           <div className="league-view-match-teams">
-            {m.homeTeam?.crest && <img src={m.homeTeam.crest} alt={`${m.homeTeam.name} crest`} />}
-            <strong>{m.homeTeam?.name}</strong> vs <strong>{m.awayTeam?.name}</strong>
-            {m.awayTeam?.crest && <img src={m.awayTeam.crest} alt={`${m.awayTeam.name} crest`} />}
+            <div
+              className="league-view-match-team league-view-clickable"
+              onClick={(e) => {
+                e.stopPropagation();
+                onTeamSelect && onTeamSelect(m.homeTeam);
+              }}
+            >
+              {m.homeTeam?.crest && (
+                <img
+                  src={m.homeTeam.crest}
+                  alt={`${m.homeTeam.name} crest`}
+                  className="league-view-match-crest"
+                />
+              )}
+              <span>{m.homeTeam?.name}</span>
+            </div>
+
+            <span className="league-view-vs">vs</span>
+
+            <div
+              className="league-view-match-team league-view-clickable"
+              onClick={(e) => {
+                e.stopPropagation();
+                onTeamSelect && onTeamSelect(m.awayTeam);
+              }}
+            >
+              {m.awayTeam?.crest && (
+                <img
+                  src={m.awayTeam.crest}
+                  alt={`${m.awayTeam.name} crest`}
+                  className="league-view-match-crest"
+                />
+              )}
+              <span>{m.awayTeam?.name}</span>
+            </div>
           </div>
-          <div className="league-view-match-competition">{m.competition}</div>
+
+          {/* Competition label */}
+          <div className="league-view-match-competition">
+            {m.competition}
+          </div>
         </div>
       ))
     ) : (

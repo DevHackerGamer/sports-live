@@ -1,244 +1,226 @@
 /* LeagueView.css */
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@700;800;900&display=swap");
-
-/* VARIABLES */
-:root {
-  --primary: #e63946;          
-  --primary-dark: #d62828;
-  --primary-light: #ff6b7a;
-  --dark-bg: #121212;
-  --dark-card: #1e1e1e;
-  --dark-text: #f5f5f5;
-  --dark-border: #2d2d2d;
-  --light-border: #3d3d3d;
-  --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.25);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
-  --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.45);
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --gradient-primary: linear-gradient(135deg, var(--primary), var(--primary-dark));
-  --gradient-dark: linear-gradient(135deg, #2a2a2a, #1a1a1a);
-  --gradient-card: linear-gradient(145deg, #1e1e1e, #252525);
-}
-
-/*  GENERAL RESET */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body, html {
-  font-family: "Poppins", sans-serif;
-  background-color: var(--dark-bg);
-  color: var(--dark-text);
-  min-height: 100vh;
-  transition: var(--transition);
-  line-height: 1.6;
-}
-
-/*  LEAGUE VIEW CONTAINER */
 .league-view-container {
-  max-width: 1400px;
+  font-family: "Poppins", sans-serif;
+  color: var(--dark-text);
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
-  background: var(--dark-bg);
+  padding: 20px;
+  background-color: var(--dark-bg);
+  min-height: 100vh;
 }
 
-/* Header */
+/* Header Styles */
 .league-view-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
-  padding: 2rem;
-  background: var(--gradient-card);
-  border-radius: var(--radius-lg);
+  margin-bottom: 25px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid var(--dark-border);
+}
+
+.league-view-header h2 {
+  font-size: 28px;
+  font-weight: 700;
+  font-family: "Playfair Display", serif;
+  color: var(--primary);
+  margin: 0;
+}
+
+.league-view-section-btn {
+  padding: 10px 20px;
+  background: var(--gradient-dark);
+  color: var(--dark-text);
+  border: 1px solid var(--dark-border);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: "Poppins", sans-serif;
+}
+
+.league-view-section-btn:hover {
+  border-color: var(--primary-light);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Selector Styles */
+.league-view-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 25px;
+  padding: 15px;
+  background-color: var(--dark-card);
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
   border: 1px solid var(--dark-border);
 }
 
-.league-view-header h2 {
-  margin: 0;
-  color: #ffffff; /* Pure white - FOR NOW I really don't know what colours to use honestly*/
-  font-size: 2.5rem;
-  font-weight: 800;
-  font-family: "Montserrat", sans-serif;
-  letter-spacing: 0.5px;
-}
-
-/* Buttons */
-.league-view-section-btn {
-  padding: 1rem 2rem;
-  background: var(--gradient-primary);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-weight: 600;
-  transition: var(--transition);
-  box-shadow: var(--shadow-sm);
-  font-family: "Poppins", sans-serif;
-  letter-spacing: 0.5px;
-}
-
-.league-view-section-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
-  background: linear-gradient(135deg, var(--primary-light), var(--primary));
-}
-
-/* League selector */
-.league-view-selector {
-  margin-bottom: 2rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.5rem;
-  background: var(--gradient-card);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--dark-border);
-  box-shadow: var(--shadow-sm);
-}
-
 .league-view-selector label {
   font-weight: 600;
-  color: #ffffff; 
-  font-size: 1.1rem;
+  color: var(--dark-text);
+  font-size: 14px;
 }
 
 .league-view-selector select {
-  padding: 0.8rem 1.2rem;
-  border-radius: var(--radius-md);
+  padding: 10px 15px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--dark-border);
-  background: var(--dark-bg);
+  background-color: var(--dark-bg);
   color: var(--dark-text);
-  font-weight: 500;
-  cursor: pointer;
-  transition: var(--transition);
   font-family: "Poppins", sans-serif;
+  font-size: 14px;
+  transition: var(--transition);
+  min-width: 200px;
 }
 
 .league-view-selector select:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(230, 57, 70, 0.2);
+  box-shadow: 0 0 0 2px rgba(230, 57, 70, 0.2);
 }
 
-/* Tabs */
+/* Tab Styles */
 .league-view-tabs {
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 2rem;
-  background: var(--gradient-card);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
+  gap: 8px;
+  margin-bottom: 25px;
+  padding: 8px;
+  background-color: var(--dark-card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
   border: 1px solid var(--dark-border);
-  box-shadow: var(--shadow-sm);
 }
 
 .league-view-tab-btn {
   flex: 1;
-  padding: 1rem 1.5rem;
-  border: none;
+  padding: 12px 20px;
   background: transparent;
-  cursor: pointer;
+  color: var(--dark-text);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
   font-weight: 600;
-  color: #8a8f9d;
+  cursor: pointer;
   transition: var(--transition);
   font-family: "Poppins", sans-serif;
-  position: relative;
+  text-align: center;
+}
+
+.league-view-tab-btn:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: var(--dark-border);
 }
 
 .league-view-tab-btn.active {
-  background: rgba(255, 255, 255, 0.05);
-  color: #ffffff; 
-}
-
-.league-view-tab-btn.active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
   background: var(--gradient-primary);
+  color: white;
+  border-color: var(--primary);
+  box-shadow: 0 4px 8px rgba(230, 57, 70, 0.3);
 }
 
-.league-view-tab-btn:hover:not(.active) {
-  background: rgba(255, 255, 255, 0.03);
-  color: #ffffff;
+/* Error and Loading States */
+.league-view-error-message {
+  background-color: rgba(230, 57, 70, 0.2);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  padding: 15px 20px;
+  margin-bottom: 20px;
+  color: var(--primary-light);
+  text-align: center;
 }
 
-/* Table - Will probably make a better design but for now this will do */
+.league-view-error-message p {
+  margin: 0 0 15px 0;
+}
+
+.league-view-retry-button {
+  padding: 8px 16px;
+  background: var(--gradient-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: "Poppins", sans-serif;
+}
+
+.league-view-retry-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(230, 57, 70, 0.4);
+}
+
+/* Standings Table Styles */
 .league-view-standings-table {
   width: 100%;
   border-collapse: collapse;
+  background-color: var(--dark-card);
   border-radius: var(--radius-md);
   overflow: hidden;
-  background: var(--gradient-card);
   box-shadow: var(--shadow-md);
-  margin: 0 auto;
+  border: 1px solid var(--dark-border);
 }
 
-.league-view-standings-table th,
-.league-view-standings-table td {
-  padding: 1.2rem 1rem;
-  text-align: center;
-  border-bottom: 1px solid var(--light-border);
-  transition: var(--transition);
+.league-view-standings-table thead {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--dark-border);
 }
 
 .league-view-standings-table th {
-  font-family: "Montserrat", sans-serif;
-  font-weight: 700;
-  text-transform: uppercase;
-  background: rgba(255, 255, 255, 0.03);
-  color: #ffffff; 
-  font-size: 0.9rem;
-  letter-spacing: 0.5px;
+  padding: 15px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--dark-text);
+  border-bottom: 1px solid var(--dark-border);
 }
 
-.league-view-standings-table th:first-child {
-  border-top-left-radius: var(--radius-md);
+.league-view-standings-table td {
+  padding: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: var(--transition);
 }
 
-.league-view-standings-table th:last-child {
-  border-top-right-radius: var(--radius-md);
+.league-view-standings-table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.03);
 }
 
-.league-view-standings-table tr:last-child td {
+.league-view-standings-table tbody tr:last-child td {
   border-bottom: none;
 }
 
-.league-view-standings-table tr:last-child td:first-child {
-  border-bottom-left-radius: var(--radius-md);
+/* Qualification/Relegation Styles */
+.league-view-champions-league {
+  background: linear-gradient(90deg, rgba(30, 144, 255, 0.1) 0%, transparent 100%);
+  border-left: 3px solid #1e90ff;
 }
 
-.league-view-standings-table tr:last-child td:last-child {
-  border-bottom-right-radius: var(--radius-md);
+.league-view-europa-league {
+  background: linear-gradient(90deg, rgba(50, 205, 50, 0.1) 0%, transparent 100%);
+  border-left: 3px solid #32cd32;
 }
 
+.league-view-relegation {
+  background: linear-gradient(90deg, rgba(220, 20, 60, 0.1) 0%, transparent 100%);
+  border-left: 3px solid #dc143c;
+}
+
+/* Team Cell Styles */
 .league-view-team-cell {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  text-align: left;
-  font-weight: 600;
-  font-size: 1rem;
-  color: #ffffff;
+  gap: 12px;
+  font-weight: 500;
 }
 
 .league-view-team-logo {
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   object-fit: contain;
-  border-radius: 6px;
-  border: 1px solid var(--light-border);
-  padding: 2px;
-  background: white;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+  transition: var(--transition);
 }
 
 .league-view-clickable {
@@ -247,232 +229,257 @@ body, html {
 }
 
 .league-view-clickable:hover {
-  color: var(--primary-light);
-}
-
-/* Table rows */
-.league-view-standings-table tr {
-  transition: var(--transition);
-  background: transparent;
-}
-
-.league-view-standings-table tr:hover {
-  background: rgba(255, 255, 255, 0.02);
+  opacity: 0.8;
+  transform: scale(1.02);
 }
 
 .league-view-points {
   font-weight: 700;
-  color: #ffffff; 
-  font-size: 1.1rem;
+  color: var(--accent);
 }
 
-/* Position numbers with subtle styling */
-.league-view-standings-table td:first-child {
-  font-weight: 700;
-  color: #ffffff; 
-  font-size: 1.1rem;
+/* Match Cards Section - Integrated Favorites Style */
+.league-view-matches-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
 }
 
-/* Matches *//* Matches - enhanced */
 .league-view-match-card {
-  padding: 1.5rem;
   background: var(--dark-card);
   border-radius: var(--radius-md);
-  border: 1px solid var(--dark-border);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
   transition: var(--transition);
-  box-shadow: var(--shadow-sm);
   cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  position: relative;
+  border: 1px solid var(--dark-border);
 }
 
 .league-view-match-card:hover {
-  transform: translateY(-4px) scale(1.02);
-  border-color: var(--primary);
-  box-shadow: var(--shadow-md);
-  background: rgba(230, 57, 70, 0.05);
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--primary-light);
 }
 
-/* Match teams with crests */
+/* Match Header */
+.league-view-match-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--dark-border);
+}
+
+.league-view-match-date {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--dark-text);
+}
+
+.league-view-match-time {
+  font-size: 13px;
+  color: var(--dark-text);
+  font-weight: 500;
+}
+
+/* Match Teams - Side by Side Layout */
 .league-view-match-teams {
+  padding: 20px 15px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  font-weight: 600;
-  font-size: 1rem;
-  overflow-x: auto;
+  gap: 15px;
 }
 
 .league-view-match-team {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  gap: 8px;
+  flex: 1;
+  transition: var(--transition);
+  padding: 10px;
+  border-radius: var(--radius-sm);
+}
+
+.league-view-match-team:hover {
+  background-color: rgba(255, 255, 255, 0.03);
 }
 
 .league-view-match-crest {
-  width: 28px;
-  height: 28px;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
-  border-radius: 50%;
-  border: 1px solid var(--light-border);
-  padding: 2px;
-  transition: transform 0.2s ease;
+  transition: var(--transition);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
 }
 
 .league-view-match-team:hover .league-view-match-crest {
-  transform: scale(1.2);
+  transform: scale(1.1);
 }
 
-/* Date & time */
-.league-view-match-date,
-.league-view-match-time {
-  font-size: 0.9rem;
-  color: var(--primary-light);
+.league-view-team-name {
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--dark-text);
+  text-align: center;
+  line-height: 1.3;
 }
 
-/* Status badge (Optional enhancement) */
-.league-view-match-status {
-  align-self: flex-start;
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  font-size: 0.75rem;
+/* VS Separator - Centered between teams */
+.league-view-vs {
+  font-size: 16px;
+  color: var(--dark-text);
   font-weight: 600;
-  color: #fff;
-  background-color: var(--primary-dark);
-  text-transform: uppercase;
+  padding: 0 10px;
+  flex-shrink: 0;
 }
 
-/* Responsive tweaks */
-@media (max-width: 768px) {
-  .league-view-match-card {
-    padding: 1rem;
-  }
-
-  .league-view-match-crest {
-    width: 24px;
-    height: 24px;
-  }
-
-  .league-view-match-teams {
-    flex-direction: column;
-    gap: 0.3rem;
-    align-items: flex-start;
-  }
+/* Match Competition */
+.league-view-match-competition {
+  padding: 12px 15px;
+  font-size: 12px;
+  color: #a0a0a0;
+  background-color: rgba(255, 255, 255, 0.03);
+  border-top: 1px solid var(--dark-border);
+  text-align: center;
+  font-style: italic;
 }
 
-/* Players */
+/* Players List Styles */
 .league-view-players-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
 }
 
-.league-view-player-card {
-  padding: 1.5rem;
-  background: var(--gradient-card);
+.player-card {
+  background: var(--dark-card);
   border-radius: var(--radius-md);
-  text-align: center;
-  transition: var(--transition);
+  padding: 20px;
+  box-shadow: var(--shadow-md);
   border: 1px solid var(--dark-border);
-  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
 }
 
-.league-view-player-card:hover {
+.player-card:hover {
   transform: translateY(-3px);
-  box-shadow: var(--shadow-md);
-  border-color: var(--primary);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--primary-light);
 }
 
-.league-view-player-card img {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  margin-bottom: 1rem;
-  border: 2px solid var(--light-border);
-  object-fit: cover;
-}
-
-.league-view-player-card span {
-  display: block;
+.player-card h3 {
+  font-size: 18px;
   font-weight: 600;
-  color: #ffffff; 
-  margin-bottom: 0.5rem;
+  color: var(--primary);
+  margin: 0 0 15px 0;
+  font-family: "Playfair Display", serif;
+  border-bottom: 1px solid var(--dark-border);
+  padding-bottom: 10px;
 }
 
-.league-view-player-card span:last-child {
-  color: var(--primary-light);
-  font-size: 0.9rem;
+.player-card p {
+  margin: 8px 0;
+  font-size: 14px;
+  color: var(--dark-text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-/* Error and loading states */
-.league-view-error-message {
-  background: rgba(230, 57, 70, 0.1);
-  color: #ffffff; 
-  padding: 2rem;
-  border-radius: var(--radius-md);
-  margin-bottom: 2rem;
-  text-align: center;
-  border: 1px solid var(--primary);
+.player-card strong {
+  color: var(--accent);
+  min-width: 80px;
+  display: inline-block;
 }
 
-.league-view-retry-button {
-  padding: 0.8rem 1.5rem;
-  background: var(--gradient-primary);
+.team-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  margin-right: 8px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+}
+
+/* Status Badges (for future match states) */
+.league-view-status-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.league-view-status-live {
+  background-color: var(--primary);
   color: white;
-  border: none;
+  animation: pulse 1.5s infinite;
+}
+
+.league-view-status-final {
+  background-color: #576574;
+  color: white;
+}
+
+.league-view-status-scheduled {
+  background-color: var(--secondary);
+  color: white;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+/* Empty States */
+.league-view-matches-list > p,
+.league-view-players-list > p {
+  text-align: center;
+  padding: 40px 20px;
+  background-color: var(--dark-card);
   border-radius: var(--radius-md);
-  cursor: pointer;
-  font-weight: 600;
-  margin-top: 1rem;
-  transition: var(--transition);
-}
-
-.league-view-retry-button:hover {
-  transform: translateY(-2px);
   box-shadow: var(--shadow-md);
-}
-
-/* Tab content */
-.league-view-tab-content {
-  background: var(--gradient-card);
-  border-radius: var(--radius-lg);
-  padding: 2rem;
-  box-shadow: var(--shadow-md);
-  min-height: 500px;
   border: 1px solid var(--dark-border);
+  grid-column: 1 / -1;
+  color: #a0a0a0;
+  font-style: italic;
+  margin: 0;
 }
 
+/* Loading States */
 .league-view-tab-content > p {
   text-align: center;
-  padding: 3rem;
-  color: #ffffff; 
+  padding: 40px 20px;
+  color: #a0a0a0;
   font-style: italic;
-  font-size: 1.2rem;
+  background-color: var(--dark-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--dark-border);
 }
 
-/* Responsive */
-@media (max-width: 1024px) {
-  .league-view-header h2 {
-    font-size: 2rem;
-  }
-  
-  .league-view-matches-list {
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  }
-}
-
+/* Responsive Design */
 @media (max-width: 768px) {
   .league-view-container {
-    padding: 1rem;
+    padding: 10px;
   }
   
   .league-view-header {
     flex-direction: column;
+    gap: 15px;
     text-align: center;
-    gap: 1.5rem;
-    padding: 1.5rem;
+  }
+  
+  .league-view-selector {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .league-view-selector select {
+    min-width: auto;
   }
   
   .league-view-tabs {
@@ -484,55 +491,82 @@ body, html {
     grid-template-columns: 1fr;
   }
   
-  .league-view-team-cell {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 0.5rem;
+  .league-view-standings-table {
+    font-size: 14px;
   }
   
-  .league-view-selector {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
+  .league-view-team-cell {
+    font-size: 14px;
+  }
+  
+  .league-view-team-logo {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .league-view-match-teams {
+    padding: 15px 12px;
+    gap: 10px;
+  }
+  
+  .league-view-match-crest {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .league-view-team-name {
+    font-size: 12px;
+  }
+  
+  .league-view-vs {
+    font-size: 14px;
+    padding: 0 5px;
   }
 }
 
 @media (max-width: 480px) {
   .league-view-header h2 {
-    font-size: 1.8rem;
+    font-size: 24px;
   }
   
-  .league-view-section-btn {
-    padding: 0.8rem 1.5rem;
-    font-size: 0.9rem;
+  .league-view-match-card,
+  .player-card {
+    padding: 15px;
   }
   
-  .league-view-standings-table th,
-  .league-view-standings-table td {
-    padding: 0.8rem 0.5rem;
-    font-size: 0.9rem;
+  .league-view-match-crest {
+    width: 32px;
+    height: 32px;
   }
   
-  .league-view-player-card {
-    padding: 1rem;
+  .league-view-team-name {
+    font-size: 11px;
   }
   
-  .league-view-player-card img {
-    width: 70px;
-    height: 70px;
+  .league-view-vs {
+    font-size: 12px;
   }
-
-  .league-view-match-teams {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
-.league-view-match-crest {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
+/* Scrollbar Styling */
+.league-view-standings-table-container {
+  overflow-x: auto;
 }
 
+.league-view-standings-table-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.league-view-standings-table-container::-webkit-scrollbar-track {
+  background: var(--dark-bg);
+  border-radius: 4px;
+}
+
+.league-view-standings-table-container::-webkit-scrollbar-thumb {
+  background: var(--dark-border);
+  border-radius: 4px;
+}
+
+.league-view-standings-table-container::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-light);
 }

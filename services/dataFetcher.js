@@ -6,6 +6,7 @@ const {
   getTeamsCollection, // Now points to Teams
   getPlayersCollection,
   getDisplayStateCollection,
+  getFootballHighlightsCollection,
   getDatabase
 } = require('../lib/mongodb');
 
@@ -184,6 +185,88 @@ class SportsDataFetcher {
       throw error;
     }
   }
+  // Fetch and store football news data
+async fetchAndStoreFootballNews() {
+  try {
+    await this.logEvent('INFO', 'Starting football news fetch');
+
+    const leagues = [
+      { code: 'eng.1', name: 'Premier League' },
+      { code: 'esp.1', name: 'La Liga' },
+      { code: 'ita.1', name: 'Serie A' },
+      { code: 'ger.1', name: 'Bundesliga' },
+      { code: 'fra.1', name: 'Ligue 1' },
+      { code: 'uefa.champions', name: 'Champions League' },
+    ];
+
+    const { getFootballNewsCollection } = require('../lib/mongodb');
+    const newsCollection = await getFootballNewsCollection();
+
+    let totalArticles = 0;
+
+    for (const league of leagues) {
+      const url = `http://site.api.espn.com/apis/site/v2/sports/soccer/${league.code}/news`;
+
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (!Array.isArray(data.articles)) continue;
+
+        const articles = data.articles.map(article => ({
+          _id: article?.guid || article?.id || `${league.code}-${Date.now()}-${Math.random()}`,
+          leagueCode: league.code,
+          leagueName: league.name,
+          headline: article.headline,
+          description: article.description,
+          published: article.published,
+          byline: article.byline || null,
+          link: article.links?.web?.href || null,
+          images: article.images?.map(img => ({
+            url: img.url,
+            caption: img.caption,
+            width: img.width,
+            height: img.height
+          })) || [],
+          categories: article.categories?.map(c => c.description) || [],
+          related: article.related || [],
+          lastUpdated: new Date()
+        }));
+
+        if (articles.length > 0) {
+          const ops = articles.map(a => ({
+            updateOne: {
+              filter: { _id: a._id },
+              update: { $set: a },
+              upsert: true
+            }
+          }));
+
+          await newsCollection.bulkWrite(ops);
+          totalArticles += articles.length;
+
+          console.log(`🗞️ Stored ${articles.length} news articles for ${league.name}`);
+        }
+
+        await new Promise(res => setTimeout(res, 1000)); // avoid overloading ESPN
+      } catch (err) {
+        console.warn(`⚠️ Failed to fetch news for ${league.name}:`, err.message);
+      }
+    }
+
+    await this.logEvent('SUCCESS', `Stored ${totalArticles} football news articles`, { count: totalArticles });
+    console.log(`✅ Stored ${totalArticles} news articles in MongoDB`);
+
+    return totalArticles;
+  } catch (error) {
+    await this.logEvent('ERROR', 'Failed to fetch football news', { error: error.message });
+    console.error('Error in fetchAndStoreFootballNews:', error);
+    throw error;
+  }
+}
+
+
+
   // Fetch and store league standings
 async fetchAndStoreStandings() {
   try {
@@ -244,6 +327,93 @@ async fetchAndStoreStandings() {
     throw error;
   }
 }
+// Fetch and store YouTube highlights
+async fetchAndStoreFootballHighlights() {
+  console.log('🎥 Fetching football highlights...');
+
+  const leagues = [
+    { name: 'Premier League', channelId: 'UCxZf3zG2q1oVmtz0gW1yj9Q' },
+    { name: 'Champions League', channelId: 'UCpcTrCXblq78GZrTUTLWeBw' },
+    { name: 'La Liga', channelId: 'UCxm7h3Jv2uG0d6zOQeqnqTw' },
+    { name: 'Serie A', channelId: 'UCz1hQvN3E_0gxH3JUbj3c1Q' },
+    { name: 'Ligue 1', channelId: 'UC-VK0tmIu3W2oKMzOJDC0pQ' },
+    { name: 'Bundesliga', channelId: 'UCVCx8sY5ETRWRzYzYkz3rTQ' },
+  ];
+
+  const apiKey = process.env.REACT_APP_YT_API_KEY;
+  if (!apiKey) {
+    console.warn('⚠️ Missing REACT_APP_YT_API_KEY in environment.');
+    return;
+  }
+
+  const highlightsCollection = await getFootballHighlightsCollection();
+
+  for (const league of leagues) {
+    try {
+      console.log(`▶ Fetching highlights for ${league.name}`);
+
+      // 1️⃣ Try official channel first
+      const channelUrl = new URL('https://www.googleapis.com/youtube/v3/search');
+      channelUrl.search = new URLSearchParams({
+        part: 'snippet',
+        channelId: league.channelId,
+        q: 'highlights',
+        type: 'video',
+        order: 'date',
+        videoDuration: 'short',
+        maxResults: '12',
+        key: apiKey,
+      });
+
+      const channelRes = await fetch(channelUrl);
+      const channelData = await channelRes.json();
+
+      let videos = channelData.items || [];
+
+      // 2️⃣ Fallback search if channel is empty
+      if (!videos.length) {
+        console.warn(`No channel highlights for ${league.name}, using search fallback.`);
+        const searchUrl = new URL('https://www.googleapis.com/youtube/v3/search');
+        searchUrl.search = new URLSearchParams({
+          part: 'snippet',
+          q: `${league.name} football 2025/26 highlights`,
+          type: 'video',
+          order: 'relevance',
+          videoDuration: 'short',
+          maxResults: '12',
+          key: apiKey,
+        });
+        const searchRes = await fetch(searchUrl);
+        const searchData = await searchRes.json();
+        videos = searchData.items || [];
+      }
+
+      if (!videos.length) continue;
+
+      // Prepare DB docs
+      const docs = videos.map(v => ({
+        leagueName: league.name,
+        videoId: v.id.videoId,
+        title: v.snippet.title,
+        description: v.snippet.description,
+        thumbnail:
+          v.snippet.thumbnails.high?.url || v.snippet.thumbnails.medium?.url,
+        channelTitle: v.snippet.channelTitle,
+        publishedAt: v.snippet.publishedAt,
+        fetchedAt: new Date(),
+      }));
+
+      // Save in Mongo (replace old league data)
+      await highlightsCollection.deleteMany({ leagueName: league.name });
+      await highlightsCollection.insertMany(docs);
+
+      console.log(`✅ Saved ${docs.length} ${league.name} highlights`);
+    } catch (err) {
+      console.error(`❌ Error fetching highlights for ${league.name}:`, err.message);
+    }
+  }
+}
+
 
 
   // Fetch and store matches data
@@ -653,6 +823,31 @@ try {
         console.log('⚠️ Players fetch failed (possibly rate limited), continuing...');
         await this.logEvent('WARNING', 'Players fetch failed', { error: error.message });
       }
+     
+// Fetch football news 
+try {
+  if (!this.apiDisabled) {
+    await this.fetchAndStoreFootballNews();
+  } else {
+    console.log('⏭️ Skipping football news fetch: API disabled');
+  }
+} catch (err) {
+  console.warn('⚠️ Football news fetch failed:', err.message);
+  await this.logEvent('WARNING', 'Football news fetch failed', { error: err.message });
+}
+// Fetch football highlights
+try {
+  if (!this.apiDisabled) {
+    await this.fetchAndStoreFootballHighlights();
+  } else {
+    console.log('⏭️ Skipping highlights fetch: API disabled');
+  }
+} catch (err) {
+  console.warn('⚠️ Highlights fetch failed:', err.message);
+  await this.logEvent('WARNING', 'Highlights fetch failed', { error: err.message });
+}
+
+
 
       this.lastFetchTime = new Date();
       await this.updateDisplayState({ 
@@ -672,6 +867,7 @@ try {
     } finally {
       this.isRunning = false;
     }
+
   }
 
   // Start periodic fetching

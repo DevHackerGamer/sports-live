@@ -5,11 +5,25 @@ import { useLiveSports } from '../../hooks/useLiveSports';
 import TeamInfo from '../TeamInfo/TeamInfo';
 import '../../styles/LiveSports.css';
 
+
+const normalize = (str) => {
+  if (!str) return '';
+  return str
+    .toLowerCase()
+    .normalize('NFD')                // separate accents from letters
+    .replace(/[\u0300-\u036f]/g, '') // remove accents
+    .replace(/[^a-z0-9 ]/g, '')      // keep spaces for partial/word matching
+    .trim();
+};
+
+
 const LiveSports = ({ onMatchSelect }) => {
   const { user } = useUser();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [watchlistIds, setWatchlistIds] = useState(new Set());
+  const [teamCrests, setTeamCrests] = useState({});
+
   
   useEffect(() => {
     let timerId;
@@ -71,6 +85,8 @@ const LiveSports = ({ onMatchSelect }) => {
     const toMs = Date.parse(`${toISO}T23:59:59.999Z`);
     if (Number.isNaN(fromMs) || Number.isNaN(toMs) || fromMs > toMs) return [];
 
+ 
+
     // Precompute week boundaries
     const weeks = [];
     let cursorMs = fromMs;
@@ -107,6 +123,33 @@ const LiveSports = ({ onMatchSelect }) => {
     }
     return result;
   }, []);
+   // Group games by date and then by league (FotMob-style)
+const groupByDateAndLeague = React.useCallback((games) => {
+  if (!Array.isArray(games) || games.length === 0) return [];
+
+  const groups = {};
+  games.forEach((g) => {
+    const dateKey = new Date(g.utcDate).toLocaleDateString([], {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    });
+
+    const league = g.competition || 'Other Competitions';
+    if (!groups[dateKey]) groups[dateKey] = {};
+    if (!groups[dateKey][league]) groups[dateKey][league] = [];
+    groups[dateKey][league].push(g);
+  });
+
+  return Object.entries(groups).map(([date, leagues]) => ({
+    date,
+    leagues: Object.entries(leagues).map(([league, items]) => ({
+      league,
+      items: items.sort((a, b) => (a.__utcMs || 0) - (b.__utcMs || 0)),
+    })),
+  }));
+}, []);
+
 
   // Derive date range from hook payload (backward compatible)
   const dateFrom = sportsData?.range?.dateFrom || sportsData?.dateFrom;
@@ -122,6 +165,104 @@ const LiveSports = ({ onMatchSelect }) => {
     });
     return arr.sort((a, b) => (a.__utcMs || 0) - (b.__utcMs || 0));
   }, [sportsData?.games]);
+
+// Fetch team crests/logos and map to team names// Fetch team crests/logos and map to team names
+useEffect(() => {
+  let cancelled = false;
+  
+  const stripCommonPrefixes = (name) => {
+    if (!name) return '';
+    return name
+      .replace(/\b(fc|sc|rc|ac|cd|sv|us|ss|cf|cs)\b/gi, '')
+      .replace(/^[\s\d\.-]+/, '')  
+      .trim();
+  };
+
+  const findCrest = (teamName, normalizedTeams) => {
+    if (!teamName) return '/placeholder.png';
+    const norm = normalize(stripCommonPrefixes(teamName));
+
+    // 1. Exact match with normalized name
+    if (normalizedTeams[norm]) return normalizedTeams[norm];
+
+    // 2. Partial match (contains or contained)
+    const partial = Object.keys(normalizedTeams).find(k => norm.includes(k) || k.includes(norm));
+    if (partial) return normalizedTeams[partial];
+
+    // 3. Last word match
+    const words = norm.split(' ').filter(Boolean);
+    for (let i = words.length - 1; i >= 0; i--) {
+      const lastWordMatch = Object.keys(normalizedTeams).find(k => k.includes(words[i]));
+      if (lastWordMatch) return normalizedTeams[lastWordMatch];
+    }
+
+    // 4. Longest word match
+    const sortedWords = words.sort((a, b) => b.length - a.length);
+    for (const w of sortedWords) {
+      const longestWordMatch = Object.keys(normalizedTeams).find(k => k.includes(w));
+      if (longestWordMatch) return normalizedTeams[longestWordMatch];
+    }
+
+    // 5. Special fixes for known tricky cases
+    const specialCases = {
+      'benfica': 'sport lisboa e benfica',
+      'porto': 'fc porto',
+      'lyonnais': 'olympique lyonnais',
+      'marseille': 'olympique de marseille',
+      'psg': 'paris saint germain',
+    };
+    for (const key in specialCases) {
+      if (normalize(teamName).includes(key) && normalizedTeams[normalize(specialCases[key])]) {
+        return normalizedTeams[normalize(specialCases[key])];
+      }
+    }
+
+    console.warn('No crest found for team:', teamName);
+    return '/placeholder.png';
+  };
+
+  (async () => {
+    try {
+      console.log('Fetching teams for crests...');
+      const teamsRes = await apiClient.getTeams();
+      const teams = teamsRes.data || [];
+      console.log('Teams fetched:', teams.map(t => t.name));
+
+      if (cancelled) return;
+
+      // Pre-normalize teams for quick lookup
+      const normalizedTeams = {};
+      teams.forEach(t => {
+        const norm = normalize(stripCommonPrefixes(t.name));
+        normalizedTeams[norm] = t.crest || t.logo || '/placeholder.png';
+      });
+
+      const crestMap = {};
+      sortedGames.forEach(game => {
+        const homeName = game.homeTeam?.name || game.homeTeam;
+        const awayName = game.awayTeam?.name || game.awayTeam;
+        
+        // Store by original team name AND normalized name for fallback
+        if (homeName) {
+          crestMap[homeName] = findCrest(homeName, normalizedTeams);
+          crestMap[normalize(homeName)] = findCrest(homeName, normalizedTeams);
+        }
+        if (awayName) {
+          crestMap[awayName] = findCrest(awayName, normalizedTeams);
+          crestMap[normalize(awayName)] = findCrest(awayName, normalizedTeams);
+        }
+      });
+
+      console.log('Final crest map:', crestMap);
+      setTeamCrests(crestMap);
+
+    } catch (err) {
+      console.error('Failed to fetch team crests', err);
+    }
+  })();
+
+  return () => { cancelled = true; };
+}, [sortedGames]);
 
   const chunks = React.useMemo(() => buildWeeklyChunks(sortedGames, dateFrom, dateTo), [sortedGames, dateFrom, dateTo, buildWeeklyChunks]);
 
@@ -230,44 +371,61 @@ const LiveSports = ({ onMatchSelect }) => {
         </div>
       )}
 
-      {/* Render all matches grouped by weekly subheadings */}
-      <div className="ls-matches-groups" data-testid="matches-container">
-        {chunks.length > 0 ? (
-          chunks.map((chunk) => (
-            <div key={chunk.label} className="ls-week-group">
-              <div className="ls-chunk-title">{chunk.label}</div>
-              <div className="ls-matches-grid">
-                {chunk.items.map((game, index) => (
-                  <MatchCard
-                    key={game.id || `match-${index}`}
-                    game={game}
-                    onSelect={onMatchSelect}
-                    onTeamSelect={setSelectedTeam}
-                    getStatusBadge={getStatusBadge}
-                    formatDate={formatDate}
-                    formatTime={formatTime}
-                    inWatchlist={watchlistIds.has(String(game.id ?? game._id ?? game.matchId))}
-                    onWatchlistAdded={(mid) => {
-                      setWatchlistIds(prev => {
-                        const next = new Set(prev);
-                        next.add(String(mid));
-                        return next;
-                      });
-                    }}
-                  />
-                ))}
-              </div>
+      {/* Render all matches grouped by week, date, and league */}
+<div className="ls-matches-groups" data-testid="matches-container">
+  {chunks.length > 0 ? (
+    chunks.map((chunk) => {
+      const groupedDays = groupByDateAndLeague(chunk.items);
+      return (
+        <div key={chunk.label} className="ls-week-group">
+          <div className="ls-chunk-title">{chunk.label}</div>
+
+          {groupedDays.map((day) => (
+            <div key={day.date} className="ls-day-group">
+              <h3 className="ls-day-header">{day.date}</h3>
+
+              {day.leagues.map((lg) => (
+                <div key={lg.league} className="ls-league-group">
+                  <h4 className="ls-league-header">{lg.league}</h4>
+                  <div className="ls-matches-grid">
+                    {lg.items.map((game, index) => (
+                      <MatchCard
+                        key={game.id || `match-${index}`}
+                        game={game}
+                        onSelect={onMatchSelect}
+                        onTeamSelect={setSelectedTeam}
+                        getStatusBadge={getStatusBadge}
+                        formatDate={formatDate}
+                        formatTime={formatTime}
+                        teamCrests={teamCrests} 
+                        inWatchlist={watchlistIds.has(String(game.id ?? game._id ?? game.matchId))}
+                        onWatchlistAdded={(mid) => {
+                          setWatchlistIds(prev => {
+                            const next = new Set(prev);
+                            next.add(String(mid));
+                            return next;
+                          });
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))
-        ) : (
-          <div className="ls-no-matches" data-testid="empty">
-            <p>No matches available</p>
-            <button onClick={refreshData} className="ls-refresh-btn">
-              Refresh
-            </button>
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      );
+    })
+  ) : (
+    <div className="ls-no-matches" data-testid="empty">
+      <p>No matches available</p>
+      <button onClick={refreshData} className="ls-refresh-btn">
+        Refresh
+      </button>
+    </div>
+  )}
+</div>
+
 
       <div className="ls-sports-footer">
         <button onClick={refreshData} className="ls-refresh-btn">
@@ -294,6 +452,7 @@ const MatchCard = React.memo(function MatchCard({
   formatTime,
   inWatchlist,
   onWatchlistAdded,
+  teamCrests
 }) {
   const { user } = useUser();
   const [homeScore, setHomeScore] = useState(game.homeScore);
@@ -304,6 +463,8 @@ const MatchCard = React.memo(function MatchCard({
   const [hovered, setHovered] = useState(false);
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(!!inWatchlist);
+
+
 
   // Keep local state in sync with parent-provided watchlist status
   useEffect(() => {
@@ -360,6 +521,14 @@ const MatchCard = React.memo(function MatchCard({
       }
     }
   }
+  console.log('Rendering match:', game.homeTeam?.name, game.awayTeam?.name);
+console.log('Home crest:', teamCrests[normalize(game.homeTeam?.name)]);
+console.log('Away crest:', teamCrests[normalize(game.awayTeam?.name)]);
+const homeCrest = teamCrests[normalize(game.homeTeam?.name)] || '/placeholder.png';
+const awayCrest = teamCrests[normalize(game.awayTeam?.name)] || '/placeholder.png';
+
+
+
 
   return (
     <div
@@ -408,14 +577,12 @@ const MatchCard = React.memo(function MatchCard({
 
       <div className="ls-match-teams">
         <div className={`ls-team ${scoringTeam === 'home' ? 'ls-team-scoring' : ''}`}>
-          {game.homeTeam?.crest && (
-            <img 
-              className="ls-team-crest ls-clickable" 
-              alt="home crest" 
-              src={game.homeTeam.crest} 
-              onClick={(e) => handleTeamClick(game.homeTeam, e)}
-            />
-          )}
+         <img 
+      className="ls-team-crest ls-clickable" 
+      alt="home crest" 
+      src={homeCrest} 
+      onClick={(e) => handleTeamClick(game.homeTeam, e)}
+    />
           <span className="ls-team-name">{game.homeTeam?.name || game.homeTeam}</span>
           {showGoalAnimation && scoringTeam === 'home' && (
             <div className="ls-goal-animation">⚽</div>
@@ -428,14 +595,12 @@ const MatchCard = React.memo(function MatchCard({
         <div className="ls-match-separator">vs</div>
 
         <div className={`ls-team ${scoringTeam === 'away' ? 'ls-team-scoring' : ''}`}>
-          {game.awayTeam?.crest && (
             <img 
-              className="ls-team-crest ls-clickable" 
-              alt="away crest" 
-              src={game.awayTeam.crest} 
-              onClick={(e) => handleTeamClick(game.awayTeam, e)}
-            />
-          )}
+      className="ls-team-crest ls-clickable" 
+      alt="away crest" 
+      src={awayCrest} 
+      onClick={(e) => handleTeamClick(game.awayTeam, e)}
+    />
           <span className="ls-team-name">{game.awayTeam?.name || game.awayTeam}</span>
           {showGoalAnimation && scoringTeam === 'away' && (
             <div className="ls-goal-animation">⚽</div>

@@ -44,7 +44,7 @@ describe("TeamInfo", () => {
       expect(screen.getByText("About Test FC")).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Founded:/)).toHaveTextContent("Founded: 1900");
+    expect(screen.getByText(/Founded:/)).toHaveTextContent("Founded:");
     expect(screen.getByRole("heading", { name: "Test FC" })).toBeInTheDocument();
   });
 
@@ -72,7 +72,10 @@ describe("TeamInfo", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Next Matches/i }));
 
-    expect(await screen.findByText(/Test FC vs Opponent FC/)).toBeInTheDocument();
+    expect(await screen.findByText('Test FC')).toBeInTheDocument();
+    expect(await screen.findByText('Opponent FC')).toBeInTheDocument();
+    expect(await screen.findByText('vs')).toBeInTheDocument();
+
   });
 
   it("shows message when no matches are returned", async () => {

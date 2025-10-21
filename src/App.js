@@ -1,52 +1,115 @@
-import './styles/Dashboard.css';
-import LoginPage from './components/auth/LoginPage';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import {
+  ClerkProvider,
+  SignedIn,
+  SignedOut,
+} from '@clerk/clerk-react';
+
+import { CLERK_PUBLISHABLE_KEY as PUBLISHABLE_KEY } from './config';
+import LandingPage from './components/landing/LandingPage';
 import Dashboard from './components/dashboard/Dashboard';
 import LeagueView from './components/LeagueView/LeagueView';
+import SignInPage from './components/auth/SignInPage';
+import SignUpPage from './components/auth/SignUpPage';
+import './styles/Dashboard.css';
 
-import { ClerkProvider, useAuth, useUser } from '@clerk/clerk-react';
-import { CLERK_PUBLISHABLE_KEY as PUBLISHABLE_KEY } from './config';
+if (!PUBLISHABLE_KEY) {
+  throw new Error("Missing Clerk Publishable Key");
+}
 
-function AppContent() {
-  const { isSignedIn, isLoaded } = useAuth();
-  const { user, isLoaded: userLoaded } = useUser();
-  
-  console.log('Auth state - isSignedIn:', isSignedIn, 'isLoaded:', isLoaded, 'user:', user);
-  
-  // Wait for Clerk to fully load
-  if (!isLoaded || !userLoaded) {
-    console.log('Clerk is still loading...');
-    return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh',
-        fontSize: '18px'
-      }}>
-        Loading...
-      </div>
-    );
-  }
+const clerkAppearanceSettings = {
+  signInUrl: '/sign-in',
+  signUpUrl: '/sign-up',
+  afterSignInUrl: '/dashboard',
+  afterSignUpUrl: '/dashboard',
+};
 
-  // Simple authentication check
-  if (isSignedIn && user) {
-    console.log('User authenticated and complete, showing Dashboard');
-    return <Dashboard />;
-  } else {
-    console.log('User not authenticated, showing LoginPage');
-    return <LoginPage />;
-  }
+function ProtectedRoute({ children }) {
+  return (
+    <>
+      <SignedIn>{children}</SignedIn>
+      <SignedOut>
+        <Navigate to="/" replace />
+      </SignedOut>
+    </>
+  );
 }
 
 function App() {
-  if (!PUBLISHABLE_KEY) {
-    throw new Error("Missing Publishable Key");
-  }
-
-
   return (
-    <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
-      <AppContent />
+    <ClerkProvider
+      publishableKey={PUBLISHABLE_KEY}
+      navigate={(to) => window.history.pushState(null, '', to)}
+      {...clerkAppearanceSettings}
+    >
+      <Router>
+        <Routes>
+          {/* Public routes */}
+          <Route
+            path="/"
+            element={
+              <>
+                <SignedIn>
+                  <Navigate to="/dashboard" replace />
+                </SignedIn>
+                <SignedOut>
+                  <LandingPage />
+                </SignedOut>
+              </>
+            }
+          />
+
+          <Route
+            path="/sign-in"
+            element={
+              <>
+                <SignedIn>
+                  <Navigate to="/dashboard" replace />
+                </SignedIn>
+                <SignedOut>
+                  <SignInPage />
+                </SignedOut>
+              </>
+            }
+          />
+
+          <Route
+            path="/sign-up"
+            element={
+              <>
+                <SignedIn>
+                  <Navigate to="/dashboard" replace />
+                </SignedIn>
+                <SignedOut>
+                  <SignUpPage />
+                </SignedOut>
+              </>
+            }
+          />
+
+          {/* Protected routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/league/:id"
+            element={
+              <ProtectedRoute>
+                <LeagueView />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Default route - landing page */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Router>
     </ClerkProvider>
   );
 }
