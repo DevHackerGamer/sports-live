@@ -1,5 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faFutbol, faChartSimple, faTrophy, faPeopleGroup, faNewspaper, faHeart } from '@fortawesome/free-solid-svg-icons';
 import LandingFooter from './LandingFooter';
 import plLogo from '../../assets/pl_logo.jpg';
 import laLigaLogo from '../../assets/LaLiga.jpg';
@@ -14,32 +16,32 @@ const LandingPage = () => {
     {
       title: "Live Match Updates",
       description: "Real-time scores, minute-by-minute updates, and live commentary for all major football leagues worldwide.",
-      icon: "⚽"
+      icon: <FontAwesomeIcon icon={faFutbol} />
     },
     {
       title: "Player Statistics",
       description: "Comprehensive player data including goals, assists, form, and detailed performance metrics.",
-      icon: "📊"
+      icon: <FontAwesomeIcon icon={faChartSimple} />
     },
     {
       title: "Team Standings",
       description: "Up-to-date league tables, team form, and tournament progression across all competitions.",
-      icon: "🏆"
+      icon: <FontAwesomeIcon icon={faTrophy} />
     },
     {
       title: "Team Information",
       description: "Detailed team profiles, squad information, manager details, and club history for every team.",
-      icon: "🔵"
+      icon: <FontAwesomeIcon icon={faPeopleGroup} />
     },
     {
       title: "Football News",
       description: "Latest transfer news, match previews, post-match analysis, and breaking stories from the football world.",
-      icon: "📰"
+      icon: <FontAwesomeIcon icon={faNewspaper} />
     },
     {
       title: "Personalized Experience",
       description: "Follow your favorite teams and players to get customized updates and notifications.",
-      icon: "❤"
+      icon: <FontAwesomeIcon icon={faHeart} />
     }
   ];
 

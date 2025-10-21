@@ -1,8 +1,9 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import {
   ClerkProvider,
   SignedIn,
   SignedOut,
+  ClerkLoaded,
 } from '@clerk/clerk-react';
 
 import { CLERK_PUBLISHABLE_KEY as PUBLISHABLE_KEY } from './config';
@@ -18,6 +19,7 @@ if (!PUBLISHABLE_KEY) {
 }
 
 const clerkAppearanceSettings = {
+  // Keep base URLs so Clerk knows where your routes live
   signInUrl: '/sign-in',
   signUpUrl: '/sign-up',
   afterSignInUrl: '/dashboard',
@@ -35,14 +37,19 @@ function ProtectedRoute({ children }) {
   );
 }
 
-function App() {
+function AppRoutes() {
+  // Use React Router's navigate so Clerk can perform client-side navigation correctly
+  const navigate = useNavigate();
+
   return (
     <ClerkProvider
       publishableKey={PUBLISHABLE_KEY}
-      navigate={(to) => window.history.pushState(null, '', to)}
+      routerPush={(to) => navigate(to)}
+      routerReplace={(to) => navigate(to, { replace: true })}
       {...clerkAppearanceSettings}
     >
-      <Router>
+      {/* Ensure we don't render auth-gated UI until Clerk is fully loaded to avoid flicker/redirects */}
+      <ClerkLoaded>
         <Routes>
           {/* Public routes */}
           <Route
@@ -59,8 +66,9 @@ function App() {
             }
           />
 
+          {/* Allow Clerk-managed subroutes like /sign-in/verify */}
           <Route
-            path="/sign-in"
+            path="/sign-in/*"
             element={
               <>
                 <SignedIn>
@@ -73,8 +81,9 @@ function App() {
             }
           />
 
+          {/* Allow Clerk-managed subroutes like /sign-up/verify */}
           <Route
-            path="/sign-up"
+            path="/sign-up/*"
             element={
               <>
                 <SignedIn>
@@ -109,8 +118,16 @@ function App() {
           {/* Default route - landing page */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </Router>
+      </ClerkLoaded>
     </ClerkProvider>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AppRoutes />
+    </Router>
   );
 }
 
