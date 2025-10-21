@@ -18,7 +18,7 @@ jest.mock('@clerk/clerk-react', () => ({
 }));
 
 // Mock pages/components used by App if needed
-jest.mock('./components/Dashboard/Dashboard', () => () => <div>Dashboard</div>);
+jest.mock('./components/dashboard/Dashboard', () => () => <div>Dashboard</div>);
 jest.mock('./components/landing/LandingPage', () => () => <div>LandingPage</div>);
 
 describe('App', () => {

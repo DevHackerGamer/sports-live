@@ -9,21 +9,22 @@ const Header = ({
   setSelectedMatch, 
   setSelectedTeam, 
   isAdmin, 
-  selectedMatch 
+  selectedMatch,
+  selectedMatchId
 }) => {
   const { user } = useUser();
 
   const handleNavClick = (tab) => {
     setActiveTab(tab);
     setShowAboutUs(false);
-   
+    setSelectedMatch(null);
     setSelectedTeam(null);
   };
 
   const handleAboutClick = () => {
     setShowAboutUs(true);
-    setActiveTab('');
-  
+    setActiveTab('about');
+    setSelectedMatch(null);
     setSelectedTeam(null);
   };
 
@@ -41,7 +42,7 @@ const Header = ({
             {isAdmin && (
               <>
                 <li><button onClick={() => handleNavClick('matchSetup')}>Setup</button></li>
-                {selectedMatch && (
+                {(selectedMatch || selectedMatchId) && (
                   <li>
                     <button
                       onClick={() => handleNavClick('liveInput')}

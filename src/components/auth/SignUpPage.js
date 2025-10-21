@@ -11,7 +11,7 @@ function SignUpPage() {
         path="/sign-up"
         routing="path"
         signInUrl="/sign-in"
-        afterSignUpUrl="/dashboard"
+        afterSignUpUrl="/dashboard/home"
         appearance={clerkAppearanceGlass}
       />
     </GlassAuthLayout>

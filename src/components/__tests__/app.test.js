@@ -73,7 +73,7 @@ describe('App routing and access control', () => {
     await waitFor(() => {
       expect(screen.getByText('Dashboard')).toBeInTheDocument();
     });
-    expect(window.location.pathname).toBe('/dashboard');
+    expect(window.location.pathname).toMatch(/^\/dashboard\/?/);
   });
 
   test('renders SignInPage on Clerk subroute /sign-in/verify when signed out', async () => {

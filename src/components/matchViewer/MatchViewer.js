@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { apiClient } from '../../lib/api';
+import LiveInput from '../liveInput/LiveInput';
 import MatchStatistics from './MatchStatistics';
 import LineupsTab from './LineupsTab';
 import LiveCommentaryFeed from './LiveCommentaryFeed';
 
 import '../../styles/MatchViewer.css';
 
-const MatchViewer = ({ match, initialSection = 'details', onBack }) => {
+const MatchViewer = ({ match, matchId, initialSection = 'details', onBack }) => {
   const { user } = useUser();
   const isAdmin = (user?.privateMetadata?.type === 'admin');
   const [matchDetails, setMatchDetails] = useState(null);
@@ -22,21 +23,21 @@ const MatchViewer = ({ match, initialSection = 'details', onBack }) => {
   const [selectedEvent, setSelectedEvent] = useState('');
   const [reportDescription, setReportDescription] = useState('');
   const [reportTitle, setReportTitle] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(!!matchId && !match);
   const [teamLogos, setTeamLogos] = useState({ home: '', away: '' });
   const [showEventList, setShowEventList] = useState(false);
  
 
 
   useEffect(() => {
-    if (match) {
+    if (match || matchId) {
       fetchMatchDetails();
     } else {
       setMatchDetails(null);
       setEvents([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [match]);
+  }, [match, matchId]);
 
   // Refresh details immediately when LiveInput broadcasts a match update (pause/resume or HT/FT)
   useEffect(() => {
@@ -79,7 +80,7 @@ const MatchViewer = ({ match, initialSection = 'details', onBack }) => {
   }, [initialSection]);
 
   const fetchMatchDetails = async () => {
-    if (!match) return;
+    if (!match && !matchId) return;
     
     setIsLoading(true);
     setError('');
@@ -87,7 +88,8 @@ const MatchViewer = ({ match, initialSection = 'details', onBack }) => {
     try {
       // Try to get detailed match data from API
       try {
-        const matchResponse = await apiClient.getMatchById(match.id || match._id);
+        const idToFetch = (match && (match.id || match._id)) || matchId;
+        const matchResponse = await apiClient.getMatchById(idToFetch);
         setMatchDetails(matchResponse.data);
         setMeta({ referee: matchResponse.data?.referee || '', venue: matchResponse.data?.venue || '' });
         
@@ -100,9 +102,9 @@ const MatchViewer = ({ match, initialSection = 'details', onBack }) => {
         }
         
         // If the API doesn't return any events, fetch them separately
-        const normalizeEvents = (raw = []) => {
-          const homeTeamName = (match.homeTeam?.name || match.homeTeam || '').toString();
-          const awayTeamName = (match.awayTeam?.name || match.awayTeam || '').toString();
+  const normalizeEvents = (raw = []) => {
+          const homeTeamName = (matchResponse.data?.homeTeam?.name || matchResponse.data?.homeTeam || match?.homeTeam?.name || match?.homeTeam || '').toString();
+          const awayTeamName = (matchResponse.data?.awayTeam?.name || matchResponse.data?.awayTeam || match?.awayTeam?.name || match?.awayTeam || '').toString();
           return raw.map(ev => {
             // Safely clone
             const out = { ...ev };
@@ -177,12 +179,12 @@ const MatchViewer = ({ match, initialSection = 'details', onBack }) => {
         let mergedEvents = [];
         if (!matchResponse.data.events || matchResponse.data.events.length === 0) {
           try {
-            const eventsResponse = await apiClient.getMatchEvents(match.id || match._id);
+            const eventsResponse = await apiClient.getMatchEvents(idToFetch);
             mergedEvents = normalizeEvents(eventsResponse.data || []);
             // If still empty, pull from Event_Log using matchId
             if (!mergedEvents.length) {
               try {
-                const logRes = await apiClient.getEventLog({ matchId: match.id || match._id, limit: 200 });
+                const logRes = await apiClient.getEventLog({ matchId: idToFetch, limit: 200 });
                 const fromLog = (logRes.events || []).filter(e => e.type && e.data && (e.matchId === (match.id || match._id) || e.data.matchId === (match.id || match._id)) ).map(e => {
                   const raw = { ...(e.data || {}), type: e.type, description: e.message };
                   return raw;
@@ -200,9 +202,10 @@ const MatchViewer = ({ match, initialSection = 'details', onBack }) => {
       } catch (apiError) {
         console.warn('Detailed match API failed:', apiError.message);
         // Fallback: keep passed-in match and attempt to fetch events directly
-        setMatchDetails(prev => prev || match);
+        setMatchDetails(prev => prev || match || null);
         try {
-          const eventsResponse = await apiClient.getMatchEvents(match.id || match._id);
+          const idToFetch = (match && (match.id || match._id)) || matchId;
+          const eventsResponse = await apiClient.getMatchEvents(idToFetch);
           const normalizeEvents = (raw = []) => raw.map(ev => {
             const norm = { ...ev };
             if (norm.minute == null && norm.time) {
@@ -482,8 +485,20 @@ const MatchViewer = ({ match, initialSection = 'details', onBack }) => {
     return { events: withMinute, maxMinute };
   }, [events, displayMatchRaw, teamLogos]);
 
-   
-  if (!match) {
+  
+  // When navigated directly via URL with only matchId, show a loading shell until details arrive
+  if (!match && !matchDetails && matchId) {
+    return (
+      <div className="match-viewer">
+        <div className="loading-overlay">
+          <div className="loading-spinner"></div>
+          <p>Loading match details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!match && !matchId) {
     return (
       <div className="match-viewer">
         <div className="no-match-selected">
@@ -495,6 +510,7 @@ const MatchViewer = ({ match, initialSection = 'details', onBack }) => {
     );
   }
 
+  // From here, either `match` or `matchDetails` must be available
   return (
     <div className="match-viewer">
       <div className="match-viewer-header">
@@ -570,6 +586,15 @@ const MatchViewer = ({ match, initialSection = 'details', onBack }) => {
           
 
 
+        )}
+        {isAdmin && (
+          <button
+            className={activeSection === 'live-input' ? 'nav-btn active' : 'nav-btn'}
+            onClick={() => setActiveSection('live-input')}
+            title="Admin: enter live data for this match"
+          >
+            Live Input
+          </button>
         )}
       </div>
 
@@ -725,6 +750,15 @@ const MatchViewer = ({ match, initialSection = 'details', onBack }) => {
                         )}
                         <div className="marker-caret" aria-hidden="true" />
                         <div className="marker-tooltip">
+                              {isAdmin && (
+                                <button
+                                  className={activeSection === 'live-input' ? 'nav-btn active' : 'nav-btn'}
+                                  onClick={() => setActiveSection('live-input')}
+                                  title="Admin: enter live data for this match"
+                                >
+                                  Live Input
+                                </button>
+                              )}
                           <div className="tip-line"><strong>{ev.label}</strong> {ev.minute}'</div>
                           {ev.teamName && <div className="tip-line">{ev.teamName}</div>}
                           {ev.description && <div className="tip-line dim">{ev.description}</div>}
@@ -880,6 +914,16 @@ const MatchViewer = ({ match, initialSection = 'details', onBack }) => {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {activeSection === 'live-input' && isAdmin && (
+        <div className="match-live-input">
+          <LiveInput
+            isAdmin={isAdmin}
+            match={displayMatchRaw || matchDetails || match}
+            onBackToMatch={() => setActiveSection('details')}
+          />
         </div>
       )}
 
