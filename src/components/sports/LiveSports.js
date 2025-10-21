@@ -531,115 +531,125 @@ const awayCrest = teamCrests[normalize(game.awayTeam?.name)] || '/placeholder.pn
 
 
   return (
-    <div
-      className="ls-match-card ls-clickable"
-      data-testid={`match-${game.id ?? ''}`}
-      onClick={() => onSelect(game)}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {/* Hover action: Add to Watchlist */}
-      {hovered && user && !added && (
-        <button
-          className="ls-watchlist-btn"
-          disabled={adding}
-          title="Add match to your watchlist"
-          onClick={async (e) => {
-            e.stopPropagation();
-            try {
-              setAdding(true);
-              await apiClient.addUserMatch(user.id, game);
-              setAdded(true);
-              const mid = game.id ?? game._id ?? game.matchId;
-              if (onWatchlistAdded && mid != null) onWatchlistAdded(mid);
-            } catch (err) {
-              console.error('Add to watchlist failed', err);
-              alert('Failed to add to watchlist');
-            } finally {
-              setAdding(false);
-            }
-          }}
+  <div
+    className="ls-match-card ls-clickable"
+    data-testid={`match-${game.id ?? ''}`}
+    onClick={() => onSelect(game)}
+    onMouseEnter={() => setHovered(true)}
+    onMouseLeave={() => setHovered(false)}
+  >
+    {/* Hover action: Add to Watchlist */}
+    {hovered && user && !added && (
+      <button
+        className="ls-watchlist-btn"
+        disabled={adding}
+        title="Add match to your watchlist"
+        onClick={async (e) => {
+          e.stopPropagation();
+          try {
+            setAdding(true);
+            await apiClient.addUserMatch(user.id, game);
+            setAdded(true);
+            const mid = game.id ?? game._id ?? game.matchId;
+            if (onWatchlistAdded && mid != null) onWatchlistAdded(mid);
+          } catch (err) {
+            console.error('Add to watchlist failed', err);
+            alert('Failed to add to watchlist');
+          } finally {
+            setAdding(false);
+          }
+        }}
+      >
+        {adding ? 'Adding…' : '+ Watchlist'}
+      </button>
+    )}
+    <div className="ls-match-header">
+      <div className="ls-comp-left">
+        <span className="ls-competition">
+          {game.competition}
+          {game.competitionCode && (
+            <span className="ls-competition-code">[{game.competitionCode}]</span>
+          )}
+        </span>
+      </div>
+      <div className="ls-comp-right">{getStatusBadge(game.status)}</div>
+    </div>
+
+    <div className="ls-match-teams">
+      <div className={`ls-team ${scoringTeam === 'home' ? 'ls-team-scoring' : ''}`}>
+        <img 
+          className="ls-team-crest ls-clickable" 
+          alt="home crest" 
+          src={homeCrest} 
+          onClick={(e) => handleTeamClick(game.homeTeam, e)}
+        />
+        <span 
+          className="ls-team-name ls-clickable" 
+          onClick={(e) => handleTeamClick(game.homeTeam, e)}
         >
-          {adding ? 'Adding…' : '+ Watchlist'}
-        </button>
-      )}
-      <div className="ls-match-header">
-        <div className="ls-comp-left">
-          <span className="ls-competition">
-            {game.competition}
-            {game.competitionCode && (
-              <span className="ls-competition-code">[{game.competitionCode}]</span>
-            )}
-          </span>
-        </div>
-        <div className="ls-comp-right">{getStatusBadge(game.status)}</div>
+          {game.homeTeam?.name || game.homeTeam}
+        </span>
+        {showGoalAnimation && scoringTeam === 'home' && (
+          <div className="ls-goal-animation">⚽</div>
+        )}
+        <span className={`ls-team-score ${scoreUpdating && scoringTeam === 'home' ? 'ls-score-updating' : ''}`}>
+          {(['live','in_play','inplay','paused'].includes((game.status||'').toLowerCase()) && homeScore === '-') ? 0 : homeScore}
+        </span>
       </div>
 
-      <div className="ls-match-teams">
-        <div className={`ls-team ${scoringTeam === 'home' ? 'ls-team-scoring' : ''}`}>
-         <img 
-      className="ls-team-crest ls-clickable" 
-      alt="home crest" 
-      src={homeCrest} 
-      onClick={(e) => handleTeamClick(game.homeTeam, e)}
-    />
-          <span className="ls-team-name">{game.homeTeam?.name || game.homeTeam}</span>
-          {showGoalAnimation && scoringTeam === 'home' && (
-            <div className="ls-goal-animation">⚽</div>
-          )}
-          <span className={`ls-team-score ${scoreUpdating && scoringTeam === 'home' ? 'ls-score-updating' : ''}`}>
-            {(['live','in_play','inplay','paused'].includes((game.status||'').toLowerCase()) && homeScore === '-') ? 0 : homeScore}
-          </span>
-        </div>
+      <div className="ls-match-separator">vs</div>
 
-        <div className="ls-match-separator">vs</div>
-
-        <div className={`ls-team ${scoringTeam === 'away' ? 'ls-team-scoring' : ''}`}>
-            <img 
-      className="ls-team-crest ls-clickable" 
-      alt="away crest" 
-      src={awayCrest} 
-      onClick={(e) => handleTeamClick(game.awayTeam, e)}
-    />
-          <span className="ls-team-name">{game.awayTeam?.name || game.awayTeam}</span>
-          {showGoalAnimation && scoringTeam === 'away' && (
-            <div className="ls-goal-animation">⚽</div>
-          )}
-          <span className={`ls-team-score ${scoreUpdating && scoringTeam === 'away' ? 'ls-score-updating' : ''}`}>
-            {(['live','in_play','inplay','paused'].includes((game.status||'').toLowerCase()) && awayScore === '-') ? 0 : awayScore}
-          </span>
-        </div>
-      </div>
-      
-      <div className="ls-card-divider" aria-hidden="true"></div>
-      
-      <div className="ls-match-details">
-        <div className="ls-meta-left">
-          {game.utcDate && (
-            <span className="ls-scheduled-time">
-              {(() => {
-                const baseDate = new Date(game.utcDate);
-                const dateLabel = baseDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-                const timeLabel = (game.createdByAdmin && game.time) ? game.time : formatTime(baseDate);
-                return `${dateLabel} • ${timeLabel}`;
-              })()}
-            </span>
-          )}
-          {game.matchday ? (
-            <span className="ls-matchday">MD {game.matchday}</span>
-          ) : game.createdByAdmin && (
-            <span className="ls-matchday ls-matchday-placeholder" title="Admin match has no official matchday yet">MD -</span>
-          )}
-        </div>
-        <div className="ls-meta-right">
-          {(['live','in_play','inplay','paused'].includes(statusKey) && displayMinute != null && displayMinute !== '') && (
-            <span className="ls-match-time">{displayMinute}'</span>
-          )}
-          {game.venue && game.venue !== 'TBD' && <span className="ls-venue">{game.venue}</span>}
-        </div>
+      <div className={`ls-team ${scoringTeam === 'away' ? 'ls-team-scoring' : ''}`}>
+        <img 
+          className="ls-team-crest ls-clickable" 
+          alt="away crest" 
+          src={awayCrest} 
+          onClick={(e) => handleTeamClick(game.awayTeam, e)}
+        />
+        <span 
+          className="ls-team-name ls-clickable" 
+          onClick={(e) => handleTeamClick(game.awayTeam, e)}
+        >
+          {game.awayTeam?.name || game.awayTeam}
+        </span>
+        {showGoalAnimation && scoringTeam === 'away' && (
+          <div className="ls-goal-animation">⚽</div>
+        )}
+        <span className={`ls-team-score ${scoreUpdating && scoringTeam === 'away' ? 'ls-score-updating' : ''}`}>
+          {(['live','in_play','inplay','paused'].includes((game.status||'').toLowerCase()) && awayScore === '-') ? 0 : awayScore}
+        </span>
       </div>
     </div>
-  );
+    
+    <div className="ls-card-divider" aria-hidden="true"></div>
+    
+    <div className="ls-match-details">
+      <div className="ls-meta-left">
+        {game.utcDate && (
+          <span className="ls-scheduled-time">
+            {(() => {
+              const baseDate = new Date(game.utcDate);
+              const dateLabel = baseDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+              const timeLabel = (game.createdByAdmin && game.time) ? game.time : formatTime(baseDate);
+              return `${dateLabel} • ${timeLabel}`;
+            })()}
+          </span>
+        )}
+        {game.matchday ? (
+          <span className="ls-matchday">MD {game.matchday}</span>
+        ) : game.createdByAdmin && (
+          <span className="ls-matchday ls-matchday-placeholder" title="Admin match has no official matchday yet">MD -</span>
+        )}
+      </div>
+      <div className="ls-meta-right">
+        {(['live','in_play','inplay','paused'].includes(statusKey) && displayMinute != null && displayMinute !== '') && (
+          <span className="ls-match-time">{displayMinute}'</span>
+        )}
+        {game.venue && game.venue !== 'TBD' && <span className="ls-venue">{game.venue}</span>}
+      </div>
+    </div>
+  </div>
+);  
 });
 
 export default LiveSports;

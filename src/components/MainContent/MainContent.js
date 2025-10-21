@@ -82,7 +82,7 @@ const MainContent = ({
       case 'players':
         return <PlayersPage />;
       case 'matchSetup':
-        return <MatchSetup isAdmin={isAdmin} />;
+        return <MatchSetup isAdmin={isAdmin} onTeamSelect={setSelectedTeam} />;
       case 'liveInput':
         return (
           <LiveInputWithLoad
@@ -102,8 +102,15 @@ const MainContent = ({
         return <FavoritesPanel onMatchSelect={setSelectedMatch} />;
       case 'highlights':
         return <HighlightsTab />;
-      case 'watchlist':
-        return <WatchlistPage onMatchSelect={setSelectedMatch} />;
+     case 'watchlist':
+  return selectedMatch ? (
+    <MatchViewer
+      match={selectedMatch}
+      onBack={handleBackFromViewer}
+    />
+  ) : (
+    <WatchlistPage onMatchSelect={setSelectedMatch} onTeamSelect={setSelectedTeam} />
+  );
       case 'matches':
       default:
         return (selectedMatch || selectedMatchId) ? (

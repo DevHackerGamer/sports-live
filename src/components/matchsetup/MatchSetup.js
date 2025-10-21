@@ -2,10 +2,22 @@ import React, { useEffect, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import MatchViewer from '../matchViewer/MatchViewer';
 import { isAdminFromUser } from '../../lib/roles';
+
+                                                                                                                                                                                  
 import '../../styles/MatchSetup.css';
 
+const normalize = (str) => {
+  if (!str) return '';
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9 ]/g, '')
+    .trim();
+};
+
 // Admin-only screen for creating/scheduling matches.
-const MatchSetup = ({ isAdmin: isAdminProp }) => {
+const MatchSetup = ({ isAdmin: isAdminProp, onTeamSelect }) => {
   const { user } = useUser();
   const [matches, setMatches] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -14,6 +26,7 @@ const MatchSetup = ({ isAdmin: isAdminProp }) => {
   const [showFileImport, setShowFileImport] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState(null);
+  const [teamCrests, setTeamCrests] = useState({});
 
   const [newMatch, setNewMatch] = useState({
     teamA: {},
@@ -25,6 +38,34 @@ const MatchSetup = ({ isAdmin: isAdminProp }) => {
   });
 
   const isAdmin = typeof isAdminProp === 'boolean' ? isAdminProp : isAdminFromUser(user);
+
+  // Fetch teams and their crests
+  useEffect(() => {
+    const fetchTeams = async () => {
+      try {
+        const res = await fetch('/api/teams');
+        if (!res.ok) throw new Error('Failed to fetch teams');
+        const json = await res.json();
+        const teamsData = json.data.map(t => ({
+          id: t._id || t.id,
+          name: typeof t.name === 'string' ? t.name : t.name?.en || 'Unnamed Team',
+          crest: t.crest || t.logo || '/placeholder.png'
+        }));
+        setTeams(teamsData);
+
+        // Build crest map
+        const crestMap = {};
+        teamsData.forEach(team => {
+          crestMap[team.name] = team.crest;
+          crestMap[normalize(team.name)] = team.crest;
+        });
+        setTeamCrests(crestMap);
+      } catch (err) {
+        console.error('Error fetching teams:', err);
+      }
+    };
+    fetchTeams();
+  }, []);
 
   // Fetch admin-created matches
   useEffect(() => {
@@ -71,24 +112,6 @@ const MatchSetup = ({ isAdmin: isAdminProp }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch teams
-  useEffect(() => {
-    const fetchTeams = async () => {
-      try {
-        const res = await fetch('/api/teams');
-        if (!res.ok) throw new Error('Failed to fetch teams');
-        const json = await res.json();
-        setTeams(json.data.map(t => ({
-          id: t._id || t.id,
-          name: typeof t.name === 'string' ? t.name : t.name?.en || 'Unnamed Team'
-        })));
-      } catch (err) {
-        console.error('Error fetching teams:', err);
-      }
-    };
-    fetchTeams();
-  }, []);
-
   // Fetch competitions
   useEffect(() => {
     const fetchCompetitions = async () => {
@@ -103,6 +126,18 @@ const MatchSetup = ({ isAdmin: isAdminProp }) => {
     };
     fetchCompetitions();
   }, []);
+
+  // Handle team click
+  const handleTeamClick = (teamName, event) => {
+    event.stopPropagation();
+    if (onTeamSelect && teamName) {
+      const teamData = {
+        name: teamName,
+        crest: teamCrests[teamName] || teamCrests[normalize(teamName)] || '/placeholder.png'
+      };
+      onTeamSelect(teamData);
+    }
+  };
 
   if (!isAdmin) {
     return (
@@ -152,8 +187,16 @@ const MatchSetup = ({ isAdmin: isAdminProp }) => {
 
     const optimisticMatch = {
       id: optimisticId,
-      homeTeam: { name: matchData.teamA.name, id: matchData.teamA.id },
-      awayTeam: { name: matchData.teamB.name, id: matchData.teamB.id },
+      homeTeam: { 
+        name: matchData.teamA.name, 
+        id: matchData.teamA.id,
+        crest: teamCrests[matchData.teamA.name] || teamCrests[normalize(matchData.teamA.name)] || '/placeholder.png'
+      },
+      awayTeam: { 
+        name: matchData.teamB.name, 
+        id: matchData.teamB.id,
+        crest: teamCrests[matchData.teamB.name] || teamCrests[normalize(matchData.teamB.name)] || '/placeholder.png'
+      },
       competition: { name: matchData.competition || 'Unknown Competition' },
       utcDate,
       date: matchData.date,
@@ -369,35 +412,83 @@ const MatchSetup = ({ isAdmin: isAdminProp }) => {
             {matches.length === 0 ? (
               <p className="no-matches">No matches scheduled yet.</p>
             ) : (
-              matches.map(match => (
-                <div
-                  key={match.id || match._id}
-                  className="match-item"
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => handleMatchSelect(match)}
-                >
-                  <div className="match-info">
-                    <div className="teams">
-                      <span className="team">{match.homeTeam?.name?.en || match.homeTeam?.name || 'Unnamed Team'}</span>
-                      <span className="vs">vs</span>
-                      <span className="team">{match.awayTeam?.name?.en || match.awayTeam?.name || 'Unnamed Team'}</span>
+              <div className="matches-grid">
+                {matches.map(match => {
+                  const homeTeamName = match.homeTeam?.name?.en || match.homeTeam?.name || 'Unnamed Team';
+                  const awayTeamName = match.awayTeam?.name?.en || match.awayTeam?.name || 'Unnamed Team';
+                  const homeCrest = teamCrests[homeTeamName] || teamCrests[normalize(homeTeamName)] || '/placeholder.png';
+                  const awayCrest = teamCrests[awayTeamName] || teamCrests[normalize(awayTeamName)] || '/placeholder.png';
+
+                  return (
+                    <div
+                      key={match.id || match._id}
+                      className="match-card"
+                      onClick={() => handleMatchSelect(match)}
+                    >
+                      <div className="match-header">
+                        <div className="match-competition">
+                          {match.competition?.name?.en || match.competition?.name || match.competitionName || 'Unknown Competition'}
+                        </div>
+                        <div className="match-status">
+                          {match.status === 'IN_PLAY' && typeof match.minute === 'number' ? `${match.minute}'` : 'SCHEDULED'}
+                        </div>
+                      </div>
+
+                      <div className="match-teams">
+                        <div className="team home-team">
+                          <img 
+                            className="team-crest clickable" 
+                            src={homeCrest} 
+                            alt={`${homeTeamName} crest`}
+                            onClick={(e) => handleTeamClick(homeTeamName, e)}
+                          />
+                          <span 
+                            className="team-name clickable"
+                            onClick={(e) => handleTeamClick(homeTeamName, e)}
+                          >
+                            {homeTeamName}
+                          </span>
+                        </div>
+
+                        <div className="match-separator">vs</div>
+
+                        <div className="team away-team">
+                          <img 
+                            className="team-crest clickable" 
+                            src={awayCrest} 
+                            alt={`${awayTeamName} crest`}
+                            onClick={(e) => handleTeamClick(awayTeamName, e)}
+                          />
+                          <span 
+                            className="team-name clickable"
+                            onClick={(e) => handleTeamClick(awayTeamName, e)}
+                          >
+                            {awayTeamName}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="match-details">
+                        <div className="match-datetime">
+                          {(match.utcDate || '').substring(0, 10)} {match.time || (match.utcDate ? new Date(match.utcDate).toISOString().substring(11, 16) : '')}
+                        </div>
+                        {match.matchday && (
+                          <div className="match-matchday">MD {match.matchday}</div>
+                        )}
+                      </div>
+
+                      <div className="match-actions">
+                        <button
+                          className="btn-danger"
+                          onClick={(e) => { e.stopPropagation(); removeMatch(match.id || match._id); }}
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
-                    <div className="match-details">
-                      <span className="competition">{match.competition?.name?.en || match.competition?.name || match.competitionName || 'Unknown Competition'}</span>
-                      <span className="datetime">
-                        {(match.utcDate || '').substring(0, 10)} {match.time || (match.utcDate ? new Date(match.utcDate).toISOString().substring(11, 16) : '')}
-                        {match.status === 'IN_PLAY' && typeof match.minute === 'number' ? ` | ${match.minute}'` : ''}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    className="btn-danger"
-                    onClick={(e) => { e.stopPropagation(); removeMatch(match.id || match._id); }}
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))
+                  );
+                })}
+              </div>
             )}
           </div>
         </>
