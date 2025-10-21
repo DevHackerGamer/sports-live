@@ -22,8 +22,8 @@ const clerkAppearanceSettings = {
   // Keep base URLs so Clerk knows where your routes live
   signInUrl: '/sign-in',
   signUpUrl: '/sign-up',
-  afterSignInUrl: '/dashboard',
-  afterSignUpUrl: '/dashboard',
+  afterSignInUrl: '/dashboard/home',
+  afterSignUpUrl: '/dashboard/home',
 };
 
 function ProtectedRoute({ children }) {
@@ -41,6 +41,9 @@ function AppRoutes() {
   // Use React Router's navigate so Clerk can perform client-side navigation correctly
   const navigate = useNavigate();
 
+  // Tolerate tests that mock Clerk without ClerkLoaded
+  const ClerkGate = ({ children }) => (ClerkLoaded ? <ClerkLoaded>{children}</ClerkLoaded> : <>{children}</>);
+
   return (
     <ClerkProvider
       publishableKey={PUBLISHABLE_KEY}
@@ -49,7 +52,7 @@ function AppRoutes() {
       {...clerkAppearanceSettings}
     >
       {/* Ensure we don't render auth-gated UI until Clerk is fully loaded to avoid flicker/redirects */}
-      <ClerkLoaded>
+      <ClerkGate>
         <Routes>
           {/* Public routes */}
           <Route
@@ -98,7 +101,7 @@ function AppRoutes() {
 
           {/* Protected routes */}
           <Route
-            path="/dashboard"
+            path="/dashboard/*"
             element={
               <ProtectedRoute>
                 <Dashboard />
@@ -118,7 +121,7 @@ function AppRoutes() {
           {/* Default route - landing page */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </ClerkLoaded>
+      </ClerkGate>
     </ClerkProvider>
   );
 }

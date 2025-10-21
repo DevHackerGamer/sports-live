@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useUser, useAuth } from '@clerk/clerk-react';
 import { isAdminFromUser, getUserRoles } from '../../lib/roles';
 
@@ -25,10 +25,27 @@ const Dashboard = () => {
   const { getToken, isSignedIn } = useAuth();
   const clerkIsAdmin = isAdminFromUser(user);
   const [isAdmin, setIsAdmin] = useState(!!clerkIsAdmin);
-  const [activeTab, setActiveTab] = useState('home');
+  const getPathname = () => (typeof window !== 'undefined' ? window.location.pathname : '/dashboard');
+  const getSearch = () => (typeof window !== 'undefined' ? window.location.search : '');
+  const searchParams = useMemo(() => new URLSearchParams(getSearch()), []);
+  const urlLeague = searchParams.get('league');
+  const routeTab = useMemo(() => {
+    const after = getPathname().replace(/^\/dashboard\/?/, '');
+    const seg = after.split('/')[0];
+    return seg || null;
+  }, []);
+
+  const [activeTab, _setActiveTab] = useState(routeTab || 'home');
   const [selectedMatch, setSelectedMatch] = useState(null);
-  const [showAboutUs, setShowAboutUs] = useState(false);
-  const [selectedLeague, setSelectedLeague] = useState(null);
+  const initialMatchId = (() => {
+    if (typeof window === 'undefined') return null;
+    const after = window.location.pathname.replace(/^\/dashboard\/?/, '');
+    const parts = after.split('/');
+    return (parts[0] === 'matches' && parts[1]) ? parts[1] : null;
+  })();
+  const [selectedMatchId, setSelectedMatchId] = useState(initialMatchId);
+  const [showAboutUs, _setShowAboutUs] = useState(false);
+  const [selectedLeague, _setSelectedLeague] = useState(urlLeague);
   const [selectedTeam, setSelectedTeam] = useState(null); 
   const [latestNews, setLatestNews] = useState([]);
   const [newsLoading, setNewsLoading] = useState(false);
@@ -78,6 +95,100 @@ const Dashboard = () => {
       color: "#272727"
     },
   ];
+
+  // Keep state in sync when the URL changes (e.g., browser back/forward or reload)
+  useEffect(() => {
+    _setActiveTab(routeTab || 'home');
+    _setShowAboutUs(routeTab === 'about');
+    // extract match id if on /dashboard/matches/:id
+    const after = (typeof window !== 'undefined' ? window.location.pathname : '').replace(/^\/dashboard\/?/, '');
+    const parts = after.split('/');
+    if (parts[0] === 'matches' && parts[1]) {
+      setSelectedMatchId(parts[1]);
+    } else {
+      setSelectedMatchId(null);
+    }
+  }, [routeTab]);
+
+  // Reflect back/forward navigation into local state
+  useEffect(() => {
+    const onPop = () => {
+      const after = getPathname().replace(/^\/dashboard\/?/, '');
+      const seg = after.split('/')[0] || 'home';
+      _setActiveTab(seg);
+      const params = new URLSearchParams(getSearch());
+      _setSelectedLeague(params.get('league'));
+      _setShowAboutUs(seg === 'about');
+      const parts = after.split('/');
+      setSelectedMatchId(parts[0] === 'matches' && parts[1] ? parts[1] : null);
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('popstate', onPop);
+      return () => window.removeEventListener('popstate', onPop);
+    }
+  }, []);
+
+  useEffect(() => {
+    _setSelectedLeague(urlLeague || null);
+  }, [urlLeague]);
+
+  // Navigation helpers that also update the URL
+  const setActiveTab = useCallback((nextTab) => {
+    const safeTab = nextTab || 'home';
+    _setActiveTab(safeTab);
+    // If navigating explicitly to matches root, clear any selected match
+    if (safeTab === 'matches') {
+      setSelectedMatch(null);
+      // If URL path doesn't contain an id, ensure local state cleared
+      try {
+        const after = getPathname().replace(/^\/dashboard\/?/, '');
+        const parts = after.split('/');
+        if (!(parts[0] === 'matches' && parts[1])) {
+          setSelectedMatchId(null);
+        }
+      } catch {}
+    } else {
+      // Switching away from matches should not keep a modal-like viewer active on return
+      // We'll keep selectedMatchId but clear selectedMatch to force viewer to re-derive from URL
+      setSelectedMatch(null);
+    }
+    if (typeof window !== 'undefined') {
+      const query = new URLSearchParams(getSearch());
+      const url = `/dashboard/${safeTab}${query.toString() ? `?${query.toString()}` : ''}`;
+      window.history.pushState({}, '', url);
+    }
+  }, []);
+
+  // Intercept match selection to reflect in URL
+  const handleMatchSelect = useCallback((match) => {
+    setSelectedMatch(match);
+    const id = match?.id || match?._id || match?.matchId;
+    setSelectedMatchId(id || null);
+    if (typeof window !== 'undefined') {
+      const mid = id ? `/${id}` : '';
+      window.history.pushState({}, '', `/dashboard/matches${mid}`);
+    }
+    _setActiveTab('matches');
+  }, []);
+
+  const setShowAboutUs = useCallback((show) => {
+    _setShowAboutUs(show);
+    if (show && typeof window !== 'undefined') {
+      window.history.pushState({}, '', '/dashboard/about');
+    }
+  }, []);
+
+  const setSelectedLeague = useCallback((leagueKey) => {
+    _setSelectedLeague(leagueKey);
+    if (typeof window !== 'undefined') {
+      const query = new URLSearchParams(getSearch());
+      if (leagueKey) query.set('league', leagueKey); else query.delete('league');
+      const after = getPathname().replace(/^\/dashboard\/?/, '');
+      const seg = after.split('/')[0] || activeTab || 'home';
+      const url = `/dashboard/${seg}${query.toString() ? `?${query.toString()}` : ''}`;
+      window.history.pushState({}, '', url);
+    }
+  }, [activeTab]);
 
   // Fetch latest news for dashboard
   useEffect(() => {
@@ -130,7 +241,11 @@ const Dashboard = () => {
     return () => { cancelled = true; };
   }, [user, isSignedIn, getToken]);
 
-  const handleBackFromViewer = () => setSelectedMatch(null);
+  const handleBackFromViewer = () => {
+    setSelectedMatch(null);
+    setSelectedMatchId(null);
+    setActiveTab('matches');
+  };
   const handleBackFromTeamInfo = () => setSelectedTeam(null);
 
   return (
@@ -143,18 +258,20 @@ const Dashboard = () => {
         setSelectedTeam={setSelectedTeam}
         isAdmin={isAdmin}
         selectedMatch={selectedMatch}
+        selectedMatchId={selectedMatchId}
       />
       
       <MainContent
         showAboutUs={showAboutUs}
         selectedTeam={selectedTeam}
         selectedMatch={selectedMatch}
+        selectedMatchId={selectedMatchId}
         activeTab={activeTab}
         selectedLeague={selectedLeague}
         isAdmin={isAdmin}
         setActiveTab={setActiveTab}
         setShowAboutUs={setShowAboutUs}
-        setSelectedMatch={setSelectedMatch}
+        setSelectedMatch={handleMatchSelect}
         setSelectedTeam={setSelectedTeam}
         setSelectedLeague={setSelectedLeague}
         leagues={leagues}
