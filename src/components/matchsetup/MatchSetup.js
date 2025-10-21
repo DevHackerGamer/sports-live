@@ -180,16 +180,23 @@ const MatchSetup = ({ isAdmin: isAdminProp, onTeamSelect }) => {
     clearErrors(name);
   };
 
-  // Enhanced validation with detailed error messages
+  // FIXED: Enhanced validation with detailed error messages
   const validateMatch = (match) => {
     const newErrors = {};
 
+    // Check for team objects with id property
     if (!match.teamA?.id) newErrors.teamA = 'Home team is required';
     if (!match.teamB?.id) newErrors.teamB = 'Away team is required';
     if (!match.date) newErrors.date = 'Date is required';
     if (!match.time) newErrors.time = 'Time is required';
     if (!match.competition) newErrors.competition = 'Competition is required';
-    if (!match.matchday && match.matchday !== 0) newErrors.matchday = 'Matchday is required';
+    
+    // FIXED: Better matchday validation - check for empty string, null, undefined, but allow 0
+    if (match.matchday === '' || match.matchday === null || match.matchday === undefined) {
+      newErrors.matchday = 'Matchday is required';
+    } else if (isNaN(Number(match.matchday)) || Number(match.matchday) < 1) {
+      newErrors.matchday = 'Matchday must be a number greater than 0';
+    }
     
     if (match.teamA?.id && match.teamB?.id && match.teamA.id === match.teamB.id) {
       newErrors.teamB = 'Home and Away teams must be different';
@@ -218,18 +225,21 @@ const MatchSetup = ({ isAdmin: isAdminProp, onTeamSelect }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Add match (form or imported) - return promise for better import handling
-  const addMatch = async (matchDataParam) => {
-    return new Promise(async (resolve, reject) => {
-      const matchData = matchDataParam || newMatch;
-      
-      if (!validateMatch(matchData)) {
-        reject(new Error('Validation failed'));
-        return;
-      }
+  // FIXED: Add match function with better error handling
+  const addMatch = async (matchDataParam = null) => {
+    const matchData = matchDataParam || newMatch;
+    
+    // Validate the match data
+    if (!validateMatch(matchData)) {
+      console.log('Validation errors:', errors);
+      return Promise.reject(new Error('Validation failed - please check all required fields'));
+    }
 
-      setLoading(true);
-      const optimisticId = `temp_${Date.now()}`;
+    setLoading(true);
+    const optimisticId = `temp_${Date.now()}`;
+    
+    try {
+      // Create UTC date from local date/time
       const localStart = new Date(`${matchData.date}T${matchData.time}`);
       const utcDate = new Date(localStart.getTime() - localStart.getTimezoneOffset() * 60000).toISOString();
 
@@ -255,57 +265,66 @@ const MatchSetup = ({ isAdmin: isAdminProp, onTeamSelect }) => {
         _optimistic: true
       };
 
+      // Add optimistic update
       setMatches(prev => [...prev, optimisticMatch].sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate)));
 
-      try {
-        const codeMatch = /^(.*)\s*\[([A-Za-z0-9]+)\]$/.exec(matchData.competition || '');
-        const compPayload = codeMatch ? codeMatch[1].trim() : matchData.competition;
-        const compCode = codeMatch ? codeMatch[2].trim() : undefined;
+      // Prepare API request
+      const codeMatch = /^(.*)\s*\[([A-Za-z0-9]+)\]$/.exec(matchData.competition || '');
+      const compPayload = codeMatch ? codeMatch[1].trim() : matchData.competition;
+      const compCode = codeMatch ? codeMatch[2].trim() : undefined;
 
-        const res = await fetch('/api/matches', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...(isAdmin ? { 'X-User-Type': 'admin' } : {}) },
-          body: JSON.stringify({
-            homeTeam: matchData.teamA,
-            awayTeam: matchData.teamB,
-            date: matchData.date,
-            time: matchData.time,
-            competition: compPayload,
-            competitionCode: compCode,
-            matchday: matchData.matchday ? Number(matchData.matchday) : undefined
-          })
-        });
+      const res = await fetch('/api/matches', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json', 
+          ...(isAdmin ? { 'X-User-Type': 'admin' } : {}) 
+        },
+        body: JSON.stringify({
+          homeTeam: matchData.teamA,
+          awayTeam: matchData.teamB,
+          date: matchData.date,
+          time: matchData.time,
+          competition: compPayload,
+          competitionCode: compCode,
+          matchday: matchData.matchday ? Number(matchData.matchday) : undefined
+        })
+      });
 
-        const json = await res.json();
-        if (!res.ok || (!json.success && !json.id)) {
-          throw new Error(json.error || 'Failed to save match');
-        }
-
-        const saved = json.data || json;
-        setMatches(prev => prev.map(m => m.id === optimisticId ? saved : m)
-          .sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate)));
-
-        if (!matchDataParam) {
-          setNewMatch({ teamA: {}, teamB: {}, date: '', time: '', competition: '', matchday: '' });
-          setShowForm(false);
-          setErrors({});
-          showSuccess('Match created successfully!');
-        }
-        
-        resolve(saved);
-      } catch (error) {
-        console.error('Error saving match', error);
-        setMatches(prev => prev.filter(m => m.id !== optimisticId));
-        
-        if (!matchDataParam) {
-          showError('Failed to save match');
-        }
-        
-        reject(error);
-      } finally {
-        setLoading(false);
+      const json = await res.json();
+      if (!res.ok || (!json.success && !json.id)) {
+        throw new Error(json.error || 'Failed to save match');
       }
-    });
+
+      const saved = json.data || json;
+      
+      // Replace optimistic match with saved match
+      setMatches(prev => prev.map(m => m.id === optimisticId ? saved : m)
+        .sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate)));
+
+      // Reset form if this was a manual creation
+      if (!matchDataParam) {
+        setNewMatch({ teamA: {}, teamB: {}, date: '', time: '', competition: '', matchday: '' });
+        setShowForm(false);
+        setErrors({});
+        showSuccess('Match created successfully!');
+      }
+      
+      return saved;
+      
+    } catch (error) {
+      console.error('Error saving match', error);
+      
+      // Remove optimistic match on error
+      setMatches(prev => prev.filter(m => m.id !== optimisticId));
+      
+      if (!matchDataParam) {
+        showError('Failed to save match: ' + (error.message || 'Unknown error'));
+      }
+      
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Enhanced remove match with custom modal
@@ -372,6 +391,8 @@ const MatchSetup = ({ isAdmin: isAdminProp, onTeamSelect }) => {
     // Process matches sequentially to avoid race conditions
     for (let i = 0; i < parsed.length; i++) {
       const m = parsed[i];
+      setImportProgress({ current: i + 1, total: parsed.length });
+      
       try {
         const teamA = teams.find(t => t.name.toLowerCase() === m.teamA.toLowerCase()) ||
                      { name: m.teamA, id: `custom_${m.teamA.replace(/\s+/g, '_')}` };
@@ -389,11 +410,6 @@ const MatchSetup = ({ isAdmin: isAdminProp, onTeamSelect }) => {
           matchday: m.matchday 
         };
 
-        // Validate the match first
-        if (!validateMatch(matchData)) {
-          throw new Error('Validation failed - check required fields');
-        }
-
         // Add the match
         await addMatch(matchData);
         results.successful++;
@@ -408,6 +424,7 @@ const MatchSetup = ({ isAdmin: isAdminProp, onTeamSelect }) => {
     }
 
     setLoading(false);
+    setImportProgress({ current: 0, total: 0 });
     
     // Show detailed results
     if (results.failed === 0) {
@@ -673,7 +690,14 @@ const MatchSetup = ({ isAdmin: isAdminProp, onTeamSelect }) => {
                 </div>
               </div>
 
-              <button className="ms-btn-primary" onClick={() => addMatch()} disabled={loading}>
+              <button 
+                className="ms-btn-primary" 
+                onClick={() => addMatch().catch(err => {
+                  // Error is already handled in addMatch function
+                  console.log('Create match error:', err);
+                })} 
+                disabled={loading}
+              >
                 {loading ? 'Saving...' : 'Create Match'}
               </button>
             </div>
