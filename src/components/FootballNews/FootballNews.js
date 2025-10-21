@@ -38,10 +38,20 @@ const FootballNewsPage = ({ onBack }) => {
 
   const handleImageError = (e) => {
     e.target.style.display = 'none';
-    // Show the placeholder by finding the next sibling
     const placeholder = e.target.nextSibling;
     if (placeholder && placeholder.className === 'news-image-placeholder') {
       placeholder.style.display = 'flex';
+    }
+  };
+
+  const getCurrentLeagueName = () => {
+    const league = leagues.find(l => l.code === leagueCode);
+    return league ? league.name : 'News';
+  };
+
+  const handleCardClick = (article) => {
+    if (article.link) {
+      window.open(article.link, '_blank');
     }
   };
 
@@ -63,7 +73,7 @@ const FootballNewsPage = ({ onBack }) => {
       </div>
 
       {loading ? (
-        <div className="news-list">
+        <div className="news-loading">
           <p>Loading latest news...</p>
         </div>
       ) : error ? (
@@ -75,7 +85,11 @@ const FootballNewsPage = ({ onBack }) => {
         <div className="news-list">
           {news.length > 0 ? (
             news.map(article => (
-              <div key={article._id} className="news-card">
+              <div 
+                key={article._id} 
+                className="news-card" 
+                onClick={() => handleCardClick(article)}
+              >
                 <div className="news-image-container">
                   {article.images?.length > 0 ? (
                     <>
@@ -94,6 +108,10 @@ const FootballNewsPage = ({ onBack }) => {
                       No Image Available
                     </div>
                   )}
+                  <div className="news-overlay">
+                    <div className="read-button">Read Article</div>
+                  </div>
+                  <div className="league-indicator">{getCurrentLeagueName()}</div>
                 </div>
                 <div className="news-content">
                   <h3>{article.headline}</h3>
@@ -105,8 +123,14 @@ const FootballNewsPage = ({ onBack }) => {
                     </span>
                   </div>
                   {article.link && (
-                    <a href={article.link} target="_blank" rel="noopener noreferrer" className="news-link">
-                      Read Full Article
+                    <a 
+                      href={article.link} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="news-link" 
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Read Full Article →
                     </a>
                   )}
                   {article.categories?.length > 0 && (
@@ -118,9 +142,7 @@ const FootballNewsPage = ({ onBack }) => {
               </div>
             ))
           ) : (
-            <div className="news-list">
-              <p>No news available for this league at the moment.</p>
-            </div>
+            <p>No news available for this league at the moment.</p>
           )}
         </div>
       )}
