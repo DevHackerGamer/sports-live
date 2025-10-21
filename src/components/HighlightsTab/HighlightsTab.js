@@ -42,9 +42,10 @@ const HighlightsTab = () => {
   const openModal = (videoId, title) => setModalVideo({ videoId, title });
   const closeModal = () => setModalVideo(null);
 
-  const formatDuration = (seconds = 1200) => {
-    const mins = Math.floor(seconds / 60);
-    return `${mins}:${(seconds % 60).toString().padStart(2, '0')}`;
+  const formatDuration = (seconds = null) => {
+  if (!seconds) return '';
+  const mins = Math.floor(seconds / 60);
+  return `${mins}:${(seconds % 60).toString().padStart(2, '0')}`;
   };
 
   const formatViews = (views = 100000) => {
