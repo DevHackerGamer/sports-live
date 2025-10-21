@@ -243,7 +243,10 @@ const renderMatches = () => (
         <div
           key={m.id}
           className="league-view-match-card"
-          onClick={() => onMatchSelect && onMatchSelect(m)}
+          onClick={() => {
+            console.log('Match card clicked - navigating to match viewer');
+            onMatchSelect && onMatchSelect(m);
+          }}
         >
           {/* Match date & time */}
           <div className="league-view-match-header">
@@ -268,6 +271,7 @@ const renderMatches = () => (
               className="league-view-match-team league-view-clickable"
               onClick={(e) => {
                 e.stopPropagation();
+                console.log('Home team clicked - navigating to team info');
                 onTeamSelect && onTeamSelect(m.homeTeam);
               }}
             >
@@ -278,7 +282,7 @@ const renderMatches = () => (
                   className="league-view-match-crest"
                 />
               )}
-              <span>{m.homeTeam?.name}</span>
+              <span className="league-view-clickable">{m.homeTeam?.name}</span>
             </div>
 
             <span className="league-view-vs">vs</span>
@@ -287,6 +291,7 @@ const renderMatches = () => (
               className="league-view-match-team league-view-clickable"
               onClick={(e) => {
                 e.stopPropagation();
+                console.log('Away team clicked - navigating to team info');
                 onTeamSelect && onTeamSelect(m.awayTeam);
               }}
             >
@@ -297,7 +302,7 @@ const renderMatches = () => (
                   className="league-view-match-crest"
                 />
               )}
-              <span>{m.awayTeam?.name}</span>
+              <span className="league-view-clickable">{m.awayTeam?.name}</span>
             </div>
           </div>
 
@@ -312,7 +317,6 @@ const renderMatches = () => (
     )}
   </div>
 );
-
 const renderPlayers = () => (
   <div className="league-view-players-list">
     {leaguePlayers.length > 0 ? (
