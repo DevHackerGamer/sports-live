@@ -1,4 +1,3 @@
-// src/components/HighlightsTab/HighlightsTab.jsx
 import React, { useEffect, useState } from "react";
 import { apiClient } from "../../lib/api";
 import "../../styles/HighlightsTab.css";
@@ -43,22 +42,43 @@ const HighlightsTab = () => {
   const openModal = (videoId, title) => setModalVideo({ videoId, title });
   const closeModal = () => setModalVideo(null);
 
-  if (loading) return <p className="highlights-loading">Loading highlights...</p>;
+  const formatDuration = (seconds = 1200) => {
+    const mins = Math.floor(seconds / 60);
+    return `${mins}:${(seconds % 60).toString().padStart(2, '0')}`;
+  };
 
-  if (error)
-    return (
+  const formatViews = (views = 100000) => {
+    if (views >= 1000000) {
+      return `${(views / 1000000).toFixed(1)}M views`;
+    } else if (views >= 1000) {
+      return `${(views / 1000).toFixed(1)}K views`;
+    }
+    return `${views} views`;
+  };
+
+  if (loading) return (
+    <div className="highlights-page">
+      <div className="highlights-loading">
+        <p>Loading amazing highlights...</p>
+      </div>
+    </div>
+  );
+
+  if (error) return (
+    <div className="highlights-page">
       <div className="highlights-error">
         <p>{error}</p>
         <button onClick={() => window.location.reload()}>Retry</button>
       </div>
-    );
+    </div>
+  );
 
   return (
     <div className="highlights-page">
       <div className="highlights-header">
-        <h2>Season 2025/26 Highlights</h2>
+        <h2> Season Highlights</h2>
         <div className="league-selector">
-          <label htmlFor="league-select">Select League:</label>
+          <label htmlFor="league-select">League:</label>
           <select
             id="league-select"
             value={selectedLeague}
@@ -81,22 +101,34 @@ const HighlightsTab = () => {
               className="highlight-card"
               onClick={() => openModal(v.videoId, v.title)}
             >
-              <div className="highlight-thumbnail">
-                <img
-                  src={v.thumbnail}
-                  alt={v.title}
-                  loading="lazy"
-                />
-                <div className="highlight-overlay">▶ Watch</div>
-              </div>
+             
+      <div className="highlight-thumbnail">
+        <img
+          src={v.thumbnail}
+          alt={v.title}
+          loading="lazy"
+        />
+      <div className="highlight-overlay">
+      <div className="play-button"></div>
+        </div>
+          <div className="league-indicator">{selectedLeague}</div>
+      </div>
               <div className="highlight-info">
                 <h3>{v.title}</h3>
                 <p>{v.channelTitle}</p>
+                <div className="highlight-meta">
+                  <span className="highlight-duration">
+                    {formatDuration()}
+                  </span>
+                  <span className="highlight-views">
+                    {formatViews()}
+                  </span>
+                </div>
               </div>
             </div>
           ))
         ) : (
-          <p>No highlights found for {selectedLeague}.</p>
+          <p>No highlights found for {selectedLeague}. Check back later!</p>
         )}
       </div>
 
@@ -109,12 +141,15 @@ const HighlightsTab = () => {
             </button>
             <iframe
               width="100%"
-              height="480"
-              src={`https://www.youtube.com/embed/${modalVideo.videoId}`}
+              height="450"
+              src={`https://www.youtube.com/embed/${modalVideo.videoId}?autoplay=1`}
               title={modalVideo.title}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
             />
-            <h3 style={{ marginTop: "1rem" }}>{modalVideo.title}</h3>
+            <div className="highlight-modal-title">
+              {modalVideo.title}
+            </div>
           </div>
         </div>
       )}
