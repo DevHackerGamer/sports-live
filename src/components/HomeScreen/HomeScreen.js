@@ -1,29 +1,31 @@
 import React from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faFutbol, faPeopleGroup, faTrophy, faHeart, faNewspaper } from '@fortawesome/free-solid-svg-icons';
 
 const HomeScreen = ({ setActiveTab, setSelectedLeague, leagues, latestNews, newsLoading }) => {
   const features = [
     { 
       title: "Live Matches", 
       description: "Follow games in real-time", 
-      icon: "⚽",
+      icon: <FontAwesomeIcon icon={faFutbol} />,
       action: () => setActiveTab('matches')
     },
     { 
       title: "Players", 
       description: "Player stats and profiles", 
-      icon: "👤",
+      icon: <FontAwesomeIcon icon={faPeopleGroup} />,
       action: () => setActiveTab('players')
     },
     { 
       title: "Standings", 
       description: "League tables and rankings", 
-      icon: "🏆",
+      icon: <FontAwesomeIcon icon={faTrophy} />,
       action: () => setActiveTab('leagueStandings')
     },
     { 
       title: "Favorites", 
       description: "Your followed content", 
-      icon: "❤️",
+      icon: <FontAwesomeIcon icon={faHeart} />,
       action: () => setActiveTab('favorites')
     }
   ];
@@ -43,7 +45,10 @@ const HomeScreen = ({ setActiveTab, setSelectedLeague, leagues, latestNews, news
         {/* News Sidebar - Left */}
         <section className="news-sidebar">
           <div className="news-header">
-            <h2>Latest News</h2>
+            <h2>
+              <FontAwesomeIcon icon={faNewspaper} style={{ marginRight: '0.5rem' }} />
+              Latest News
+            </h2>
             <button 
               className="view-all-btn"
               onClick={() => setActiveTab('news')}
