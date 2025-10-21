@@ -335,12 +335,14 @@
   font-weight: 600;
 }
 
+/* FIXED: Horizontal team layout */
 .match-teams {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 15px;
   margin-bottom: 15px;
+  flex-direction: row; /* Explicit horizontal layout */
 }
 
 .team {
@@ -589,7 +591,9 @@
     grid-template-columns: 1fr;
   }
 
+  /* FIXED: Keep horizontal layout on mobile */
   .match-teams {
+    flex-direction: row;
     padding: 15px 12px;
     gap: 10px;
   }
