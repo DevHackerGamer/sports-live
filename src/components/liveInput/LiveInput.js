@@ -1151,6 +1151,8 @@ const LiveInput = ({ isAdmin: isAdminProp, match, onBackToMatch }) => {
                     const updateData = { 
                       status: 'FINISHED', 
                       minute: minutes,
+                      homeScore: score.home,
+                      awayScore: score.away,
                       lastUpdated: new Date().toISOString()
                     };
                     if (match?.createdByAdmin) {

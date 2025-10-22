@@ -737,7 +737,7 @@ const awayCrest = teamCrests[normalize(game.awayTeam?.name)] || '/placeholder.pn
           <div className="ls-goal-animation">⚽</div>
         )}
         <span className={`ls-team-score ${scoreUpdating && scoringTeam === 'home' ? 'ls-score-updating' : ''}`}>
-          {(['live','in_play','inplay','paused'].includes((game.status||'').toLowerCase()) && homeScore === '-') ? 0 : homeScore}
+          {(['live','in_play','inplay','paused','finished'].includes((game.status||'').toLowerCase()) && homeScore === '-') ? 0 : homeScore}
         </span>
       </div>
 
@@ -760,7 +760,7 @@ const awayCrest = teamCrests[normalize(game.awayTeam?.name)] || '/placeholder.pn
           <div className="ls-goal-animation">⚽</div>
         )}
         <span className={`ls-team-score ${scoreUpdating && scoringTeam === 'away' ? 'ls-score-updating' : ''}`}>
-          {(['live','in_play','inplay','paused'].includes((game.status||'').toLowerCase()) && awayScore === '-') ? 0 : awayScore}
+          {(['live','in_play','inplay','paused','finished'].includes((game.status||'').toLowerCase()) && awayScore === '-') ? 0 : awayScore}
         </span>
       </div>
     </div>

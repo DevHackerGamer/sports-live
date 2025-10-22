@@ -901,7 +901,18 @@ async function handler(req, res) {
             return res.status(500).json({ success: false, error: 'Failed to fetch ESPN commentary', message: e.message });
           }
         }
-  const match = await matchesCollection.findOne(finalFilter);
+  // Try to find match in Match_Info first, then fallback to ADMIN and ESPN collections
+        let match = await matchesCollection.findOne(finalFilter);
+        if (!match) {
+          const matchesESPN = await getMatchesCollectionESPN();
+          const matchesADMIN = await getMatchesCollectionADMIN();
+          const adminMatch = await matchesADMIN.findOne(finalFilter);
+          const espnMatch = await matchesESPN.findOne(finalFilter);
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('[matches] GET fallback - ADMIN status:', adminMatch?.status, 'ESPN status:', espnMatch?.status);
+          }
+          match = adminMatch || espnMatch;
+        }
         if (!match) return res.status(404).json({ success: false, error: 'Match not found' });
         let list = Array.isArray(match.events) ? match.events : [];
         if (!list.length) {
@@ -1490,6 +1501,19 @@ async function handler(req, res) {
         const orFilters = buildIdQueries(id);
         const matchFilter = orFilters.length === 1 ? orFilters[0] : { $or: orFilters };
         const updates = req.body || {};
+        
+        // Store if status was explicitly set to FINISHED before clock processing
+        const explicitFinished = updates.status && updates.status.toUpperCase() === 'FINISHED';
+        
+        // Check if the match is already FINISHED in the database
+        const existingMatch = await matchesCollectionADMIN.findOne(matchFilter) || await matchesCollectionESPN.findOne(matchFilter);
+        const alreadyFinished = existingMatch && existingMatch.status && existingMatch.status.toUpperCase() === 'FINISHED';
+        
+        // If match is already FINISHED, prevent any status changes unless explicitly setting to FINISHED
+        if (alreadyFinished && updates.status && updates.status.toUpperCase() !== 'FINISHED') {
+          delete updates.status; // Don't allow changing from FINISHED to another status
+        }
+        
         // Normalize and handle clock updates from client (LiveInput)
         // Expected shape: { clock: { running: bool, elapsed: seconds, startedAt?: ISO }, status?, minute? }
         if (updates.clock) {
@@ -1509,7 +1533,11 @@ async function handler(req, res) {
           const runningBonus = (norm.running && norm.startedAt) ? Math.max(0, Math.floor((nowMs - Date.parse(norm.startedAt)) / 1000)) : 0;
           const totalElapsed = baseElapsed + runningBonus;
           updates.minute = Math.floor(totalElapsed / 60);
-          updates.status = norm.running ? 'IN_PLAY' : (totalElapsed > 0 ? 'PAUSED' : 'TIMED');
+          
+          // Only set status from clock logic if it wasn't explicitly set to FINISHED and match isn't already FINISHED
+          if (!explicitFinished && !alreadyFinished) {
+            updates.status = norm.running ? 'IN_PLAY' : (totalElapsed > 0 ? 'PAUSED' : 'TIMED');
+          }
         }
         updates.lastUpdated = new Date().toISOString();
         
