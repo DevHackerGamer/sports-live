@@ -62,6 +62,49 @@ body, html, .site-wrap {
   gap: 2rem;
 }
 
+/* Burger Menu Button - Hidden by default, shown on mobile */
+.burger-menu-button {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--dark-text);
+  font-size: 1.8rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  transition: var(--transition);
+  z-index: 102;
+}
+
+.burger-menu-button:hover {
+  color: var(--primary);
+}
+
+/* Mobile Menu Logo - Hidden by default, shown in mobile menu */
+.mobile-menu-logo {
+  display: none;
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 2px solid var(--dark-border);
+}
+
+/* Mobile Menu Overlay */
+.mobile-menu-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 98;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .logo-trapezoid {
   background: var(--gradient-primary);
   padding: 0.6rem 1.8rem;
@@ -959,24 +1002,109 @@ body, html, .site-wrap {
   .featured-league-card {
     height: 200px; /* Adjusted for tablet */
   }
+
+  /* Burger menu visible on tablets */
+  .burger-menu-button {
+    display: block;
+  }
+
+  /* Hide desktop logo on mobile */
+  .desktop-logo {
+    display: none;
+  }
+
+  /* Show logo inside mobile menu */
+  .mobile-menu-logo {
+    display: block;
+  }
+
+  /* Hide desktop nav, show as mobile menu */
+  .dashboard-nav {
+    position: fixed;
+    top: 0;
+    right: -100%;
+    width: 300px;
+    height: 100vh;
+    background: var(--dark-card);
+    padding: 2rem;
+    transition: right 0.3s ease;
+    z-index: 99;
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.5);
+    overflow-y: auto;
+  }
+
+  .dashboard-nav.mobile-menu-open {
+    right: 0;
+  }
+
+  .mobile-menu-overlay {
+    display: block;
+  }
+
+  .dashboard-nav ul {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .dashboard-nav li {
+    width: 100%;
+    border-bottom: 1px solid var(--dark-border);
+  }
+
+  .dashboard-nav button {
+    width: 100%;
+    text-align: left;
+    padding: 1rem 0.5rem;
+    font-size: 1.1rem;
+  }
+
+  .dashboard-nav button::after {
+    display: none;
+  }
+
+  .dashboard-nav button:hover {
+    background: rgba(230, 57, 70, 0.1);
+    padding-left: 1rem;
+  }
 }
 
 @media (max-width: 768px) {
   .dashboard-header {
-    flex-direction: column;
-    gap: 1.2rem;
     padding: 1rem;
   }
   
   .header-left {
-    flex-direction: column;
     gap: 1rem;
   }
-  
-  .dashboard-nav ul {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 1rem;
+
+  /* Ensure burger menu is visible */
+  .burger-menu-button {
+    display: block;
+  }
+
+  /* Hide desktop logo on mobile */
+  .desktop-logo {
+    display: none;
+  }
+
+  /* Show logo inside mobile menu */
+  .mobile-menu-logo {
+    display: block;
+  }
+
+  /* Adjust mobile menu width for smaller screens */
+  .dashboard-nav {
+    width: 280px;
+    padding: 2rem;
+  }
+
+  /* Hide user greeting text on mobile */
+  .user-greeting {
+    display: none;
+  }
+
+  .user-section {
+    padding: 0.3rem 0.6rem;
   }
   
   .hero-content h1 {
@@ -1025,6 +1153,48 @@ body, html, .site-wrap {
   :root {
     --featured-leagues-grid-height: 400px;
   }
+
+  .dashboard-header {
+    padding: 0.8rem;
+  }
+
+  .logo-trapezoid {
+    padding: 0.5rem 1.2rem;
+  }
+
+  .logo-text {
+    font-size: 1.4rem;
+  }
+
+  /* Burger menu button styling for small mobile */
+  .burger-menu-button {
+    font-size: 1.5rem;
+    padding: 0.3rem;
+    display: block;
+  }
+
+  /* Hide desktop logo on mobile */
+  .desktop-logo {
+    display: none;
+  }
+
+  /* Show logo inside mobile menu */
+  .mobile-menu-logo {
+    display: block;
+  }
+
+  /* Adjust mobile menu for smaller screens */
+  .dashboard-nav {
+    width: 85%;
+    max-width: 280px;
+    padding: 1.5rem;
+  }
+
+  .dashboard-nav button {
+    font-size: 1rem;
+    padding: 0.9rem 0.5rem;
+  }
+  
   .hero {
     padding: 4rem 1rem;
   }
