@@ -256,7 +256,7 @@ const LiveInput = ({ isAdmin: isAdminProp, match, onBackToMatch }) => {
     });
   }, [match, eventLabel]);
 
-  // Persist match minute/status periodically and handle auto HT/FT transitions
+  // Persist match minute/status periodically
   useEffect(() => {
     if (!match || !(match.id || match._id)) return;
     
@@ -269,88 +269,143 @@ const LiveInput = ({ isAdmin: isAdminProp, match, onBackToMatch }) => {
     // Initialize period based on current minute on first run
     if (minute >= 46 && period === '1H') setPeriod('2H');
 
-    // Auto overtime markers
+    // Update overtime indicator without auto-triggering events
     if (period === '1H') {
       setInOvertime(minute >= 45 && minute < 60);
-      if (minute >= 60 && !halfTimeTriggeredRef.current) {
-        (async () => {
-          // Insert Half Time event and transition to 2H
-          try {
-            const payload = {
-              type: 'half_time',
-              minute,
-              time: `${minute}:${(matchTime % 60).toString().padStart(2,'0')}`,
-              description: 'Half Time',
-              matchId: match.id || match._id
-            };
-            const resp = await apiClient.addMatchEvent(match.id || match._id, payload, { userType: isAdmin ? 'admin' : '' });
-            const persisted = resp?.data || payload;
-            setEvents(prev => [...prev, normalizeServerEvents([persisted])[0]]);
-          } catch (e) {
-            // best-effort; still add local
-            setEvents(prev => [...prev, normalizeServerEvents([{ type: 'half_time', minute, time: `${minute}:${(matchTime%60).toString().padStart(2,'0')}`, description: 'Half Time' }])[0]]);
-          }
-          halfTimeTriggeredRef.current = true;
-          setPeriod('2H');
-          setInOvertime(false);
-          // Persist state
-          try {
-            await apiClient.updateMatch(match.id || match._id, { status: 'IN_PLAY', minute, period: '2H', lastUpdated: new Date().toISOString() }, { userType: isAdmin ? 'admin' : '' });
-          } catch {}
-        })();
-      }
     } else {
       setInOvertime(minute >= 90 && minute < 105);
-      if (minute >= 105 && !fullTimeTriggeredRef.current) {
-        (async () => {
-          try {
-            const payload = {
-              type: 'match_end',
-              minute,
-              time: `${minute}:${(matchTime % 60).toString().padStart(2,'0')}`,
-              description: 'Full Time',
-              matchId: match.id || match._id
-            };
-            const resp = await apiClient.addMatchEvent(match.id || match._id, payload, { userType: isAdmin ? 'admin' : '' });
-            const persisted = resp?.data || payload;
-            setEvents(prev => [...prev, normalizeServerEvents([persisted])[0]]);
-          } catch (e) {
-            setEvents(prev => [...prev, normalizeServerEvents([{ type: 'match_end', minute, time: `${minute}:${(matchTime%60).toString().padStart(2,'0')}`, description: 'Full Time' }])[0]]);
-          }
-          fullTimeTriggeredRef.current = true;
-          setIsPaused(true);
-          try {
-            const updateData = { 
-              status: 'FINISHED', 
-              minute, 
-              period: '2H', 
-              lastUpdated: new Date().toISOString() 
-            };
-            // Also persist clock pause for admin-created matches
-            if (match?.createdByAdmin) {
-              updateData.clock = { running: false, elapsed: matchTime };
-            }
-            await apiClient.updateMatch(match.id || match._id, updateData, { userType: isAdmin ? 'admin' : '' });
-          } catch {}
-        })();
-      }
     }
 
     // Minute ticks are derived server-side from persisted clock; no continuous PUTs needed
-  }, [match, matchTime, isPaused, isAdmin, period, normalizeServerEvents]);
+  }, [match, matchTime, isPaused, isAdmin, period, normalizeServerEvents, events]);
 
   // Normalize events coming from backend
   // (definition moved earlier to avoid reference-before-init in effects)
 
-  const fetchServerEvents = useCallback(async () => {
+  const fetchServerEvents = useCallback(async (forceFresh = false) => {
     if (!match || !(match.id || match._id)) return;
     try {
-      const res = await apiClient.getMatchEvents(match.id || match._id);
-      const list = Array.isArray(res.data) ? res.data : res;
-      setEvents(normalizeServerEvents(list));
+      // For admin-created matches, fetch fresh from server if forceFresh is true
+      // Otherwise use embedded events (never call API for routine polling)
+      // Admin match IDs typically start with 'a_' or have createdByAdmin flag
+      const isAdminMatch = match.createdByAdmin || String(match.id || match._id).startsWith('a_');
+      
+      if (isAdminMatch && !forceFresh) {
+        // Admin matches always have events embedded in the match document
+        const eventList = match.events || [];
+        const normalized = normalizeServerEvents(eventList);
+        setEvents(normalized);
+        
+        // Check for existing half-time/full-time events to prevent duplicates
+        const hasHT = normalized.some(e => canonicalEventType(e.type) === 'half_time');
+        const hasFT = normalized.some(e => canonicalEventType(e.type) === 'match_end');
+        if (hasHT && !halfTimeTriggeredRef.current) {
+          halfTimeTriggeredRef.current = true;
+          setPeriod('2H');
+        }
+        if (hasFT && !fullTimeTriggeredRef.current) {
+          fullTimeTriggeredRef.current = true;
+        }
+        return;
+      }
+      
+      if (isAdminMatch && forceFresh) {
+        // Force a fresh fetch from the server for admin matches after mutations
+        try {
+          const freshMatch = await apiClient.getMatch(match.id || match._id);
+          const eventList = freshMatch?.data?.events || freshMatch?.events || [];
+          const normalized = normalizeServerEvents(eventList);
+          setEvents(normalized);
+          
+          // Check for existing half-time/full-time events
+          const hasHT = normalized.some(e => canonicalEventType(e.type) === 'half_time');
+          const hasFT = normalized.some(e => canonicalEventType(e.type) === 'match_end');
+          if (hasHT && !halfTimeTriggeredRef.current) {
+            halfTimeTriggeredRef.current = true;
+            setPeriod('2H');
+          }
+          if (hasFT && !fullTimeTriggeredRef.current) {
+            fullTimeTriggeredRef.current = true;
+          }
+          return;
+        } catch (err) {
+          console.warn('Failed to fetch fresh admin match events, falling back to prop', err);
+          // Fall back to prop events if fetch fails
+          const eventList = match.events || [];
+          const normalized = normalizeServerEvents(eventList);
+          setEvents(normalized);
+          return;
+        }
+      }
+      
+      // For ESPN/external matches, try to use embedded events first
+      if (match.events && Array.isArray(match.events)) {
+        const normalized = normalizeServerEvents(match.events);
+        setEvents(normalized);
+        
+        // Check for existing half-time/full-time events
+        const hasHT = normalized.some(e => canonicalEventType(e.type) === 'half_time');
+        const hasFT = normalized.some(e => canonicalEventType(e.type) === 'match_end');
+        if (hasHT && !halfTimeTriggeredRef.current) {
+          halfTimeTriggeredRef.current = true;
+          setPeriod('2H');
+        }
+        if (hasFT && !fullTimeTriggeredRef.current) {
+          fullTimeTriggeredRef.current = true;
+        }
+        return;
+      }
+      
+      // Only try to fetch from API for non-admin matches without embedded events
+      try {
+        const res = await apiClient.getMatchEvents(match.id || match._id);
+        const list = Array.isArray(res.data) ? res.data : res;
+        const normalized = normalizeServerEvents(list);
+        setEvents(normalized);
+        
+        // Check for existing half-time/full-time events
+        const hasHT = normalized.some(e => canonicalEventType(e.type) === 'half_time');
+        const hasFT = normalized.some(e => canonicalEventType(e.type) === 'match_end');
+        if (hasHT && !halfTimeTriggeredRef.current) {
+          halfTimeTriggeredRef.current = true;
+          setPeriod('2H');
+        }
+        if (hasFT && !fullTimeTriggeredRef.current) {
+          fullTimeTriggeredRef.current = true;
+        }
+      } catch (apiError) {
+        // Fall back to match.events if available (even if empty)
+        const eventList = match.events || [];
+        const normalized = normalizeServerEvents(eventList);
+        setEvents(normalized);
+        
+        // Check for existing half-time/full-time events
+        const hasHT = normalized.some(e => canonicalEventType(e.type) === 'half_time');
+        const hasFT = normalized.some(e => canonicalEventType(e.type) === 'match_end');
+        if (hasHT && !halfTimeTriggeredRef.current) {
+          halfTimeTriggeredRef.current = true;
+          setPeriod('2H');
+        }
+        if (hasFT && !fullTimeTriggeredRef.current) {
+          fullTimeTriggeredRef.current = true;
+        }
+      }
     } catch (e) {
-      // Silent fail – keep local optimistic list
-      if (process.env.NODE_ENV !== 'production') console.warn('Failed to fetch server events', e.message);
+      // Silent fail – keep local optimistic list or use empty array
+      const eventList = match.events || [];
+      const normalized = normalizeServerEvents(eventList);
+      setEvents(normalized);
+      
+      // Check for existing half-time/full-time events
+      const hasHT = normalized.some(e => canonicalEventType(e.type) === 'half_time');
+      const hasFT = normalized.some(e => canonicalEventType(e.type) === 'match_end');
+      if (hasHT && !halfTimeTriggeredRef.current) {
+        halfTimeTriggeredRef.current = true;
+        setPeriod('2H');
+      }
+      if (hasFT && !fullTimeTriggeredRef.current) {
+        fullTimeTriggeredRef.current = true;
+      }
     }
   }, [match, normalizeServerEvents]);
 
@@ -414,8 +469,10 @@ const LiveInput = ({ isAdmin: isAdminProp, match, onBackToMatch }) => {
   const persisted = resp?.data || baseEvent;
   // Append immediately so user can delete it; ensure id is present
   setEvents(prev => [...prev, normalizeServerEvents([persisted])[0]]);
-        // Schedule a silent refetch in the background (don't await to keep UI snappy)
-        setTimeout(() => { fetchServerEvents(); }, 300);
+        // Sync with server after a short delay to ensure consistency
+        setTimeout(() => { 
+          fetchServerEvents(true); 
+        }, 500);
       } else {
         // No match id yet – keep it locally only
         setEvents(prev => [...prev, baseEvent]);
@@ -437,19 +494,43 @@ const LiveInput = ({ isAdmin: isAdminProp, match, onBackToMatch }) => {
     setIsEditingMinute(false);
   };
 
-  const removeEvent = (id) => {
-  setEvents(prev => prev.filter(event => event.id !== id));
+  const removeEvent = async (id) => {
+    // Check if it's a half-time or full-time event and reset refs BEFORE removing
+    const eventToDelete = events.find(e => e.id === id);
+    if (eventToDelete) {
+      const type = canonicalEventType(eventToDelete.type);
+      if (type === 'half_time') {
+        halfTimeTriggeredRef.current = false;
+        setPeriod('1H');
+      } else if (type === 'match_end') {
+        fullTimeTriggeredRef.current = false;
+        setLocalMatchStatus(null);
+      }
+    }
+    
+    // Optimistically remove from UI immediately
+    setEvents(prev => prev.filter(event => event.id !== id));
+    
     // Attempt backend deletion (best-effort)
     if (match && (match.id || match._id) && isAdmin) {
-      (async () => {
-        try {
-          await apiClient.deleteMatchEvent(match.id || match._id, id, { userType: 'admin' });
-      // Refresh events to confirm deletion persisted
-      setTimeout(() => { fetchServerEvents(); }, 200);
-        } catch (e) {
-          console.warn('Failed to delete event on server', e.message);
+      try {
+        await apiClient.deleteMatchEvent(match.id || match._id, id, { userType: 'admin' });
+        console.log(`Successfully deleted event ${id} from server`);
+        // Sync with server after deletion to ensure consistency
+        setTimeout(() => { 
+          fetchServerEvents(true); 
+        }, 500);
+      } catch (e) {
+        console.error('Failed to delete event on server', e);
+        // If server deletion fails, restore the event in UI
+        if (eventToDelete) {
+          setEvents(prev => [...prev, eventToDelete].sort((a,b) => {
+            const ma = a.minute ?? 0;
+            const mb = b.minute ?? 0;
+            return ma - mb;
+          }));
         }
-      })();
+      }
     }
   };
 
@@ -709,14 +790,12 @@ const LiveInput = ({ isAdmin: isAdminProp, match, onBackToMatch }) => {
         console.warn('Roster fetch sequence failed', e);
       }
     })();
-    // Detect if HT/FT already present
-    setTimeout(() => {
-      const hasHT = (evs => evs.some(e => canonicalEventType(e.type) === 'half_time'))(events);
-      const hasFT = (evs => evs.some(e => canonicalEventType(e.type) === 'match_end'))(events);
-      halfTimeTriggeredRef.current = hasHT;
-      fullTimeTriggeredRef.current = hasFT;
-      if (hasHT) setPeriod('2H');
-    }, 0);
+    // Detect if HT/FT already present - do this synchronously, not in setTimeout
+    const hasHT = events.some(e => canonicalEventType(e.type) === 'half_time');
+    const hasFT = events.some(e => canonicalEventType(e.type) === 'match_end');
+    halfTimeTriggeredRef.current = hasHT;
+    fullTimeTriggeredRef.current = hasFT;
+    if (hasHT) setPeriod('2H');
 
     // Load persisted events from server
     fetchServerEvents();
@@ -727,7 +806,11 @@ const LiveInput = ({ isAdmin: isAdminProp, match, onBackToMatch }) => {
   // Poll for new events every 15s while component mounted (keeps LiveInput in sync with viewer/admin actions elsewhere)
   useEffect(() => {
     if (!match) return;
-    const id = setInterval(() => { fetchServerEvents(); }, 15000);
+    const id = setInterval(() => { 
+      // Always fetch fresh for admin matches to prevent stale data issues
+      const isAdminMatch = match.createdByAdmin || String(match.id || match._id).startsWith('a_');
+      fetchServerEvents(isAdminMatch); 
+    }, 15000);
     return () => clearInterval(id);
   }, [match, fetchServerEvents]);
 
@@ -802,7 +885,7 @@ const LiveInput = ({ isAdmin: isAdminProp, match, onBackToMatch }) => {
 
   return (
     <div className="live-input">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <h2>Live Match Input</h2>
         {onBackToMatch && (
           <button className="timer-btn" onClick={onBackToMatch} style={{ marginLeft: 'auto' }}>↩ Back</button>
@@ -816,282 +899,277 @@ const LiveInput = ({ isAdmin: isAdminProp, match, onBackToMatch }) => {
       )}
       {isAdmin && match && (
         <>
-        <div className="selected-match-summary">
-          <strong>{homeName}</strong> vs <strong>{awayName}</strong>
-        </div>
-        <div className="match-controls">
-        <div className="time-control">
-          <label>Match Time:</label>
-          <div className="time-display">
-            {formatTime(matchTime)}
-            <span style={{ 
-              marginLeft: 8, 
-              fontSize: 12, 
-              fontWeight: 600, 
-              color: (() => {
-                const effectiveStatus = getEffectiveMatchStatus();
-                if (effectiveStatus === 'FINISHED') return '#666'; // Gray for finished
-                return isPaused ? '#b35' : '#2a8';
-              })()
-            }}>
-              {(() => {
-                const effectiveStatus = getEffectiveMatchStatus();
-                if (process.env.NODE_ENV !== 'production') {
-                  console.log('LiveInput status display:', { 
-                    effectiveStatus, 
-                    matchStatus: match?.status, 
-                    localStatus: localMatchStatus, 
-                    fullTimeTriggered: fullTimeTriggeredRef.current 
-                  });
+        {/* Match Header - Split Layout */}
+     <div className="match-header-split">
+  {/* Home Team */}
+  <div className="team-header-section home-team">
+    <div className="team-display">
+      {teamLogos.home && (
+        <img src={teamLogos.home} alt={`${homeName} crest`} className="team-header-crest" />
+      )}
+      <h3 className="team-name" title={homeName}>{homeName}</h3>
+    </div>
+    <div className="team-score">
+      <span className="score-display">{score.home}</span>
+    </div>
+  </div>
+
+          {/* Center Match Info */}
+  <div className="match-center-info">
+    <div className="match-status">
+      <div className="time-display-large">
+        {formatTime(matchTime)}
+        <span className="match-status-badge">
+          {(() => {
+            const effectiveStatus = getEffectiveMatchStatus();
+            if (effectiveStatus === 'FINISHED') return 'FINISHED';
+            if (match?.createdByAdmin) return isPaused ? 'PAUSED' : 'LIVE';
+            if (effectiveStatus === 'IN_PLAY') return 'LIVE';
+            if (effectiveStatus === 'PAUSED') return 'PAUSED';
+            return effectiveStatus || 'TIMED';
+          })()}
+        </span>
+      </div>
+      <div className="timer-controls-compact">
+        <button
+          className="timer-btn pause-btn"
+          onClick={async () => {
+            const willPause = !isPaused;
+            setIsPaused(prev => !prev);
+            try {
+              if (match?.createdByAdmin && (match?.id || match?._id)) {
+                const elapsed = matchTime;
+                if (willPause) {
+                  await apiClient.updateMatch(match.id || match._id, { clock: { running: false, elapsed } }, { userType: isAdmin ? 'admin' : '' });
+                } else {
+                  await apiClient.updateMatch(match.id || match._id, { clock: { running: true, elapsed, startedAt: new Date().toISOString() } }, { userType: isAdmin ? 'admin' : '' });
                 }
-                if (effectiveStatus === 'FINISHED') return 'FINISHED';
-                if (match?.createdByAdmin) return isPaused ? 'PAUSED' : 'LIVE';
-                if (effectiveStatus === 'IN_PLAY') return 'LIVE';
-                if (effectiveStatus === 'PAUSED') return 'PAUSED';
-                return effectiveStatus || 'TIMED';
-              })()}
-            </span>
+              } else if (match?.id || match?._id) {
+                const minute = Math.floor(matchTime / 60);
+                await apiClient.updateMatch(match.id || match._id, { status: willPause ? 'PAUSED' : 'IN_PLAY', minute, period }, { userType: isAdmin ? 'admin' : '' });
+              }
+            } catch {}
+          }}
+          title={isPaused ? 'Resume clock' : 'Pause clock'}
+          disabled={!match?.createdByAdmin || getEffectiveMatchStatus() === 'FINISHED' || fullTimeTriggeredRef.current}
+        >
+          {isPaused ? '▶' : '⏸'}
+        </button>
+      </div>
+    </div>
+            <div className="possession-display">
+  <div 
+    className="possession-bar-interactive"
+    onClick={(e) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const percentage = (clickX / rect.width) * 100;
+      const newPossession = Math.max(0, Math.min(100, Math.round(percentage)));
+      setPossession(newPossession);
+      updateStatistic('possession', 'home', newPossession);
+    }}
+    title={`Click to set possession: ${homeName} ${possession}% - ${awayName} ${100 - possession}%`}
+  >
+    <div 
+      className="possession-home" 
+      style={{ width: `${possession}%` }}
+    ></div>
+    <div 
+      className="possession-away" 
+      style={{ width: `${100 - possession}%` }}
+    ></div>
+    <div 
+      className="possession-handle"
+      style={{ left: `${possession}%` }}
+      onMouseDown={(e) => {
+        e.preventDefault();
+        const startX = e.clientX;
+        const startPossession = possession;
+        const barWidth = e.currentTarget.parentElement.getBoundingClientRect().width;
+
+        const handleMouseMove = (moveEvent) => {
+          const deltaX = moveEvent.clientX - startX;
+          const deltaPercentage = (deltaX / barWidth) * 100;
+          const newPossession = Math.max(0, Math.min(100, Math.round(startPossession + deltaPercentage)));
+          setPossession(newPossession);
+          updateStatistic('possession', 'home', newPossession);
+        };
+
+        const handleMouseUp = () => {
+          document.removeEventListener('mousemove', handleMouseMove);
+          document.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+      }}
+    >
+      <div className="handle-dot"></div>
+    </div>
+  </div>
+  <div className="possession-labels">
+    <span>{possession}%</span>
+    <span>Possession</span>
+    <span>{100 - possession}%</span>
+  </div>
+</div>
           </div>
-          <div className="timer-controls">
-            <button
-              className="timer-btn pause-btn"
+
+         
+  {/* Away Team - SAME STRUCTURE as Home Team */}
+  <div className="team-header-section away-team">
+    <div className="team-display">
+      {teamLogos.away && (
+        <img src={teamLogos.away} alt={`${awayName} crest`} className="team-header-crest" />
+      )}
+      <h3 className="team-name" title={awayName}>{awayName}</h3>
+    </div>
+    <div className="team-score">
+      <span className="score-display">{score.away}</span>
+    </div>
+          </div>
+        </div>
+
+        {/* Control Buttons */}
+        <div className="match-controls-compact">
+          <div className="control-buttons-group">
+  <button 
+    className="timer-btn stats-toggle-btn"
+    onClick={() => setShowStatsPanel(!showStatsPanel)}
+  >
+    {showStatsPanel ? '📊 Hide Stats' : '📊 Show Stats'}
+  </button>
+  
+  <button 
+    className="timer-btn"
+    onClick={() => setShowLineupsModal(!showLineupsModal)}
+  >
+    {showLineupsModal ? '👥 Hide Lineups' : '👥 Edit Lineups'}
+  </button>
+
+  <button 
+    className="timer-btn"
+    onClick={() => setShowCommentaryModal(!showCommentaryModal)}
+  >
+    {showCommentaryModal ? '💬 Hide Commentary' : '💬 Live Commentary'}
+  </button>
+</div>
+          
+          <div className="match-phase-buttons">
+            <button 
+              type="button" 
+              className="phase-btn half-time-btn"
               onClick={async () => {
-                const willPause = !isPaused;
-                setIsPaused(prev => !prev);
-                // Persist clock for admin-created matches. Avoid changing API matches.
+                const minutes = Math.floor(matchTime / 60);
+                
+                // Mark half time as triggered immediately to prevent duplicates
+                halfTimeTriggeredRef.current = true;
+                setPeriod('2H');
+                setInOvertime(false);
+                setIsPaused(true);
+                
+                const payload = {
+                  type: 'half_time',
+                  team: '',
+                  teamSide: '',
+                  player: '',
+                  minute: minutes,
+                  time: `${minutes}:${(matchTime % 60).toString().padStart(2,'0')}`,
+                  description: 'Half Time',
+                  matchId: match?.id || match?._id
+                };
+                try {
+                  if (match?.id || match?._id) {
+                    const resp = await apiClient.addMatchEvent(match.id || match._id, { ...payload, matchId: String(match?.id || match?._id) }, { userType: isAdmin ? 'admin' : '' });
+                    const persisted = resp?.data || payload;
+                    setEvents(prev => [...prev, normalizeServerEvents([persisted])[0]]);
+                    // Sync with server after a short delay
+                    setTimeout(() => { fetchServerEvents(true); }, 500);
+                  } else {
+                    setEvents(prev => [...prev, { id: Date.now(), ...payload }]);
+                  }
+                } catch (e) {
+                  console.warn('Failed to persist half time event', e);
+                  setEvents(prev => [...prev, { id: Date.now(), ...payload }]);
+                }
+                
                 try {
                   if (match?.createdByAdmin && (match?.id || match?._id)) {
-                    const elapsed = matchTime; // seconds
-                    if (willPause) {
-                      await apiClient.updateMatch(match.id || match._id, { clock: { running: false, elapsed } }, { userType: isAdmin ? 'admin' : '' });
-                    } else {
-                      await apiClient.updateMatch(match.id || match._id, { clock: { running: true, elapsed, startedAt: new Date().toISOString() } }, { userType: isAdmin ? 'admin' : '' });
-                    }
-                    // Broadcast refresh to all tabs
-                    try {
-                      if ('BroadcastChannel' in window) {
-                        const bc = new BroadcastChannel('sports-live');
-                        bc.postMessage({ type: 'matches-updated', matchId: match.id || match._id });
-                        bc.close();
-                      }
-                    } catch {}
-                    try { localStorage.setItem('sports:refresh', String(Date.now())); } catch {}
-                  } else if (match?.id || match?._id) {
-                    // Fallback legacy behavior: just toggle status/minute
-                    const minute = Math.floor(matchTime / 60);
-                    await apiClient.updateMatch(match.id || match._id, { status: willPause ? 'PAUSED' : 'IN_PLAY', minute, period }, { userType: isAdmin ? 'admin' : '' });
-                    // Broadcast refresh
-                    try {
-                      if ('BroadcastChannel' in window) {
-                        const bc = new BroadcastChannel('sports-live');
-                        bc.postMessage({ type: 'matches-updated', matchId: match.id || match._id });
-                        bc.close();
-                      }
-                    } catch {}
-                    try { localStorage.setItem('sports:refresh', String(Date.now())); } catch {}
+                    await apiClient.updateMatch(match.id || match._id, { 
+                      clock: { running: false, elapsed: matchTime },
+                      status: 'IN_PLAY',
+                      minute: minutes,
+                      period: '2H',
+                      lastUpdated: new Date().toISOString()
+                    }, { userType: isAdmin ? 'admin' : '' });
                   }
                 } catch {}
-              }}
-              title={
-                (getEffectiveMatchStatus() === 'FINISHED' || fullTimeTriggeredRef.current) 
-                  ? 'Match is finished' 
-                  : (isPaused ? 'Resume clock' : 'Pause clock')
-              }
-              disabled={!match?.createdByAdmin || getEffectiveMatchStatus() === 'FINISHED' || fullTimeTriggeredRef.current}
+              }} 
+              disabled={getEffectiveMatchStatus() === 'FINISHED' || fullTimeTriggeredRef.current || halfTimeTriggeredRef.current}
             >
-              {isPaused ? 'Resume' : 'Pause'}
+              ⏱ Half Time
+            </button>
+            
+            <button 
+              type="button" 
+              className="phase-btn full-time-btn"
+              onClick={async () => {
+                console.log('Full Time button clicked');
+                const minutes = Math.floor(matchTime / 60);
+                
+                setIsPaused(true);
+                fullTimeTriggeredRef.current = true;
+                setLocalMatchStatus('FINISHED');
+                
+                const payload = {
+                  type: 'match_end',
+                  team: '',
+                  teamSide: '',
+                  player: '',
+                  minute: minutes,
+                  time: `${minutes}:${(matchTime % 60).toString().padStart(2,'0')}`,
+                  description: 'Full Time',
+                  matchId: match?.id || match?._id
+                };
+                
+                try {
+                  if (match?.id || match?._id) {
+                    const resp = await apiClient.addMatchEvent(match.id || match._id, { ...payload, matchId: String(match?.id || match?._id) }, { userType: isAdmin ? 'admin' : '' });
+                    const persisted = resp?.data || payload;
+                    setEvents(prev => [...prev, normalizeServerEvents([persisted])[0]]);
+                    // Sync with server after a short delay
+                    setTimeout(() => { fetchServerEvents(true); }, 500);
+                  } else {
+                    setEvents(prev => [...prev, { id: Date.now(), ...payload }]);
+                  }
+                } catch (e) {
+                  setEvents(prev => [...prev, { id: Date.now(), ...payload }]);
+                }
+                
+                try {
+                  if (match?.id || match?._id) {
+                    const updateData = { 
+                      status: 'FINISHED', 
+                      minute: minutes,
+                      lastUpdated: new Date().toISOString()
+                    };
+                    if (match?.createdByAdmin) {
+                      updateData.clock = { running: false, elapsed: matchTime };
+                    }
+                    await apiClient.updateMatch(match.id || match._id, updateData, { userType: isAdmin ? 'admin' : '' });
+                  }
+                } catch (e) {
+                  console.error('Failed to update match status to FINISHED', e);
+                }
+              }} 
+              disabled={getEffectiveMatchStatus() === 'FINISHED' || fullTimeTriggeredRef.current}
+            >
+              🏁 Full Time
             </button>
           </div>
         </div>
-        
-        <div className="score-control">
-          <label>Score:</label>
-          <div className="score-inputs">
-            <input type="number" min="0" value={score.home} readOnly />
-            <span>:</span>
-            <input type="number" min="0" value={score.away} readOnly />
-          </div>
-        </div>
-        
-        <div className="possession-control">
-          <label>Possession (%):</label>
-          <div className="possession-slider">
-            <input 
-              type="range" 
-              min="0" 
-              max="100" 
-              value={possession} 
-              onChange={(e) => {
-                const homePos = parseInt(e.target.value);
-                setPossession(homePos);
-                updateStatistic('possession', 'home', homePos);
-              }}
-            />
-            <div className="possession-values">
-              <span>{homeName}: {possession}%</span>
-              <span>{awayName}: {100 - possession}%</span>
-            </div>
-          </div>
-        </div>
-        
-        <div className="stats-control">
-          <button 
-            className="timer-btn" 
-            onClick={() => setShowStatsPanel(!showStatsPanel)}
-          >
-            {showStatsPanel ? 'Hide Stats' : 'Show Stats'}
-          </button>
-        </div>
-  </div>
   <div className="event-input">
         <h3>Add Match Event</h3>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-          <button type="button" onClick={async () => {
-            const minutes = Math.floor(matchTime / 60);
-            const payload = {
-              type: 'half_time',
-              team: '',
-              teamSide: '',
-              player: '',
-              minute: minutes,
-              time: `${minutes}:${(matchTime % 60).toString().padStart(2,'0')}`,
-              description: 'Half Time',
-              matchId: match?.id || match?._id
-            };
-            try {
-              if (match?.id || match?._id) {
-                const resp = await apiClient.addMatchEvent(match.id || match._id, { ...payload, matchId: String(match?.id || match?._id) }, { userType: isAdmin ? 'admin' : '' });
-                const persisted = resp?.data || payload;
-                setEvents(prev => [...prev, normalizeServerEvents([persisted])[0]]);
-                setTimeout(() => { fetchServerEvents(); }, 300);
-              } else {
-                setEvents(prev => [...prev, { id: Date.now(), ...payload }]);
-              }
-            } catch (e) {
-              console.warn('Failed to persist half time event', e);
-              setEvents(prev => [...prev, { id: Date.now(), ...payload }]);
-            }
-            setIsPaused(true);
-            // Persist clock pause when marking Half Time (admin-created only)
-            try {
-              if (match?.createdByAdmin && (match?.id || match?._id)) {
-                await apiClient.updateMatch(match.id || match._id, { clock: { running: false, elapsed: matchTime } }, { userType: isAdmin ? 'admin' : '' });
-              }
-            } catch {}
-            // Broadcast refresh
-            try {
-              if ('BroadcastChannel' in window) {
-                const bc = new BroadcastChannel('sports-live');
-                bc.postMessage({ type: 'matches-updated', matchId: match.id || match._id });
-                bc.close();
-              }
-            } catch {}
-            try { localStorage.setItem('sports:refresh', String(Date.now())); } catch {}
-          }} 
-          disabled={getEffectiveMatchStatus() === 'FINISHED' || fullTimeTriggeredRef.current}
-          title={
-            (getEffectiveMatchStatus() === 'FINISHED' || fullTimeTriggeredRef.current) 
-              ? 'Match is already finished' 
-              : 'Mark half time'
-          }
-          >Half Time</button>
-          <button type="button" onClick={async () => {
-            console.log('Full Time button clicked');
-            const minutes = Math.floor(matchTime / 60);
-            
-            // Immediately set local state to prevent any delays
-            setIsPaused(true);
-            fullTimeTriggeredRef.current = true;
-            setLocalMatchStatus('FINISHED');
-            
-            // Add the full time event first
-            const payload = {
-              type: 'match_end',
-              team: '',
-              teamSide: '',
-              player: '',
-              minute: minutes,
-              time: `${minutes}:${(matchTime % 60).toString().padStart(2,'0')}`,
-              description: 'Full Time',
-              matchId: match?.id || match?._id
-            };
-            
-            try {
-              if (match?.id || match?._id) {
-                console.log('Adding match_end event...');
-                const resp = await apiClient.addMatchEvent(match.id || match._id, { ...payload, matchId: String(match?.id || match?._id) }, { userType: isAdmin ? 'admin' : '' });
-                const persisted = resp?.data || payload;
-                setEvents(prev => [...prev, normalizeServerEvents([persisted])[0]]);
-              } else {
-                setEvents(prev => [...prev, { id: Date.now(), ...payload }]);
-              }
-            } catch (e) {
-              console.warn('Failed to persist full time event', e);
-              setEvents(prev => [...prev, { id: Date.now(), ...payload }]);
-            }
-            
-            // Now update the match status - THIS IS THE CRITICAL PART
-            try {
-              if (match?.id || match?._id) {
-                console.log('Updating match status to FINISHED...');
-                const updateData = { 
-                  status: 'FINISHED', 
-                  minute: minutes,
-                  lastUpdated: new Date().toISOString()
-                };
-                // Also persist clock pause for admin-created matches
-                if (match?.createdByAdmin) {
-                  updateData.clock = { running: false, elapsed: matchTime };
-                }
-                
-                // Wait for the API call to complete before proceeding
-                await apiClient.updateMatch(match.id || match._id, updateData, { userType: isAdmin ? 'admin' : '' });
-                console.log('Successfully updated match status to FINISHED');
-                
-                // Store temporary override in localStorage for immediate UI updates
-                try {
-                  const matchOverrides = JSON.parse(localStorage.getItem('match-status-overrides') || '{}');
-                  matchOverrides[match.id || match._id] = {
-                    status: 'FINISHED',
-                    timestamp: Date.now(),
-                    expires: Date.now() + 30000 // 30 seconds
-                  };
-                  localStorage.setItem('match-status-overrides', JSON.stringify(matchOverrides));
-                } catch {}
-                
-                // Force immediate refresh after successful update
-                console.log('Broadcasting match update...');
-                for (let i = 0; i < 3; i++) {
-                  setTimeout(() => {
-                    try {
-                      if ('BroadcastChannel' in window) {
-                        const bc = new BroadcastChannel('sports-live');
-                        bc.postMessage({ 
-                          type: 'matches-updated', 
-                          matchId: match.id || match._id,
-                          forceRefresh: true,
-                          newStatus: 'FINISHED'
-                        });
-                        bc.close();
-                      }
-                      localStorage.setItem('sports:refresh', String(Date.now()));
-                      localStorage.setItem('sports:force-refresh', String(Date.now()));
-                    } catch {}
-                  }, i * 300); // 0ms, 300ms, 600ms
-                }
-              }
-            } catch (e) {
-              console.error('Failed to update match status to FINISHED', e);
-            }
-          }} 
-          disabled={getEffectiveMatchStatus() === 'FINISHED' || fullTimeTriggeredRef.current}
-          title={
-            (getEffectiveMatchStatus() === 'FINISHED' || fullTimeTriggeredRef.current) 
-              ? 'Match is already finished' 
-              : 'End the match'
-          }
-          >Full Time</button>
-        </div>
         <div className="event-form">
           <div className="form-row">
             <select
@@ -1256,28 +1334,8 @@ const LiveInput = ({ isAdmin: isAdminProp, match, onBackToMatch }) => {
         </div>
     </div>
 
-    {isAdmin && match && (
-  <button 
-    className="timer-btn"
-    onClick={() => setShowLineupsModal(true)}
-    style={{ marginLeft: 8 }}
-  >
-    Edit Lineups
-  </button>
-)}
+   
 
- {isAdmin && match && (
-  <button 
-    className="timer-btn"
-    onClick={() => {
-    console.log('Opening commentary modal'); 
-    setShowCommentaryModal(true);
-  }}
-    style={{ marginLeft: 8 }}
-  >
-    Edit/Input Live Commentary
-  </button>
-)}
 
       
   <div className="events-log">
@@ -1339,199 +1397,260 @@ const LiveInput = ({ isAdmin: isAdminProp, match, onBackToMatch }) => {
         )}
   </div>
 
-  {showLineupsModal && (
+  {showStatsPanel && (
+  <div className="match-statistics-panel">
+    <h3>Match Statistics</h3>
+    {statsLoading ? (
+      <p>Loading statistics...</p>
+    ) : (
+      <div className="stats-split-layout">
+        {/* Home Team Stats */}
+        <div className="team-stats home-stats">
+          <div className="team-header">
+            {teamLogos.home && (
+              <img src={teamLogos.home} alt={`${homeName} crest`} className="team-crest" />
+            )}
+            <h4>{homeName}</h4>
+          </div>
+          
+          <div className="stats-grid">
+            <div className="stat-category">
+              <h5>Shots</h5>
+              <div className="stat-item">
+                <label>Shots on Target:</label>
+                <input 
+                  type="number" 
+                  min="0" 
+                  value={matchStats.shotsOnTarget?.home || 0}
+                  onChange={(e) => updateStatistic('shotsOnTarget', 'home', e.target.value)}
+                />
+              </div>
+              <div className="stat-item">
+                <label>Shots off Target:</label>
+                <input 
+                  type="number" 
+                  min="0" 
+                  value={matchStats.shotsOffTarget?.home || 0}
+                  onChange={(e) => updateStatistic('shotsOffTarget', 'home', e.target.value)}
+                />
+              </div>
+              <div className="stat-item">
+                <label>Total Shots:</label>
+                <input 
+                  type="number" 
+                  min="0" 
+                  value={matchStats.totalShots?.home || 0}
+                  onChange={(e) => updateStatistic('totalShots', 'home', e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="stat-category">
+              <h5>Fouls & Cards</h5>
+              <div className="stat-item">
+                <label>Fouls:</label>
+                <input 
+                  type="number" 
+                  min="0" 
+                  value={matchStats.fouls?.home || 0}
+                  onChange={(e) => updateStatistic('fouls', 'home', e.target.value)}
+                />
+              </div>
+              <div className="stat-item">
+                <label>Yellow Cards:</label>
+                <input 
+                  type="number" 
+                  min="0" 
+                  value={matchStats.yellowCards?.home || 0}
+                  onChange={(e) => updateStatistic('yellowCards', 'home', e.target.value)}
+                />
+              </div>
+              <div className="stat-item">
+                <label>Red Cards:</label>
+                <input 
+                  type="number" 
+                  min="0" 
+                  value={matchStats.redCards?.home || 0}
+                  onChange={(e) => updateStatistic('redCards', 'home', e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="stat-category">
+              <h5>Other Stats</h5>
+              <div className="stat-item">
+                <label>Corners:</label>
+                <input 
+                  type="number" 
+                  min="0" 
+                  value={matchStats.corners?.home || 0}
+                  onChange={(e) => updateStatistic('corners', 'home', e.target.value)}
+                />
+              </div>
+              <div className="stat-item">
+                <label>Offsides:</label>
+                <input 
+                  type="number" 
+                  min="0" 
+                  value={matchStats.offsides?.home || 0}
+                  onChange={(e) => updateStatistic('offsides', 'home', e.target.value)}
+                />
+              </div>
+              <div className="stat-item">
+                <label>Saves:</label>
+                <input 
+                  type="number" 
+                  min="0" 
+                  value={matchStats.saves?.home || 0}
+                  onChange={(e) => updateStatistic('saves', 'home', e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Center Divider */}
+        <div className="stats-divider">
+          <div className="divider-line"></div>
+          <div className="stat-labels">
+            <span>Shots on Target</span>
+            <span>Shots off Target</span>
+            <span>Total Shots</span>
+            <span>Fouls</span>
+            <span>Yellow Cards</span>
+            <span>Red Cards</span>
+            <span>Corners</span>
+            <span>Offsides</span>
+            <span>Saves</span>
+          </div>
+          <div className="divider-line"></div>
+        </div>
+
+      {/* Away Team Stats */}
+<div className="team-stats away-stats">
+  <div className="team-header">
+    {teamLogos.away && (
+      <img src={teamLogos.away} alt={`${awayName} crest`} className="team-crest" />
+    )}
+    <h4>{awayName}</h4>
+  </div>
+  
+  <div className="stats-grid">
+    <div className="stat-category">
+      <h5>Shots</h5>
+      <div className="stat-item">
+        <input 
+          type="number" 
+          min="0" 
+          value={matchStats.shotsOnTarget?.away || 0}
+          onChange={(e) => updateStatistic('shotsOnTarget', 'away', e.target.value)}
+        />
+        <label>Shots on Target:</label>
+      </div>
+      <div className="stat-item">
+        <input 
+          type="number" 
+          min="0" 
+          value={matchStats.shotsOffTarget?.away || 0}
+          onChange={(e) => updateStatistic('shotsOffTarget', 'away', e.target.value)}
+        />
+        <label>Shots off Target:</label>
+      </div>
+      <div className="stat-item">
+        <input 
+          type="number" 
+          min="0" 
+          value={matchStats.totalShots?.away || 0}
+          onChange={(e) => updateStatistic('totalShots', 'away', e.target.value)}
+        />
+        <label>Total Shots:</label>
+      </div>
+    </div>
+
+    <div className="stat-category">
+      <h5>Fouls & Cards</h5>
+      <div className="stat-item">
+        <input 
+          type="number" 
+          min="0" 
+          value={matchStats.fouls?.away || 0}
+          onChange={(e) => updateStatistic('fouls', 'away', e.target.value)}
+        />
+        <label>Fouls:</label>
+      </div>
+      <div className="stat-item">
+        <input 
+          type="number" 
+          min="0" 
+          value={matchStats.yellowCards?.away || 0}
+          onChange={(e) => updateStatistic('yellowCards', 'away', e.target.value)}
+        />
+        <label>Yellow Cards:</label>
+      </div>
+      <div className="stat-item">
+        <input 
+          type="number" 
+          min="0" 
+          value={matchStats.redCards?.away || 0}
+          onChange={(e) => updateStatistic('redCards', 'away', e.target.value)}
+        />
+        <label>Red Cards:</label>
+      </div>
+    </div>
+
+    <div className="stat-category">
+      <h5>Other Stats</h5>
+      <div className="stat-item">
+        <input 
+          type="number" 
+          min="0" 
+          value={matchStats.corners?.away || 0}
+          onChange={(e) => updateStatistic('corners', 'away', e.target.value)}
+        />
+        <label>Corners:</label>
+      </div>
+      <div className="stat-item">
+        <input 
+          type="number" 
+          min="0" 
+          value={matchStats.offsides?.away || 0}
+          onChange={(e) => updateStatistic('offsides', 'away', e.target.value)}
+        />
+        <label>Offsides:</label>
+      </div>
+      <div className="stat-item">
+        <input 
+          type="number" 
+          min="0" 
+          value={matchStats.saves?.away || 0}
+          onChange={(e) => updateStatistic('saves', 'away', e.target.value)}
+        />
+        <label>Saves:</label>
+      </div>
+    </div>
+  </div>
+</div>
+      </div>
+    )}
+  </div>
+)}
+
+{showLineupsModal && (
   <LineupsAdminModal
     match={match}
     onClose={() => setShowLineupsModal(false)}
   />
 )}
 
-  {showCommentaryModal && (
+{showCommentaryModal && (
   <CommentaryAdminModal
-     matchId={match.id}
-      isOpen={showCommentaryModal}
+    matchId={match.id}
+    isOpen={showCommentaryModal}
     onClose={() => setShowCommentaryModal(false)}
   />
 )}
-
-
-  {showStatsPanel && (
-    <div className="match-statistics-panel">
-      <h3>Match Statistics</h3>
-      {statsLoading ? (
-        <p>Loading statistics...</p>
-      ) : (
-        <div className="stats-grid">
-          <div className="stat-category">
-            <h4>Shots</h4>
-            <div className="stat-row">
-              <label>Shots on Target:</label>
-              <input 
-                type="number" 
-                min="0" 
-                value={matchStats.shotsOnTarget?.home || 0}
-                onChange={(e) => updateStatistic('shotsOnTarget', 'home', e.target.value)}
-                placeholder={homeName}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                value={matchStats.shotsOnTarget?.away || 0}
-                onChange={(e) => updateStatistic('shotsOnTarget', 'away', e.target.value)}
-                placeholder={awayName}
-              />
-            </div>
-            <div className="stat-row">
-              <label>Shots off Target:</label>
-              <input 
-                type="number" 
-                min="0" 
-                value={matchStats.shotsOffTarget?.home || 0}
-                onChange={(e) => updateStatistic('shotsOffTarget', 'home', e.target.value)}
-                placeholder={homeName}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                value={matchStats.shotsOffTarget?.away || 0}
-                onChange={(e) => updateStatistic('shotsOffTarget', 'away', e.target.value)}
-                placeholder={awayName}
-              />
-            </div>
-            <div className="stat-row">
-              <label>Total Shots:</label>
-              <input 
-                type="number" 
-                min="0" 
-                value={matchStats.totalShots?.home || 0}
-                onChange={(e) => updateStatistic('totalShots', 'home', e.target.value)}
-                placeholder={homeName}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                value={matchStats.totalShots?.away || 0}
-                onChange={(e) => updateStatistic('totalShots', 'away', e.target.value)}
-                placeholder={awayName}
-              />
-            </div>
-          </div>
-
-          <div className="stat-category">
-            <h4>Fouls & Cards</h4>
-            <div className="stat-row">
-              <label>Fouls:</label>
-              <input 
-                type="number" 
-                min="0" 
-                value={matchStats.fouls?.home || 0}
-                onChange={(e) => updateStatistic('fouls', 'home', e.target.value)}
-                placeholder={homeName}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                value={matchStats.fouls?.away || 0}
-                onChange={(e) => updateStatistic('fouls', 'away', e.target.value)}
-                placeholder={awayName}
-              />
-            </div>
-            <div className="stat-row">
-              <label>Yellow Cards:</label>
-              <input 
-                type="number" 
-                min="0" 
-                value={matchStats.yellowCards?.home || 0}
-                onChange={(e) => updateStatistic('yellowCards', 'home', e.target.value)}
-                placeholder={homeName}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                value={matchStats.yellowCards?.away || 0}
-                onChange={(e) => updateStatistic('yellowCards', 'away', e.target.value)}
-                placeholder={awayName}
-              />
-            </div>
-            <div className="stat-row">
-              <label>Red Cards:</label>
-              <input 
-                type="number" 
-                min="0" 
-                value={matchStats.redCards?.home || 0}
-                onChange={(e) => updateStatistic('redCards', 'home', e.target.value)}
-                placeholder={homeName}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                value={matchStats.redCards?.away || 0}
-                onChange={(e) => updateStatistic('redCards', 'away', e.target.value)}
-                placeholder={awayName}
-              />
-            </div>
-          </div>
-
-          <div className="stat-category">
-            <h4>Other Stats</h4>
-            <div className="stat-row">
-              <label>Corners:</label>
-              <input 
-                type="number" 
-                min="0" 
-                value={matchStats.corners?.home || 0}
-                onChange={(e) => updateStatistic('corners', 'home', e.target.value)}
-                placeholder={homeName}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                value={matchStats.corners?.away || 0}
-                onChange={(e) => updateStatistic('corners', 'away', e.target.value)}
-                placeholder={awayName}
-              />
-            </div>
-            <div className="stat-row">
-              <label>Offsides:</label>
-              <input 
-                type="number" 
-                min="0" 
-                value={matchStats.offsides?.home || 0}
-                onChange={(e) => updateStatistic('offsides', 'home', e.target.value)}
-                placeholder={homeName}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                value={matchStats.offsides?.away || 0}
-                onChange={(e) => updateStatistic('offsides', 'away', e.target.value)}
-                placeholder={awayName}
-              />
-            </div>
-            <div className="stat-row">
-              <label>Saves:</label>
-              <input 
-                type="number" 
-                min="0" 
-                value={matchStats.saves?.home || 0}
-                onChange={(e) => updateStatistic('saves', 'home', e.target.value)}
-                placeholder={homeName}
-              />
-              <input 
-                type="number" 
-                min="0" 
-                value={matchStats.saves?.away || 0}
-                onChange={(e) => updateStatistic('saves', 'away', e.target.value)}
-                placeholder={awayName}
-              />
-            </div>
-          </div>
-        </div>
+        </>
       )}
-    </div>
-  )}
-  </>
-  )}
     </div>
   );
 };

@@ -4,10 +4,21 @@
 class ApiClient {
   constructor(baseUrl = '') {
     this.baseUrl = baseUrl;
+    this._cache = new Map(); // in-memory GET response cache
+    this._cacheTTL = 30000; // ms - increased to 30s for better performance
   }
 
   async request(endpoint, options = {}) {
     const url = `${this.baseUrl}${endpoint}`;
+    const method = (options.method || 'GET').toUpperCase();
+    const noCache = !!options.noCache;
+    // Simple GET cache (stale for _cacheTTL ms)
+    if (method === 'GET' && !noCache) {
+      const hit = this._cache.get(url);
+      if (hit && hit.expiresAt > Date.now()) {
+        return hit.data;
+      }
+    }
     const config = {
       headers: {
         'Content-Type': 'application/json',
@@ -17,6 +28,9 @@ class ApiClient {
       },
       ...options,
     };
+
+    // Ensure we don't send custom client-only flags to the server
+    delete config.noCache;
 
     if (config.body && typeof config.body === 'object') {
       config.body = JSON.stringify(config.body);
@@ -30,6 +44,18 @@ class ApiClient {
         throw new Error(data.message || `HTTP ${response.status}`);
       }
 
+      // Cache successful GET responses
+      if (method === 'GET' && !noCache) {
+        this._cache.set(url, { data, expiresAt: Date.now() + this._cacheTTL });
+      } else if (method !== 'GET') {
+        // Invalidate simple related caches on mutation endpoints
+        // Heuristic: clear match-related caches when posting/updating
+        if (/\/api\//.test(url)) {
+          for (const key of Array.from(this._cache.keys())) {
+            if (key.startsWith(this.baseUrl + '/api/')) this._cache.delete(key);
+          }
+        }
+      }
       return data;
     } catch (error) {
       console.error(`API reaquest failed: ${url}`, error);
@@ -49,7 +75,7 @@ class ApiClient {
   }
 
   async getMatch(id) {
-    return this.request(`/api/matches/${id}`);
+    return this.request(`/api/matches/${id}?deriveScore=true`);
   }
     // Alias for compatibility
     async getMatchById(id) {

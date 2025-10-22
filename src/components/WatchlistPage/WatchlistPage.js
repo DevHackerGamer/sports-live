@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { apiClient } from '../../lib/api';
+import { getLeagueName } from '../../lib/leagueNames';
 import '../../styles/WatchlistPage.css';
 
 const normalize = (str) => {
@@ -201,7 +202,6 @@ const WatchlistPage = ({ onMatchSelect, onTeamSelect }) => {
         <div className="wl-error">
           <h3>Could not load watchlist</h3>
           <p>{error}</p>
-          <button className="wl-refresh-btn" onClick={fetchWatchlist}>Retry</button>
         </div>
       </div>
     );
@@ -211,7 +211,6 @@ const WatchlistPage = ({ onMatchSelect, onTeamSelect }) => {
     <div className="wl-container">
       <div className="wl-header">
         <h2>Your Watchlist</h2>
-        <button className="wl-refresh-btn" onClick={fetchWatchlist}>Refresh</button>
       </div>
       
       {items.length === 0 ? (
@@ -234,7 +233,7 @@ const WatchlistPage = ({ onMatchSelect, onTeamSelect }) => {
                 <div className="wl-match-header">
                   <div className="wl-comp-left">
                     <span className="wl-competition">
-                      {item.competition || '—'}
+                      {getLeagueName(item.competitionCode || item.competition) || '—'}
                     </span>
                   </div>
                   <div className="wl-comp-right">

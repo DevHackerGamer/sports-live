@@ -3,6 +3,7 @@
 
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const path = require('path');
 // Load env vars for local dev (Azure will use App Settings)
 try {
@@ -19,6 +20,9 @@ try {
 const SportsDataFetcher = require('./services/dataFetcher');
 
 const app = express();
+// Enable strong ETags and gzip compression for faster responses
+app.set('etag', 'strong');
+app.use(compression());
 app.use(cors());
 app.use(express.json());
 
@@ -117,9 +121,17 @@ app.all('/api/admin-refresh-matches', async (req, res) => {
       return res.status(403).json({ error: 'Forbidden in production' });
     }
     const before = Date.now();
-    const matches = await dataFetcher.fetchAndStoreMatches();
+    let stored = 0;
+    if ((process.env.DATA_PROVIDER || 'football-data').toLowerCase() === 'espn') {
+      const { run } = require('./services/espnProvider');
+      const results = await run();
+      stored = Array.isArray(results) ? results.reduce((a, r) => a + (r.upserted || 0), 0) : 0;
+    } else {
+      const matches = await dataFetcher.fetchAndStoreMatches();
+      stored = matches?.length || 0;
+    }
     const tookMs = Date.now() - before;
-    res.status(200).json({ ok: true, stored: matches?.length || 0, tookMs });
+    res.status(200).json({ ok: true, stored, tookMs });
   } catch (e) {
     console.error('admin-refresh-matches error:', e.message);
     res.status(500).json({ ok: false, error: e.message });
@@ -128,7 +140,17 @@ app.all('/api/admin-refresh-matches', async (req, res) => {
 
 // Serve static React build
 const buildDir = path.join(__dirname, 'build');
-app.use(express.static(buildDir));
+app.use(express.static(buildDir, {
+  etag: true,
+  lastModified: true,
+  maxAge: '1h',
+  setHeaders: (res, path) => {
+    // Cache static assets aggressively; API routes have their own caching behavior
+    if (/\.(js|css|png|jpg|jpeg|gif|svg|webp|ico)$/.test(path)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+  }
+}));
 
 // SPA fallback (keep after API routes) - Express v5 compatible
 // Serve index.html for any non-API route

@@ -71,9 +71,15 @@ const LineupsTab = ({ match, matchDetails }) => {
   if (error) return <div>Error: {error}</div>;
   if (!lineups.length) return <div>⚠️ No lineup data found for this match.</div>;
 
-  // Find lineups by normalized IDs
-  const homeLineup = lineups.find((l) => String(l.teamId) === String(lineups.find(l => l.teamId !== 'away')?.teamId || 'home'));
-  const awayLineup = lineups.find((l) => String(l.teamId) === String(lineups.find(l => l.teamId !== 'home')?.teamId || 'away'));
+  // Resolve lineups by teamName first (more reliable across sources)
+  const homeLineup =
+    lineups.find(
+      (l) => (l.teamName || '').toLowerCase() === (teamNames.home || '').toLowerCase()
+    ) || lineups[0];
+  const awayLineup =
+    lineups.find(
+      (l) => (l.teamName || '').toLowerCase() === (teamNames.away || '').toLowerCase()
+    ) || lineups.find((l) => l !== homeLineup) || lineups[1];
 
   const renderTable = (lineup, teamName, logo) => (
     <div className="lineup-section">
@@ -94,8 +100,8 @@ const LineupsTab = ({ match, matchDetails }) => {
         </thead>
         <tbody>
           {(lineup?.starters || []).map((p, i) => (
-            <tr key={p._id || i}>
-              <td>{i + 1}</td>
+            <tr key={p._id || p.id || i}>
+              <td>{p.jersey || i + 1}</td>
               <td>{p.name}</td>
               <td>{p.position}</td>
               <td>{p.nationality}</td>
@@ -116,8 +122,8 @@ const LineupsTab = ({ match, matchDetails }) => {
         </thead>
         <tbody>
           {(lineup?.substitutes || []).map((p, i) => (
-            <tr key={p._id || i}>
-              <td>{i + 1}</td>
+            <tr key={p._id || p.id || i}>
+              <td>{p.jersey || i + 1}</td>
               <td>{p.name}</td>
               <td>{p.position}</td>
               <td>{p.nationality}</td>

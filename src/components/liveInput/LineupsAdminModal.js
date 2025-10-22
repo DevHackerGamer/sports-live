@@ -8,6 +8,12 @@ const LineupsAdminModal = ({ match, onClose }) => {
   const [awayPlayers, setAwayPlayers] = useState([]);
   const [lineups, setLineups] = useState({});
   const [loading, setLoading] = useState(true);
+  const [showAddPlayerForm, setShowAddPlayerForm] = useState(null); // 'home' or 'away'
+  const [newPlayer, setNewPlayer] = useState({
+    name: '',
+    position: '',
+    jerseyNumber: ''
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -225,88 +231,338 @@ const LineupsAdminModal = ({ match, onClose }) => {
     }
   };
 
-  if (loading) return <div>Loading lineups...</div>;
+  const handleAddPlayer = (teamId) => {
+    // Validate input
+    if (!newPlayer.name.trim()) {
+      alert('⚠️ Player name is required');
+      return;
+    }
+    if (!newPlayer.position.trim()) {
+      alert('⚠️ Player position is required');
+      return;
+    }
+    if (!newPlayer.jerseyNumber.trim()) {
+      alert('⚠️ Jersey number is required');
+      return;
+    }
+
+    // Create new player object
+    const player = {
+      id: `manual_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      name: newPlayer.name.trim(),
+      position: newPlayer.position.trim(),
+      jerseyNumber: parseInt(newPlayer.jerseyNumber, 10),
+      manuallyAdded: true
+    };
+
+    // Add to appropriate team's player list
+    if (teamId === homeTeamId) {
+      setHomePlayers(prev => [...prev, player]);
+    } else {
+      setAwayPlayers(prev => [...prev, player]);
+    }
+
+    // Reset form and close
+    setNewPlayer({ name: '', position: '', jerseyNumber: '' });
+    setShowAddPlayerForm(null);
+    
+    alert(`✅ Player "${player.name}" added successfully`);
+  };
+
+  const handleCancelAddPlayer = () => {
+    setNewPlayer({ name: '', position: '', jerseyNumber: '' });
+    setShowAddPlayerForm(null);
+  };
+
+  if (loading) return <div className="lineups-loading">Loading lineups...</div>;
+
+  const homeCrest = match.homeTeam?.crest || match.homeTeam?.logo;
+  const awayCrest = match.awayTeam?.crest || match.awayTeam?.logo;
 
   return (
-    <div className="lineups-modal">
-      <h3>{match.homeTeam?.name} Lineup</h3>
-      <p>
-        Click a player to toggle Starter/Substitute.{' '}
-        <strong>
-          {getRemainingStarters(homeTeamId)} starter slots remaining
-        </strong>
-      </p>
-      <div className="lineup-grid">
-        {homePlayers.map((player) => {
-          const isStarter = lineups[homeTeamId]?.starters?.find(
-            (p) => p.id === player.id
-          );
-          return (
-            <div
-              key={player.id}
-              className={`player-card ${isStarter ? 'starter' : 'substitute'}`}
-              onClick={() => handleToggleStarter(homeTeamId, player)}
-            >
-              {player.name} ({player.position})
-            </div>
-          );
-        })}
-      </div>
-
-      <h3>{match.awayTeam?.name} Lineup</h3>
-      <p>
-        Click a player to toggle Starter/Substitute.{' '}
-        <strong>
-          {getRemainingStarters(awayTeamId)} starter slots remaining
-        </strong>
-      </p>
-      <div className="lineup-grid">
-        {awayPlayers.map((player) => {
-          const isStarter = lineups[awayTeamId]?.starters?.find(
-            (p) => p.id === player.id
-          );
-          return (
-            <div
-              key={player.id}
-              className={`player-card ${isStarter ? 'starter' : 'substitute'}`}
-              onClick={() => handleToggleStarter(awayTeamId, player)}
-            >
-              {player.name} ({player.position})
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="lineup-summary">
-        <h4>Starters Summary</h4>
-        <div className="summary-section">
-          <strong>{match.homeTeam?.name}:</strong>
-          <ul>
-            {(lineups[homeTeamId]?.starters || []).map((p) => (
-              <li key={p.id}>{p.name}</li>
-            ))}
-          </ul>
+    <div className="lineups-modal-overlay">
+      <div className="lineups-modal-content">
+        <div className="lineups-modal-header">
+          <h3>Edit Match Lineups</h3>
+          <button className="lineups-modal-close" onClick={onClose}>×</button>
         </div>
-        <div className="summary-section">
-          <strong>{match.awayTeam?.name}:</strong>
-          <ul>
-            {(lineups[awayTeamId]?.starters || []).map((p) => (
-              <li key={p.id}>{p.name}</li>
-            ))}
-          </ul>
+
+        <div className="lineups-split-layout">
+          {/* Home Team */}
+          <div className="team-lineup-section home-team">
+            <div className="team-header">
+              {homeCrest && (
+                <img src={homeCrest} alt={`${match.homeTeam?.name} crest`} className="team-crest" />
+              )}
+              <h4>{match.homeTeam?.name}</h4>
+              <div className="starters-remaining">
+                {getRemainingStarters(homeTeamId)} starters remaining
+              </div>
+            </div>
+            
+            <div className="players-section">
+              <h5>Starters ({lineups[homeTeamId]?.starters?.length || 0}/11)</h5>
+              <div className="players-grid starters-grid">
+                {(lineups[homeTeamId]?.starters || []).map((player) => (
+                  <div
+                    key={player.id}
+                    className="player-card starter"
+                    onClick={() => handleToggleStarter(homeTeamId, player)}
+                  >
+                    <div className="player-number">{player.jerseyNumber || player.shirtNumber || '#'}</div>
+                    <div className="player-name">{player.name}</div>
+                    <div className="player-position">{player.position}</div>
+                  </div>
+                ))}
+              </div>
+
+              <h5>Substitutes</h5>
+              <div className="players-grid substitutes-grid">
+                {homePlayers.map((player) => {
+                  const isStarter = lineups[homeTeamId]?.starters?.find(
+                    (p) => p.id === player.id
+                  );
+                  if (!isStarter) {
+                    return (
+                      <div
+                        key={player.id}
+                        className="player-card substitute"
+                        onClick={() => handleToggleStarter(homeTeamId, player)}
+                      >
+                        <div className="player-number">{player.jerseyNumber || player.shirtNumber || '#'}</div>
+                        <div className="player-name">{player.name}</div>
+                        <div className="player-position">{player.position}</div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+
+              {/* Add Player Section */}
+              {homePlayers.length === 0 || showAddPlayerForm === 'home' ? (
+                <div className="add-player-section">
+                  {!showAddPlayerForm && homePlayers.length === 0 && (
+                    <div className="no-players-message">
+                      <p>⚠️ No players found in the database</p>
+                      <button 
+                        className="btn btn-add-player"
+                        onClick={() => setShowAddPlayerForm('home')}
+                      >
+                        + Add Player Manually
+                      </button>
+                    </div>
+                  )}
+                  {showAddPlayerForm === 'home' && (
+                    <div className="add-player-form">
+                      <h5>Add New Player</h5>
+                      <div className="form-group">
+                        <label>Jersey Number *</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="99"
+                          placeholder="e.g., 10"
+                          value={newPlayer.jerseyNumber}
+                          onChange={(e) => setNewPlayer({ ...newPlayer, jerseyNumber: e.target.value })}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Player Name *</label>
+                        <input
+                          type="text"
+                          placeholder="e.g., Lionel Messi"
+                          value={newPlayer.name}
+                          onChange={(e) => setNewPlayer({ ...newPlayer, name: e.target.value })}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Position *</label>
+                        <select
+                          value={newPlayer.position}
+                          onChange={(e) => setNewPlayer({ ...newPlayer, position: e.target.value })}
+                        >
+                          <option value="">Select position</option>
+                          <option value="Goalkeeper">Goalkeeper</option>
+                          <option value="Defender">Defender</option>
+                          <option value="Midfielder">Midfielder</option>
+                          <option value="Forward">Forward</option>
+                        </select>
+                      </div>
+                      <div className="form-actions">
+                        <button 
+                          className="btn btn-secondary"
+                          onClick={handleCancelAddPlayer}
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          className="btn btn-primary"
+                          onClick={() => handleAddPlayer(homeTeamId)}
+                        >
+                          Add Player
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <button 
+                  className="btn btn-add-player-small"
+                  onClick={() => setShowAddPlayerForm('home')}
+                >
+                  + Add Another Player
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Center Divider */}
+          <div className="lineups-divider">
+            <div className="divider-line"></div>
+            <div className="divider-text">VS</div>
+            <div className="divider-line"></div>
+          </div>
+
+          {/* Away Team */}
+          <div className="team-lineup-section away-team">
+            <div className="team-header">
+              {awayCrest && (
+                <img src={awayCrest} alt={`${match.awayTeam?.name} crest`} className="team-crest" />
+              )}
+              <h4>{match.awayTeam?.name}</h4>
+              <div className="starters-remaining">
+                {getRemainingStarters(awayTeamId)} starters remaining
+              </div>
+            </div>
+            
+            <div className="players-section">
+              <h5>Starters ({lineups[awayTeamId]?.starters?.length || 0}/11)</h5>
+              <div className="players-grid starters-grid">
+                {(lineups[awayTeamId]?.starters || []).map((player) => (
+                  <div
+                    key={player.id}
+                    className="player-card starter"
+                    onClick={() => handleToggleStarter(awayTeamId, player)}
+                  >
+                    <div className="player-number">{player.jerseyNumber || player.shirtNumber || '#'}</div>
+                    <div className="player-name">{player.name}</div>
+                    <div className="player-position">{player.position}</div>
+                  </div>
+                ))}
+              </div>
+
+              <h5>Substitutes</h5>
+              <div className="players-grid substitutes-grid">
+                {awayPlayers.map((player) => {
+                  const isStarter = lineups[awayTeamId]?.starters?.find(
+                    (p) => p.id === player.id
+                  );
+                  if (!isStarter) {
+                    return (
+                      <div
+                        key={player.id}
+                        className="player-card substitute"
+                        onClick={() => handleToggleStarter(awayTeamId, player)}
+                      >
+                        <div className="player-number">{player.jerseyNumber || player.shirtNumber || '#'}</div>
+                        <div className="player-name">{player.name}</div>
+                        <div className="player-position">{player.position}</div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+
+              {/* Add Player Section */}
+              {awayPlayers.length === 0 || showAddPlayerForm === 'away' ? (
+                <div className="add-player-section">
+                  {!showAddPlayerForm && awayPlayers.length === 0 && (
+                    <div className="no-players-message">
+                      <p>⚠️ No players found in the database</p>
+                      <button 
+                        className="btn btn-add-player"
+                        onClick={() => setShowAddPlayerForm('away')}
+                      >
+                        + Add Player Manually
+                      </button>
+                    </div>
+                  )}
+                  {showAddPlayerForm === 'away' && (
+                    <div className="add-player-form">
+                      <h5>Add New Player</h5>
+                      <div className="form-group">
+                        <label>Jersey Number *</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="99"
+                          placeholder="e.g., 10"
+                          value={newPlayer.jerseyNumber}
+                          onChange={(e) => setNewPlayer({ ...newPlayer, jerseyNumber: e.target.value })}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Player Name *</label>
+                        <input
+                          type="text"
+                          placeholder="e.g., Cristiano Ronaldo"
+                          value={newPlayer.name}
+                          onChange={(e) => setNewPlayer({ ...newPlayer, name: e.target.value })}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Position *</label>
+                        <select
+                          value={newPlayer.position}
+                          onChange={(e) => setNewPlayer({ ...newPlayer, position: e.target.value })}
+                        >
+                          <option value="">Select position</option>
+                          <option value="Goalkeeper">Goalkeeper</option>
+                          <option value="Defender">Defender</option>
+                          <option value="Midfielder">Midfielder</option>
+                          <option value="Forward">Forward</option>
+                        </select>
+                      </div>
+                      <div className="form-actions">
+                        <button 
+                          className="btn btn-secondary"
+                          onClick={handleCancelAddPlayer}
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          className="btn btn-primary"
+                          onClick={() => handleAddPlayer(awayTeamId)}
+                        >
+                          Add Player
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <button 
+                  className="btn btn-add-player-small"
+                  onClick={() => setShowAddPlayerForm('away')}
+                >
+                  + Add Another Player
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="lineups-modal-footer">
+          <button onClick={onClose} className="btn btn-secondary">
+            Cancel
+          </button>
+          <button onClick={handleSave} className="btn btn-primary">
+            Save Lineups
+          </button>
         </div>
       </div>
-
-      <button onClick={handleSave} className="btn btn-primary">
-        Save Lineups
-      </button>
-      <button
-        onClick={onClose}
-        className="btn btn-secondary"
-        style={{ marginLeft: 8 }}
-      >
-        Cancel
-      </button>
     </div>
   );
 };

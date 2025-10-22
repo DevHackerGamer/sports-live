@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { apiClient } from '../../lib/api';
 import { useLiveSports } from '../../hooks/useLiveSports';
+import { getLeagueName } from '../../lib/leagueNames';
 import TeamInfo from '../TeamInfo/TeamInfo';
 import '../../styles/LiveSports.css';
 
@@ -74,8 +75,7 @@ const LiveSports = ({ onMatchSelect }) => {
     sportsData, 
     isConnected, 
     error, 
-    lastUpdated, 
-    refreshData 
+    lastUpdated
   } = useLiveSports();
 
   // Build rolling weekly groups efficiently (single pass over sorted games)
@@ -135,7 +135,8 @@ const groupByDateAndLeague = React.useCallback((games) => {
       day: 'numeric',
     });
 
-    const league = g.competition || 'Other Competitions';
+    // Use display name for grouping
+    const league = getLeagueName(g.competitionCode || g.competition) || 'Other Competitions';
     if (!groups[dateKey]) groups[dateKey] = {};
     if (!groups[dateKey][league]) groups[dateKey][league] = [];
     groups[dateKey][league].push(g);
@@ -313,9 +314,6 @@ useEffect(() => {
           <h3>Connection Error</h3>
           <p>Unable to fetch live sports data</p>
           <div style={{ display: 'none' }}>Failed to load matches</div>
-          <button onClick={refreshData} className="ls-retry-button">
-            Retry
-          </button>
         </div>
       </div>
     );
@@ -419,18 +417,12 @@ useEffect(() => {
   ) : (
     <div className="ls-no-matches" data-testid="empty">
       <p>No matches available</p>
-      <button onClick={refreshData} className="ls-refresh-btn">
-        Refresh
-      </button>
     </div>
   )}
 </div>
 
 
       <div className="ls-sports-footer">
-        <button onClick={refreshData} className="ls-refresh-btn">
-          Refresh Data
-        </button>
         <div className="ls-data-info">
           <span className="ls-source">Source: {sportsData?.source || 'Unknown'}</span>
           {sportsData?.totalMatches && (
@@ -566,10 +558,7 @@ const awayCrest = teamCrests[normalize(game.awayTeam?.name)] || '/placeholder.pn
     <div className="ls-match-header">
       <div className="ls-comp-left">
         <span className="ls-competition">
-          {game.competition}
-          {game.competitionCode && (
-            <span className="ls-competition-code">[{game.competitionCode}]</span>
-          )}
+          {getLeagueName(game.competitionCode || game.competition)}
         </span>
       </div>
       <div className="ls-comp-right">{getStatusBadge(game.status)}</div>
@@ -635,10 +624,8 @@ const awayCrest = teamCrests[normalize(game.awayTeam?.name)] || '/placeholder.pn
             })()}
           </span>
         )}
-        {game.matchday ? (
+        {game.matchday && (
           <span className="ls-matchday">MD {game.matchday}</span>
-        ) : game.createdByAdmin && (
-          <span className="ls-matchday ls-matchday-placeholder" title="Admin match has no official matchday yet">MD -</span>
         )}
       </div>
       <div className="ls-meta-right">

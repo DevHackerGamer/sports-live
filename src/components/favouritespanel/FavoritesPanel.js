@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { apiClient } from '../../lib/api';
+import { getLeagueName } from '../../lib/leagueNames';
 import '../../styles/FavoritesPanel.css';
 import '../../styles/LiveSports.css';
 
@@ -304,8 +305,7 @@ const MatchCard = ({ game, onSelect, displayName, displayCrest, getStatusBadge, 
     <div className="ls-match-header">
       <div className="comp-left">
         <span className="ls-competition">
-          {game.competition}
-          {game.competitionCode && <span className="ls-competition-code">[{game.competitionCode}]</span>}
+          {getLeagueName(game.competitionCode || game.competition)}
         </span>
       </div>
       <div className="comp-right">{getStatusBadge(game.status)}</div>
@@ -368,7 +368,7 @@ const FavoriteItem = ({ teamName, allTeams, matches, teamMatchesFavorite, onMatc
               {displayName(match.homeTeam)} <span className="ls-sep">vs</span> {displayName(match.awayTeam)}
               {displayCrest(match.awayTeam) && <img className="ls-up-crest" alt="away crest" src={displayCrest(match.awayTeam)} />}
             </div>
-            <div className="ls-up-meta">{match.competition}</div>
+            <div className="ls-up-meta">{getLeagueName(match.competitionCode || match.competition)}</div>
           </div>
         ))}
         {upcoming.length > 5 && <div className="ls-more-note">+{upcoming.length - 5} more…</div>}

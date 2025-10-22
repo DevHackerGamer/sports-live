@@ -1,6 +1,18 @@
 // API endpoint for matches - compatible with both Express and Vercel
-const { getMatchesCollection, getTeamsCollection, getDatabase } = require('../lib/mongodb');
+const { 
+  getMatchesCollection, 
+  getMatchesCollectionESPN, 
+  getMatchesCollectionADMIN,
+  getTeamsCollection, 
+  getDatabase 
+} = require('../lib/mongodb');
 const { ObjectId } = require('mongodb');
+// ESPN live provider (read-time) utilities
+const {
+  fetchScoreboard: espnFetchScoreboard,
+  fetchSummary: espnFetchSummary,
+  fetchPlayByPlay: espnFetchPlayByPlay
+} = require('../services/espnProvider');
 
 // Canonicalize event type strings to a controlled set
 function canonicalEventType(raw) {
@@ -176,17 +188,138 @@ function normalizeEvent(ev = {}) {
 // GET /api/matches - Get all matches with optional filters
 async function getMatches(req, res) {
   try {
-    const { 
+  const { 
       limit = 500, 
       status, 
       competition, 
       range = 10,
       includePast, // if truthy, include past N days instead of only upcoming
       dateFrom,
-      dateTo
+      dateTo,
+      provider,
+      league,
+      adminOnly // if truthy, only return admin-created matches
     } = req.query;
 
-    const matchesCollection = await getMatchesCollection();
+  const readProvider = (provider || process.env.READ_PROVIDER || 'espn-db').toLowerCase();
+    if (readProvider === 'espn') {
+      // Live passthrough from ESPN scoreboard, normalized to our match shape, no DB dependency
+      const leagues = (league
+        ? String(league).split(',').map(s => s.trim()).filter(Boolean)
+        : (process.env.ESPN_LEAGUES ? process.env.ESPN_LEAGUES.split(',').map(s=>s.trim()).filter(Boolean) : ['eng.1','esp.1','ita.1','ger.1','fra.1','uefa.champions']));
+      const all = [];
+      for (const lg of leagues) {
+        try {
+          const sb = await espnFetchScoreboard(lg);
+          const events = Array.isArray(sb?.events) ? sb.events : [];
+          for (const ev of events) {
+            const comp = Array.isArray(ev.competitions) ? ev.competitions[0] : ev;
+            const competitors = comp?.competitors || [];
+            const home = competitors.find(c=>c.homeAway==='home') || competitors[0] || {};
+            const away = competitors.find(c=>c.homeAway==='away') || competitors[1] || {};
+            const mapComp = (c) => {
+              const t = c?.team || {};
+              const logos = Array.isArray(t.logos) ? t.logos : [];
+              return {
+                id: t.id || c.id,
+                name: t.displayName || t.name || c?.displayName || c?.name,
+                shortName: t.shortDisplayName || t.shortName,
+                tla: t.abbreviation,
+                crest: logos[0]?.href || t.logo
+              };
+            };
+            const homeTeam = mapComp(home);
+            const awayTeam = mapComp(away);
+            const state = comp?.status?.type?.state || ev?.status?.type?.state;
+            const mapStatus = (s) => {
+              const t = String(s||'').toLowerCase();
+              if (t === 'pre') return 'TIMED';
+              if (t === 'in') return 'IN_PLAY';
+              if (t === 'post') return 'FINISHED';
+              return s || 'SCHEDULED';
+            };
+            const minuteFromClock = (disp) => {
+              if (!disp) return undefined;
+              const s = String(disp);
+              let m;
+              let m1 = /^(\d{1,3})'\+(\d{1,2})$/.exec(s);
+              if (m1) return Math.min(120, parseInt(m1[1],10)+parseInt(m1[2],10));
+              m1 = /^(\d{1,3})'?$/.exec(s); if (m1) return Math.min(120, parseInt(m1[1],10));
+              m1 = /^(\d{1,2}):(\d{2})$/.exec(s); if (m1) return Math.min(120, parseInt(m1[1],10));
+              return undefined;
+            };
+            const minute = minuteFromClock(comp?.status?.displayClock || comp?.status?.type?.shortDetail || comp?.status?.type?.detail);
+            const utcDate = ev?.date || comp?.date || ev?.startDate;
+            const homeScore = Number(home?.score ?? 0);
+            const awayScore = Number(away?.score ?? 0);
+            const competitionName = (comp?.league || ev?.league)?.name || lg;
+            all.push({
+              id: String(ev.id),
+              homeTeam,
+              awayTeam,
+              competition: { id: competitionName, name: competitionName, code: lg },
+              utcDate: utcDate ? new Date(utcDate).toISOString() : undefined,
+              status: mapStatus(state),
+              minute,
+              matchday: comp?.round?.number || null,
+              stage: comp?.type?.name || 'REGULAR_SEASON',
+              group: comp?.group || null,
+              score: { fullTime: { home: homeScore, away: awayScore } },
+              source: 'espn',
+              lastUpdated: new Date()
+            });
+          }
+        } catch (e) {
+          // continue other leagues
+        }
+      }
+      // Optional: filter by status/competition like original
+      let data = all;
+      if (status) data = data.filter(m => String(m.status).toUpperCase() === String(status).toUpperCase());
+      if (competition) data = data.filter(m => new RegExp(competition,'i').test(m?.competition?.name || ''));
+      // Optional: apply dateFrom/dateTo
+      const toISO = (str, end=false) => {
+        if (!str) return null;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+          const [y,m,d]=str.split('-').map(n=>parseInt(n,10));
+          const dt = end ? new Date(Date.UTC(y,m-1,d,23,59,59,999)) : new Date(Date.UTC(y,m-1,d,0,0,0,0));
+          return dt.toISOString();
+        }
+        const dt=new Date(str); return isNaN(dt.getTime())?null:dt.toISOString();
+      };
+      const df = toISO(dateFrom,false); const dt = toISO(dateTo,true);
+      if (df || dt) {
+        data = data.filter(m => {
+          const t = m.utcDate ? Date.parse(m.utcDate) : NaN;
+          if (isNaN(t)) return false;
+          if (df && t < Date.parse(df)) return false;
+          if (dt && t > Date.parse(dt)) return false;
+          return true;
+        });
+      }
+      data.sort((a,b)=>String(a.utcDate||'').localeCompare(String(b.utcDate||'')));
+      return res.status(200).json({ success: true, data: data.slice(0, parseInt(limit)), count: data.length, provider: 'espn' });
+    }
+
+    // Select DB based on provider (espn-db reads from ESPN cache tables only)
+    let matchesCollection;
+    
+    if (readProvider === 'espn-db') {
+      matchesCollection = await getMatchesCollectionESPN();
+    } else if (readProvider === 'admin') {
+      matchesCollection = await getMatchesCollectionADMIN();
+    } else {
+      matchesCollection = await getMatchesCollection();
+    }
+    
+    // Ensure helpful indexes for fast queries
+    try { 
+      await matchesCollection.createIndex({ id: 1 });
+      await matchesCollection.createIndex({ utcDate: 1 });
+      await matchesCollection.createIndex({ status: 1 });
+      await matchesCollection.createIndex({ 'competition.name': 1 });
+      await matchesCollection.createIndex({ createdByAdmin: 1 });
+    } catch(_) {}
     
     // Build filter
     const filter = {};
@@ -196,7 +329,16 @@ async function getMatches(req, res) {
     }
     
     if (competition) {
-      filter['competition.name'] = new RegExp(competition, 'i');
+      // Support filtering by both competition.name and competition.code
+      filter.$or = [
+        { 'competition.name': new RegExp(competition, 'i') },
+        { 'competition.code': new RegExp(`^${competition}$`, 'i') }
+      ];
+    }
+    
+    // Filter for admin-created matches only
+    if (adminOnly && ['1', 'true', 'yes', 'y'].includes(String(adminOnly).toLowerCase())) {
+      filter.createdByAdmin = true;
     }
     
     // Date range filter: prioritize explicit dateFrom/dateTo when provided
@@ -247,7 +389,7 @@ async function getMatches(req, res) {
       }
     }
 
-    const matches = await matchesCollection
+    let matches = await matchesCollection
       .find(filter)
       .sort({ utcDate: 1 })
       .limit(parseInt(limit))
@@ -464,7 +606,8 @@ async function getMatches(req, res) {
       success: true,
       data: enriched,
       count: matches.length,
-  filters: { status, competition, range: parseInt(range), limit: parseInt(limit), includePast: !!includePast, dateFrom: dateFrom||null, dateTo: dateTo||null },
+      provider: readProvider, // Include provider so client knows which collection was queried
+      filters: { status, competition, range: parseInt(range), limit: parseInt(limit), includePast: !!includePast, dateFrom: dateFrom||null, dateTo: dateTo||null },
       lastUpdated: new Date().toISOString()
     });
   } catch (error) {
@@ -518,6 +661,13 @@ async function handler(req, res) {
     };
 
     if (req.method === 'GET') {
+  const readProvider = (req.query.provider || process.env.READ_PROVIDER || 'espn-db').toLowerCase();
+      const provider = (req.query.provider || process.env.READ_PROVIDER || '').toLowerCase();
+      // ESPN live read: match list and event timeline without DB dependency
+      if (!id && readProvider === 'espn') {
+        return getMatches(req, res);
+      }
+
       if (!id) {
         return getMatches(req, res);
       }
@@ -528,8 +678,230 @@ async function handler(req, res) {
         try { console.log('[matches] GET single id=%s filter=%j', id, finalFilter); } catch(_){ }
       }
 
-      if (sub === 'events') {
-        const match = await matchesCollection.findOne(finalFilter);
+  if (sub === 'events') {
+        if (readProvider === 'espn') {
+          let league = req.query.league || null;
+          const wantSignificant = ['1','true','yes','y'].includes(String(req.query.significant||'').toLowerCase());
+          const defaults = (process.env.ESPN_LEAGUES ? process.env.ESPN_LEAGUES.split(',').map(s=>s.trim()).filter(Boolean) : ['eng.1','esp.1','ita.1','ger.1','fra.1','uefa.champions']);
+          try {
+            // Try to detect league if not provided by probing summary across defaults
+            let summary = null;
+            if (!league) {
+              for (const lg of defaults) {
+                try { summary = await espnFetchSummary(lg, id); league = lg; if (summary?.header) break; } catch(_) {}
+              }
+              if (!league) league = defaults[0];
+            } else {
+              try { summary = await espnFetchSummary(league, id); } catch(_) { summary = null; }
+            }
+            // Fetch summary to derive team sides
+            let teamSide = {};
+            let teamById = {};
+            try {
+              const comp = Array.isArray(summary?.header?.competitions) ? summary.header.competitions[0] : {};
+              const competitors = comp?.competitors || [];
+              const h = competitors.find(c=>c.homeAway==='home') || competitors[0];
+              const a = competitors.find(c=>c.homeAway==='away') || competitors[1];
+              if (h?.team?.displayName) teamSide[String(h.team.displayName).toLowerCase()] = 'home';
+              if (a?.team?.displayName) teamSide[String(a.team.displayName).toLowerCase()] = 'away';
+              // Build id->meta map
+              for (const c of competitors) {
+                const tid = c?.team?.id ? String(c.team.id) : undefined;
+                if (tid) teamById[tid] = { name: c.team.displayName || c.team.name, side: c.homeAway };
+              }
+            } catch(_) {}
+            // Helpers for Core mapping
+            const idFromRef = (ref) => {
+              if (!ref) return undefined;
+              const s = typeof ref === 'string' ? ref : (ref.$ref || '');
+              const m = /(teams|competitors)\/(\d+)/.exec(s);
+              return m ? m[2] : undefined;
+            };
+            const minFromClockCore = (disp) => {
+              if (!disp) return undefined; const s=String(disp);
+              let m=/^(\d{1,3})'\+(\d{1,2})$/.exec(s); if(m) return Math.min(120,parseInt(m[1],10)+parseInt(m[2],10));
+              m=/^(\d{1,3})'?$/.exec(s); if(m) return Math.min(120,parseInt(m[1],10));
+              m=/^(\d{1,2}):(\d{2})$/.exec(s); if(m) return Math.min(120,parseInt(m[1],10));
+              return undefined;
+            };
+            const canonicalCore = (raw) => {
+              const typeId = raw?.type?.id || raw?.type?.text || raw?.type || raw?.playTypeId || raw?.playType;
+              const t = String(typeId||raw?.text||'').toLowerCase();
+              const map = (x)=>{
+                if(/(goal)/.test(x)) return 'goal';
+                if(/pen(alt)?y/.test(x)) return 'penalty';
+                if(/own\s*goal/.test(x)) return 'own_goal';
+                if(/yellow/.test(x) && !/second/.test(x)) return 'yellow_card';
+                if(/second.*yellow/.test(x)) return 'second_yellow';
+                if(/red/.test(x)) return 'red_card';
+                if(/sub(s|tit)/.test(x)) return 'substitution';
+                if(/kick\s*off|start/.test(x)) return 'match_start';
+                if(/half.*time/.test(x)) return 'half_time';
+                if(/full.*time|end/.test(x)) return 'match_end';
+                if(/offside/.test(x)) return 'offside';
+                if(/corner/.test(x)) return 'corner_kick';
+                if(/free\s*kick/.test(x)) return 'free_kick';
+                if(/foul/.test(x)) return 'foul';
+                if(/save/.test(x)) return 'save';
+                if(/shot\s*on\s*target/.test(x)) return 'shot_on_target';
+                if(/shot\s*off\s*target/.test(x)) return 'shot_off_target';
+                return x;
+              };
+              return map(t);
+            };
+            // Significant timeline via Core plays when requested
+            if (wantSignificant) {
+              try {
+                const { fetchCoreEvent, fetchCoreCollectionAll } = require('../services/espnProvider');
+                const core = await fetchCoreEvent(league, id);
+                const playsUrl = core?.comp?.details?.$ref || core?.comp?.details;
+                const col = await fetchCoreCollectionAll(playsUrl);
+                const items = Array.isArray(col?.items) ? col.items : [];
+                const keepType = new Set([
+                  'goal','penalty','own_goal','yellow_card','red_card','second_yellow','substitution',
+                  'offside','corner_kick','free_kick','foul','save','match_start','half_time','match_end',
+                  'shot_on_target','shot_off_target'
+                ]);
+                const filtered = items.filter(p => {
+                  const t = canonicalCore(p);
+                  const sig = keepType.has(t) || p.scoringPlay === true || p.priority === true || p.redCard || p.yellowCard || p.penaltyKick || p.ownGoal;
+                  return sig;
+                });
+                const list = filtered.map((p, idx) => {
+                  const t = canonicalCore(p);
+                  const time = p?.clock?.displayValue || '';
+                  const minute = minFromClockCore(time);
+                  let teamId = idFromRef(p?.team?.$ref || p?.team);
+                  if (!teamId && Array.isArray(p?.participants) && p.participants[0]?.team) teamId = idFromRef(p.participants[0].team);
+                  const teamMeta = teamId && teamById[teamId] ? teamById[teamId] : undefined;
+                  const desc = p?.text || p?.shortText || p?.alternativeText || p?.shortAlternativeText || (p?.type?.text || '');
+                  return {
+                    id: p?.id || `${Date.now()}_${Math.random().toString(36).slice(2)}`,
+                    type: t,
+                    time,
+                    minute,
+                    team: teamMeta?.name,
+                    teamSide: teamMeta?.side,
+                    player: undefined,
+                    description: desc
+                  };
+                });
+                // Sort soccer-aware
+                const parseParts = (tStr)=>{
+                  const s=(tStr||'').toString().replace(/[’′`´]/g,"'").replace(/\s+/g,'');
+                  let m=/^(\d{1,3})'?\+(\d{1,2})'?$/.exec(s); if(m) return { base: parseInt(m[1],10), plus: parseInt(m[2],10) };
+                  m=/^(\d{1,3})'?$/.exec(s); if(m) return { base: parseInt(m[1],10), plus: 0 };
+                  m=/^(\d{1,2}):(\d{2})$/.exec(s); if(m) return { base: parseInt(m[1],10), plus: 0 };
+                  return { base: NaN, plus: 0 };
+                };
+                const phaseRank = (ev)=>{
+                  const tStr = ev.time||''; const { base, plus } = parseParts(tStr);
+                  const txt=(ev.description||'').toLowerCase(); const tp=(ev.type||'').toLowerCase(); const comb = `${tp} ${txt}`;
+                  if(/kick\s*off|match_start/.test(comb)) return [0, -1, 0];
+                  if(/half\s*time/.test(comb)) return [3, 0, 0];
+                  if(/start\s*of\s*second\s*half|second\s*half\s*begins/.test(comb)) return [4, -1, 0];
+                  if(/full\s*time|match_end|end\s*of\s*match/.test(comb)) return [6, 0, 0];
+                  if(!isNaN(base)) {
+                    if (base <= 45) return [plus>0?2:1, base, plus];
+                    if (base <= 90) return [plus>0?5:4, base, plus];
+                    if (base <= 105) return [plus>0?8:7, base, plus];
+                    if (base <= 120) return [plus>0?10:9, base, plus];
+                  }
+                  return [11, 0, 0];
+                };
+                list.sort((a,b)=>{
+                  const ak=phaseRank(a), bk=phaseRank(b);
+                  for(let i=0;i<3;i++){ if(ak[i]<bk[i]) return -1; if(ak[i]>bk[i]) return 1; }
+                  return 0;
+                });
+                return res.status(200).json({ success: true, data: list, provider: 'espn', mode: 'significant' });
+              } catch (e) {
+                return res.status(500).json({ success: false, error: 'Failed to fetch ESPN Core plays', message: e.message });
+              }
+            }
+            // Fetch play-by-play (site) and combine with core
+            let commentary = [];
+            try {
+              const pbp = await espnFetchPlayByPlay(league, id);
+              commentary = pbp?.commentary || pbp?.plays || [];
+            } catch(_) {}
+            // Fallback: some games expose commentary/plays in summary
+            if (!Array.isArray(commentary) || commentary.length === 0) {
+              const alt = summary?.commentary || summary?.plays || [];
+              if (Array.isArray(alt) && alt.length) commentary = alt;
+            }
+            // Also fetch Core API plays/commentaries across ALL pages and merge/dedupe
+            try {
+              const { fetchCoreEvent, fetchCoreCollectionAll, normalizeCoreCommentary } = require('../services/espnProvider');
+              const core = await fetchCoreEvent(league, id);
+              const teamSideMap2 = { ...teamSide };
+              if (!Object.keys(teamSideMap2).length) {
+                const compComps = Array.isArray(core?.comp?.competitors) ? core.comp.competitors : [];
+                for (const c of compComps) {
+                  const name = c?.team?.displayName || c?.team?.name;
+                  const side = c?.homeAway;
+                  if (name && (side==='home'||side==='away')) teamSideMap2[String(name).toLowerCase()] = side;
+                }
+              }
+              const allPlays = core?.comp?.details ? await fetchCoreCollectionAll(core.comp.details.$ref || core.comp.details) : null;
+              const allComm = core?.comp?.commentaries ? await fetchCoreCollectionAll(core.comp.commentaries.$ref || core.comp.commentaries) : null;
+              const det = allPlays && Array.isArray(allPlays.items) ? { items: allPlays.items } : core?.details;
+              const com = allComm && Array.isArray(allComm.items) ? { items: allComm.items } : core?.commentaries;
+              const coreEvents = normalizeCoreCommentary(det, com, teamSideMap2) || [];
+              if (Array.isArray(coreEvents) && coreEvents.length) {
+                const combined = [...(Array.isArray(commentary)?commentary:[]), ...coreEvents];
+                const seen = new Set(); const merged = [];
+                for (const c of combined) { const key = c?.id || `${c?.text||''}|${c?.clock?.displayValue||c?.time||''}`; if (seen.has(key)) continue; seen.add(key); merged.push(c); }
+                commentary = merged;
+              }
+            } catch(_) {}
+            // Normalize a bit: id, type, clock, team, athlete, text → our minimal shape
+            const minuteFromClock = (disp) => {
+              if (!disp) return undefined; const s=String(disp);
+              let m=/^(\d{1,3})'\+(\d{1,2})$/.exec(s); if(m) return Math.min(120,parseInt(m[1],10)+parseInt(m[2],10));
+              m=/^(\d{1,3})'?$/.exec(s); if(m) return Math.min(120,parseInt(m[1],10));
+              m=/^(\d{1,2}):(\d{2})$/.exec(s); if(m) return Math.min(120,parseInt(m[1],10));
+              return undefined;
+            };
+            const canonical = (raw) => {
+              const typeId = raw?.type?.id || raw?.type?.text || raw?.type || raw?.playTypeId || raw?.playType;
+              const t = String(typeId||raw?.text||'').toLowerCase();
+              const map = (x)=>{
+                if(/(goal)/.test(x)) return 'goal';
+                if(/pen(alt)?y/.test(x)) return 'penalty';
+                if(/own\s*goal/.test(x)) return 'own_goal';
+                if(/yellow/.test(x) && !/second/.test(x)) return 'yellow_card';
+                if(/second.*yellow/.test(x)) return 'second_yellow';
+                if(/red/.test(x)) return 'red_card';
+                if(/sub(s|tit)/.test(x)) return 'substitution';
+                if(/kick\s*off|start/.test(x)) return 'match_start';
+                if(/half.*time/.test(x)) return 'half_time';
+                if(/full.*time|end/.test(x)) return 'match_end';
+                if(/offside/.test(x)) return 'offside';
+                if(/corner/.test(x)) return 'corner_kick';
+                if(/free\s*kick/.test(x)) return 'free_kick';
+                if(/foul/.test(x)) return 'foul';
+                if(/save/.test(x)) return 'save';
+                return x;
+              };
+              return map(t);
+            };
+            const list = commentary.map(c => ({
+              id: c?.id || `${Date.now()}_${Math.random().toString(36).slice(2)}`,
+              type: canonical(c),
+              time: c?.clock?.displayValue,
+              minute: minuteFromClock(c?.clock?.displayValue),
+              team: c?.team?.displayName,
+              teamSide: c?.team?.displayName ? teamSide[String(c.team.displayName).toLowerCase()] : undefined,
+              player: c?.athlete?.displayName,
+              description: c?.text
+            }));
+            return res.status(200).json({ success: true, data: list, provider: 'espn' });
+          } catch (e) {
+            return res.status(500).json({ success: false, error: 'Failed to fetch ESPN commentary', message: e.message });
+          }
+        }
+  const match = await matchesCollection.findOne(finalFilter);
         if (!match) return res.status(404).json({ success: false, error: 'Match not found' });
         let list = Array.isArray(match.events) ? match.events : [];
         if (!list.length) {
@@ -540,11 +912,135 @@ async function handler(req, res) {
             const logs = await eventLog.find({ $or: [ { matchId: mid }, { 'data.matchId': mid } ] }).sort({ timestamp: 1 }).toArray();
             list = logs.map(l => ({ ...l.data, type: l.type, description: l.message }));
           } catch(_) {}
+          // If still empty: by default, return fast with empty list (no live fetch). Only allow slow live ESPN when explicitly requested.
+          const allowLive = ['1','true','yes','y'].includes(String(req.query.allowLive||'').toLowerCase());
+          if ((!list || !list.length) && allowLive && (String(match?.source||'').toLowerCase() === 'espn' || match?.competition?.code)) {
+            try {
+              const lg = match?.competition?.code || (process.env.ESPN_LEAGUES || '').split(',')[0] || 'ita.1';
+              // Reuse the same ESPN read path logic: summary + playbyplay + core fallback
+              const { fetchSummary: espnSum, fetchPlayByPlay: espnPbp, fetchCoreEvent, normalizeCoreCommentary } = require('../services/espnProvider');
+              let teamSide = {};
+              try {
+                const summary = await espnSum(lg, match.id);
+                const comp = Array.isArray(summary?.header?.competitions) ? summary.header.competitions[0] : {};
+                const competitors = comp?.competitors || [];
+                const h = competitors.find(c=>c.homeAway==='home') || competitors[0];
+                const a = competitors.find(c=>c.homeAway==='away') || competitors[1];
+                if (h?.team?.displayName) teamSide[String(h.team.displayName).toLowerCase()] = 'home';
+                if (a?.team?.displayName) teamSide[String(a.team.displayName).toLowerCase()] = 'away';
+                let comm = [];
+                try { const pbp = await espnPbp(lg, match.id); comm = pbp?.commentary || pbp?.plays || []; } catch(_) {}
+                if (!Array.isArray(comm) || !comm.length) {
+                  const alt = summary?.commentary || summary?.plays || [];
+                  if (Array.isArray(alt) && alt.length) comm = alt;
+                }
+                // Always also fetch Core and merge to ensure freshness
+                try {
+                  const core = await fetchCoreEvent(lg, match.id);
+                  if (!Object.keys(teamSide).length) {
+                    const compComps = Array.isArray(core?.comp?.competitors) ? core.comp.competitors : [];
+                    for (const c of compComps) {
+                      const name = c?.team?.displayName || c?.team?.name; const side = c?.homeAway;
+                      if (name && (side==='home'||side==='away')) teamSide[String(name).toLowerCase()] = side;
+                    }
+                  }
+                  const coreEvents = normalizeCoreCommentary(core?.details, core?.commentaries, teamSide) || [];
+                  const combined = [...(Array.isArray(comm)?comm:[]), ...coreEvents];
+                  const seen = new Set(); const merged = [];
+                  for (const c of combined) { const key = c?.id || `${c?.text||''}|${c?.clock?.displayValue||c?.time||''}`; if (seen.has(key)) continue; seen.add(key); merged.push(c); }
+                  comm = merged;
+                } catch(_) {}
+                // Normalize to our event shape minimal
+                const minuteFromClock = (disp) => {
+                  if (!disp) return undefined; const s=String(disp);
+                  let m=/^(\d{1,3})'\+(\d{1,2})$/.exec(s); if(m) return Math.min(120,parseInt(m[1],10)+parseInt(m[2],10));
+                  m=/^(\d{1,3})'?$/.exec(s); if(m) return Math.min(120,parseInt(m[1],10));
+                  m=/^(\d{1,2}):(\d{2})$/.exec(s); if(m) return Math.min(120,parseInt(m[1],10));
+                  return undefined;
+                };
+                const canonical = (raw) => {
+                  const typeId = raw?.type?.id || raw?.type?.text || raw?.type || raw?.playTypeId || raw?.playType;
+                  const t = String(typeId||raw?.text||'').toLowerCase();
+                  const map = (x)=>{
+                    if(/(goal)/.test(x)) return 'goal';
+                    if(/pen(alt)?y/.test(x)) return 'penalty';
+                    if(/own\s*goal/.test(x)) return 'own_goal';
+                    if(/yellow/.test(x) && !/second/.test(x)) return 'yellow_card';
+                    if(/second.*yellow/.test(x)) return 'second_yellow';
+                    if(/red/.test(x)) return 'red_card';
+                    if(/sub(s|tit)/.test(x)) return 'substitution';
+                    if(/kick\s*off|start/.test(x)) return 'match_start';
+                    if(/half.*time/.test(x)) return 'half_time';
+                    if(/full.*time|end/.test(x)) return 'match_end';
+                    if(/offside/.test(x)) return 'offside';
+                    if(/corner/.test(x)) return 'corner_kick';
+                    if(/free\s*kick/.test(x)) return 'free_kick';
+                    if(/foul/.test(x)) return 'foul';
+                    if(/save/.test(x)) return 'save';
+                    return x;
+                  };
+                  return map(t);
+                };
+                list = Array.isArray(comm) ? comm.map(c => ({
+                  id: c?.id || `${Date.now()}_${Math.random().toString(36).slice(2)}`,
+                  type: canonical(c),
+                  time: c?.clock?.displayValue || c?.time,
+                  minute: minuteFromClock(c?.clock?.displayValue || c?.time),
+                  team: c?.team?.displayName,
+                  teamSide: c?.team?.displayName ? teamSide[String(c.team.displayName).toLowerCase()] : c?.teamSide,
+                  player: c?.athlete?.displayName || c?.player,
+                  description: c?.text || c?.description
+                })) : [];
+              } catch(_) {}
+            } catch(_) {}
+          }
         }
         return res.status(200).json({ success: true, data: list });
       }
 
-  const match = await matchesCollection.findOne(finalFilter);
+  if (readProvider === 'espn') {
+        const league = req.query.league || (process.env.ESPN_LEAGUES || '').split(',')[0] || 'ita.1';
+        try {
+          const summary = await espnFetchSummary(league, id);
+          // Build a normalized minimal match object from header + boxscore
+          const header = summary?.header || {};
+          const comp = Array.isArray(header?.competitions) ? header.competitions[0] : {};
+          const competitors = comp?.competitors || [];
+          const home = competitors.find(c=>c.homeAway==='home') || competitors[0] || {};
+          const away = competitors.find(c=>c.homeAway==='away') || competitors[1] || {};
+          const mapTeam = (c) => ({
+            id: c?.team?.id,
+            name: c?.team?.displayName || c?.team?.name,
+            shortName: c?.team?.shortDisplayName,
+            tla: c?.team?.abbreviation,
+            crest: Array.isArray(c?.team?.logos)&&c.team.logos[0]?c.team.logos[0].href:c?.team?.logo
+          });
+          const mapStatus = (s)=>{ const t=String(s||'').toLowerCase(); if(t==='pre') return 'TIMED'; if(t==='in') return 'IN_PLAY'; if(t==='post') return 'FINISHED'; return s||'SCHEDULED'; };
+          const minFromClock = (disp)=>{ if(!disp) return undefined; const s=String(disp); let m=/^(\d{1,3})'\+(\d{1,2})$/.exec(s); if(m) return Math.min(120,parseInt(m[1],10)+parseInt(m[2],10)); m=/^(\d{1,3})'?$/.exec(s); if(m) return Math.min(120,parseInt(m[1],10)); m=/^(\d{1,2}):(\d{2})$/.exec(s); if(m) return Math.min(120,parseInt(m[1],10)); return undefined; };
+          const matchOut = {
+            id: String(id),
+            homeTeam: mapTeam(home),
+            awayTeam: mapTeam(away),
+            competition: { id: comp?.league?.name || league, name: comp?.league?.name || league, code: league },
+            utcDate: comp?.date ? new Date(comp.date).toISOString() : undefined,
+            status: mapStatus(comp?.status?.type?.state),
+            minute: minFromClock(comp?.status?.displayClock || comp?.status?.type?.shortDetail || comp?.status?.type?.detail),
+            score: { fullTime: { home: Number(home?.score ?? 0), away: Number(away?.score ?? 0) } },
+            source: 'espn',
+            lastUpdated: new Date()
+          };
+          return res.status(200).json({ success: true, data: matchOut, provider: 'espn' });
+        } catch (e) {
+          return res.status(500).json({ success: false, error: 'Failed to fetch ESPN summary', message: e.message });
+        }
+      }
+
+  // Choose collection based on provider
+  const useEspnDb = (readProvider === 'espn-db');
+  const matchesCollectionSingle = useEspnDb ? await getMatchesCollectionESPN() : matchesCollection;
+    // Ensure fast lookup on id
+    try { await matchesCollectionSingle.createIndex({ id: 1 }); } catch(_) {}
+  const match = await matchesCollectionSingle.findOne(finalFilter);
       if (!match && process.env.NODE_ENV !== 'production') {
         try {
           const sample = await matchesCollection.find({ id: /a_/ }).project({ id:1 }).limit(5).toArray();
@@ -552,13 +1048,18 @@ async function handler(req, res) {
         } catch(_){}
       }
       if (!match) return res.status(404).json({ success: false, error: 'Match not found' });
-      // If scores are missing, derive from Event_Log
+      // If scores are missing, optionally derive from Event_Log (guarded by deriveScore=true to avoid slow scans)
+      const deriveScore = ['1','true','yes','y'].includes(String(req.query.deriveScore||'').toLowerCase());
       try {
         const h = match?.score?.fullTime?.home ?? match?.homeScore;
         const a = match?.score?.fullTime?.away ?? match?.awayScore;
-        if (h == null || h === '-' || a == null || a === '-') {
+        if (deriveScore && (h == null || h === '-' || a == null || a === '-')) {
           const db = await getDatabase();
           const eventLog = db.collection('Event_Log');
+          // Helpful indexes
+          try { await eventLog.createIndex({ matchId: 1 }); } catch(_) {}
+          try { await eventLog.createIndex({ 'data.matchId': 1 }); } catch(_) {}
+          try { await eventLog.createIndex({ type: 1 }); } catch(_) {}
           const goalTypes = ['goal','penalty','own_goal'];
           const evs = await eventLog.find({
             $and: [
@@ -748,17 +1249,27 @@ async function handler(req, res) {
           createdAt: now,
           lastUpdated: now
         };
-        await matchesCollection.insertOne(newMatch);
+        
+        // Admin matches: Insert into BOTH _ADMIN and _ESPN collections for faster querying
+        const matchesCollectionADMIN = await getMatchesCollectionADMIN();
+        const matchesCollectionESPN = await getMatchesCollectionESPN();
+        
+        await Promise.all([
+          matchesCollectionADMIN.insertOne({ ...newMatch }),
+          matchesCollectionESPN.insertOne({ ...newMatch })
+        ]);
+        
         if (process.env.NODE_ENV !== 'production' && process.env.DEBUG_MATCHES) {
-          console.log('[matches] inserted', newMatch.id);
+          console.log('[matches] inserted admin match to ESPN collection', newMatch.id);
         }
         return res.status(201).json({ success: true, data: newMatch });
       }
   // POST /api/matches/:id/events -> add event
   if (id && sub === 'events') {
+        const matchesCollectionESPN = await getMatchesCollectionESPN();
         const orFilters = buildIdQueries(id);
         const matchFilter = orFilters.length === 1 ? orFilters[0] : { $or: orFilters };
-        const match = await matchesCollection.findOne(matchFilter);
+        const match = await matchesCollectionESPN.findOne(matchFilter);
         if (!match) return res.status(404).json({ success: false, error: 'Match not found' });
 
   const event = req.body || {};
@@ -793,7 +1304,9 @@ async function handler(req, res) {
           preliminary.description = buildDescription({ type: preliminary.type, team: preliminary.team, player: preliminary.player });
         }
         const newEvent = normalizeEvent(preliminary);
-        await matchesCollection.updateOne(matchFilter, { $push: { events: newEvent } });
+        
+        // Update ESPN collection only (admin matches are only in ESPN)
+        await matchesCollectionESPN.updateOne(matchFilter, { $push: { events: newEvent } });
 
         // Also persist to Event_Log collection (canonical log)
         try {
@@ -916,7 +1429,15 @@ async function handler(req, res) {
           createdAt: now,
           lastUpdated: now
         };
-        await matchesCollection.insertOne(newMatch);
+        
+        // Insert into both ADMIN and ESPN collections
+        const matchesCollectionADMIN = await getMatchesCollectionADMIN();
+        const matchesCollectionESPN = await getMatchesCollectionESPN();
+        await Promise.all([
+          matchesCollectionADMIN.insertOne({ ...newMatch }),
+          matchesCollectionESPN.insertOne({ ...newMatch })
+        ]);
+        
         return res.status(201).json({ success: true, data: newMatch, fallback: true });
       }
       return res.status(405).json({ success: false, error: 'Method not allowed' });
@@ -930,17 +1451,24 @@ async function handler(req, res) {
       }
       if (id && sub === 'events' && eventId) {
         // PUT /api/matches/:id/events/:eventId -> update event
+        const matchesCollectionESPN = await getMatchesCollectionESPN();
         const orFilters = buildIdQueries(id);
         const matchFilter = orFilters.length === 1 ? orFilters[0] : { $or: orFilters };
-        const match = await matchesCollection.findOne(matchFilter);
+        const match = await matchesCollectionESPN.findOne(matchFilter);
         if (!match) return res.status(404).json({ success: false, error: 'Match not found' });
         const updates = req.body || {};
         const updateFields = {};
         for (const k of ['type', 'time', 'minute', 'team', 'teamSide', 'player', 'playerOut', 'playerIn', 'description']) {
           if (updates[k] !== undefined) updateFields[`events.$.${k}`] = updates[k];
         }
-        const result = await matchesCollection.updateOne({ ...matchFilter, 'events.id': eventId }, { $set: updateFields });
-        if (!result.matchedCount) return res.status(404).json({ success: false, error: 'Event or match not found' });
+        
+        // Update ESPN collection only (admin matches are only in ESPN)
+        const result = await matchesCollectionESPN.updateOne({ ...matchFilter, 'events.id': eventId }, { $set: updateFields });
+        
+        if (!result.matchedCount) {
+          return res.status(404).json({ success: false, error: 'Event or match not found' });
+        }
+        
         // Mirror to Event_Log and recompute scores
         try {
           const db = await getDatabase();
@@ -957,6 +1485,8 @@ async function handler(req, res) {
 
       if (id && !sub) {
         // PUT /api/matches/:id -> update match details (e.g., referee, venue, statistics)
+        const matchesCollectionADMIN = await getMatchesCollectionADMIN();
+        const matchesCollectionESPN = await getMatchesCollectionESPN();
         const orFilters = buildIdQueries(id);
         const matchFilter = orFilters.length === 1 ? orFilters[0] : { $or: orFilters };
         const updates = req.body || {};
@@ -982,9 +1512,17 @@ async function handler(req, res) {
           updates.status = norm.running ? 'IN_PLAY' : (totalElapsed > 0 ? 'PAUSED' : 'TIMED');
         }
         updates.lastUpdated = new Date().toISOString();
-        const result = await matchesCollection.updateOne(matchFilter, { $set: updates });
-        if (!result.matchedCount) return res.status(404).json({ success: false, error: 'Match not found' });
-        return res.status(200).json({ success: true, modified: result.modifiedCount > 0 });
+        
+        // Update both ADMIN and ESPN collections
+        const results = await Promise.all([
+          matchesCollectionADMIN.updateOne(matchFilter, { $set: updates }),
+          matchesCollectionESPN.updateOne(matchFilter, { $set: updates })
+        ]);
+        
+        if (!results[0].matchedCount && !results[1].matchedCount) {
+          return res.status(404).json({ success: false, error: 'Match not found' });
+        }
+        return res.status(200).json({ success: true, modified: results[0].modifiedCount > 0 || results[1].modifiedCount > 0 });
       }
 
       return res.status(405).json({ success: false, error: 'Method not allowed' });
@@ -998,12 +1536,25 @@ async function handler(req, res) {
       }
       if (id && sub === 'events' && eventId) {
         // DELETE /api/matches/:id/events/:eventId
+        const matchesCollectionADMIN = await getMatchesCollectionADMIN();
+        const matchesCollectionESPN = await getMatchesCollectionESPN();
+        
+        // For admin matches, check both collections
         const orFilters = buildIdQueries(id);
         const matchFilter = orFilters.length === 1 ? orFilters[0] : { $or: orFilters };
-        const match = await matchesCollection.findOne(matchFilter);
+        const match = await matchesCollectionADMIN.findOne(matchFilter) || await matchesCollectionESPN.findOne(matchFilter);
         if (!match) return res.status(404).json({ success: false, error: 'Match not found' });
-        const result = await matchesCollection.updateOne(matchFilter, { $pull: { events: { id: eventId } } });
-        if (!result.matchedCount) return res.status(404).json({ success: false, error: 'Match not found' });
+        
+        // Delete event from both ADMIN and ESPN collections
+        const results = await Promise.all([
+          matchesCollectionADMIN.updateOne(matchFilter, { $pull: { events: { id: eventId } } }),
+          matchesCollectionESPN.updateOne(matchFilter, { $pull: { events: { id: eventId } } })
+        ]);
+        
+        if (!results[0].matchedCount && !results[1].matchedCount) {
+          return res.status(404).json({ success: false, error: 'Match not found' });
+        }
+        
         // Also remove from Event_Log and recompute
         try {
           const db = await getDatabase();
@@ -1015,22 +1566,36 @@ async function handler(req, res) {
           ] });
           await recomputeEventLogScores(match, db);
         } catch(_) {}
-        return res.status(200).json({ success: true, deleted: result.modifiedCount > 0 });
+        return res.status(200).json({ success: true, deleted: results[0].modifiedCount > 0 || results[1].modifiedCount > 0 });
       }
       if (id && !sub) {
         // DELETE /api/matches/:id -> delete an admin created match (only if createdByAdmin)
+        const matchesCollectionADMIN = await getMatchesCollectionADMIN();
+        const matchesCollectionESPN = await getMatchesCollectionESPN();
         const orFilters = buildIdQueries(id).map(f => ({ ...f, createdByAdmin: true }));
         const matchFilter = orFilters.length === 1 ? orFilters[0] : { $or: orFilters };
-        const result = await matchesCollection.deleteOne(matchFilter);
-        if (!result.deletedCount) return res.status(404).json({ success: false, error: 'Match not found or not admin-created' });
         
-        // Also delete associated match statistics
+        // Delete from both ADMIN and ESPN collections
+        const results = await Promise.all([
+          matchesCollectionADMIN.deleteOne(matchFilter),
+          matchesCollectionESPN.deleteOne(matchFilter)
+        ]);
+        
+        if (!results[0].deletedCount && !results[1].deletedCount) {
+          return res.status(404).json({ success: false, error: 'Match not found or not admin-created' });
+        }
+        
+        // Also delete associated match statistics from both collections
         try {
           const db = await getDatabase();
-          const statsCollection = db.collection('Match_Statistics');
+          const statsCollectionADMIN = db.collection('Match_Statistics_ADMIN');
+          const statsCollectionESPN = db.collection('Match_Statistics_ESPN');
           const matchId = id;
-          await statsCollection.deleteOne({ matchId });
-          console.log(`Deleted match statistics for match ${matchId}`);
+          await Promise.all([
+            statsCollectionADMIN.deleteOne({ matchId }),
+            statsCollectionESPN.deleteOne({ matchId })
+          ]);
+          console.log(`Deleted match statistics for match ${matchId} from ADMIN and ESPN collections`);
         } catch (error) {
           console.error('Error deleting match statistics:', error);
           // Don't fail the match deletion if statistics deletion fails

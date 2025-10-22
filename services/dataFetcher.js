@@ -20,6 +20,8 @@ class SportsDataFetcher {
     this.maxRetries = 3;
     this.apiDisabled = false; // set to true if we detect 403 disabled
     this.fetcherEnabled = String(process.env.FETCHER_ENABLED || 'true').toLowerCase() !== 'false';
+  // Provider switch: 'football-data' or 'espn' (default to espn for faster cached reads)
+  this.dataProvider = (process.env.DATA_PROVIDER || 'espn').toLowerCase();
   }
 
   // Log service/app telemetry to System_Log (keep Event_Log strictly for match events)
@@ -36,6 +38,39 @@ class SportsDataFetcher {
       });
     } catch (error) {
       console.error('Error logging event:', error);
+    }
+  }
+
+  // =========================
+  // ESPN-based pipeline
+  // =========================
+  async fetchAllDataESPN() {
+    if (this.isRunning) {
+      console.log('Data fetch already in progress (ESPN), skipping...');
+      return;
+    }
+    this.isRunning = true;
+    await this.updateDisplayState({ status: 'fetching', message: 'Fetching live sports data (ESPN)...' });
+    try {
+      console.log('🔄 Starting ESPN data fetch cycle...');
+      const { run } = require('./espnProvider');
+      const before = Date.now();
+      const results = await run();
+      const tookMs = Date.now() - before;
+      await this.logEvent('SUCCESS', 'ESPN ingest completed', { results, tookMs });
+      console.log('✅ ESPN ingest results:', JSON.stringify(results));
+
+      // Also pull football news/highlights (these are independent of provider)
+      try { await this.fetchAndStoreFootballNews(); } catch (e) { console.warn('ESPN cycle: news failed', e.message); }
+      try { await this.fetchAndStoreFootballHighlights(); } catch (e) { console.warn('ESPN cycle: highlights failed', e.message); }
+
+      this.lastFetchTime = new Date();
+      await this.updateDisplayState({ status: 'success', message: 'ESPN data fetch completed', lastFetch: this.lastFetchTime });
+    } catch (e) {
+      console.error('❌ ESPN data fetch cycle failed:', e);
+      await this.updateDisplayState({ status: 'error', message: `ESPN data fetch failed: ${e.message}`, error: e.message });
+    } finally {
+      this.isRunning = false;
     }
   }
 
@@ -504,16 +539,21 @@ async fetchAndStoreFootballHighlights() {
         await this.logEvent('SUCCESS', `Upserted ${matches.length} matches`, { count: matches.length });
         console.log(`✅ Upserted ${matches.length} matches in MongoDB`);
 
-        // Now remove any matches before today (strict requirement: don't keep past matches)
+        // Remove matches older than 24 hours (keep recent matches for better UX)
         try {
+          const twentyFourHoursAgo = new Date();
+          twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
           // Do not prune admin-created matches (keep historical admin entries)
-          const prunePast = await matchInfoCollection.deleteMany({ utcDate: { $lt: startOfTodayUTC.toISOString() }, createdByAdmin: { $ne: true } });
+          const prunePast = await matchInfoCollection.deleteMany({ 
+            utcDate: { $lt: twentyFourHoursAgo.toISOString() }, 
+            createdByAdmin: { $ne: true } 
+          });
           if (prunePast.deletedCount) {
-            console.log(`🧹 Removed ${prunePast.deletedCount} matches before today`);
-            await this.logEvent('INFO', 'Removed matches before today', { deleted: prunePast.deletedCount });
+            console.log(`🧹 Removed ${prunePast.deletedCount} matches older than 24 hours`);
+            await this.logEvent('INFO', 'Removed matches older than 24 hours', { deleted: prunePast.deletedCount });
           }
         } catch (e) {
-          console.warn('Prune pre-today matches failed:', e.message);
+          console.warn('Prune old matches failed:', e.message);
         }
 
     // After upsert, detect score changes to auto-log implicit goals from external feed
@@ -872,14 +912,17 @@ try {
 
   // Start periodic fetching
   startPeriodicFetch() {
-    console.log('🚀 Starting periodic data fetching...');
-    
+    console.log(`🚀 Starting periodic data fetching (provider=${this.dataProvider})...`);
     // Initial fetch
-    this.fetchAllData();
-    
+    if (this.dataProvider === 'espn') {
+      this.fetchAllDataESPN();
+    } else {
+      this.fetchAllData();
+    }
     // Set up interval
     this.intervalId = setInterval(() => {
-      this.fetchAllData();
+      if (this.dataProvider === 'espn') this.fetchAllDataESPN();
+      else this.fetchAllData();
     }, this.fetchInterval);
   }
 

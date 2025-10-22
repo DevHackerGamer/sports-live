@@ -1,5 +1,5 @@
 // Players API endpoint
-const { getPlayersCollection } = require('../lib/mongodb');
+const { getPlayersCollection, getPlayersCollectionESPN } = require('../lib/mongodb');
 
 async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -11,18 +11,26 @@ async function handler(req, res) {
   }
 
   const playersCollection = await getPlayersCollection();
+  const playersCollectionESPN = await getPlayersCollectionESPN();
 
   if (req.method === 'GET') {
     try {
-      const { teamId, teamName, position, nationality, limit = 50, offset = 0 } = req.query;
+      const { teamId, teamName, position, nationality, limit = 50, offset = 0, source } = req.query;
 
       let resolvedTeamId = teamId;
       // If no teamId but teamName provided, attempt to resolve via Teams collection
       if (!resolvedTeamId && teamName) {
         try {
-          const { getTeamsCollection } = require('../lib/mongodb');
+          const { getTeamsCollection, getTeamsCollectionESPN } = require('../lib/mongodb');
           const teamsCol = await getTeamsCollection();
-          const teamDoc = await teamsCol.findOne({ name: { $regex: `^${teamName}$`, $options: 'i' } });
+          const teamsColESPN = await getTeamsCollectionESPN();
+          
+          // Try ESPN collection first
+          let teamDoc = await teamsColESPN.findOne({ name: { $regex: `^${teamName}$`, $options: 'i' } });
+          if (!teamDoc) {
+            teamDoc = await teamsCol.findOne({ name: { $regex: `^${teamName}$`, $options: 'i' } });
+          }
+          
           if (teamDoc && (teamDoc.id || teamDoc._id)) {
             resolvedTeamId = teamDoc.id || teamDoc._id;
           }
@@ -39,21 +47,65 @@ async function handler(req, res) {
       if (position) filter.position = new RegExp(position, 'i');
       if (nationality) filter.nationality = new RegExp(nationality, 'i');
 
-      const players = await playersCollection
-        .find(filter)
-        .sort({ name: 1 })
-        .skip(parseInt(offset))
-        .limit(parseInt(limit))
-        .toArray();
-
-      const total = await playersCollection.countDocuments(filter);
+      // By default, prioritize ESPN players (API-backed), fallback to regular collection
+      const useAllPlayers = source === 'all';
+      
+      let players = [];
+      let total = 0;
+      
+      if (useAllPlayers) {
+        // Fetch from both collections and merge
+        const [espnPlayers, regularPlayers] = await Promise.all([
+          playersCollectionESPN.find(filter).sort({ name: 1 }).skip(parseInt(offset)).limit(parseInt(limit)).toArray(),
+          playersCollection.find(filter).sort({ name: 1 }).skip(parseInt(offset)).limit(parseInt(limit)).toArray()
+        ]);
+        
+        // Merge and deduplicate by player ID
+        const playerMap = new Map();
+        for (const player of [...espnPlayers, ...regularPlayers]) {
+          const key = player.id || player._id?.toString() || player.name;
+          if (!playerMap.has(key)) {
+            playerMap.set(key, player);
+          }
+        }
+        players = Array.from(playerMap.values());
+        
+        const [espnTotal, regularTotal] = await Promise.all([
+          playersCollectionESPN.countDocuments(filter),
+          playersCollection.countDocuments(filter)
+        ]);
+        total = Math.max(espnTotal, regularTotal);
+      } else {
+        // Default: Try ESPN collection first
+        players = await playersCollectionESPN
+          .find(filter)
+          .sort({ name: 1 })
+          .skip(parseInt(offset))
+          .limit(parseInt(limit))
+          .toArray();
+        
+        total = await playersCollectionESPN.countDocuments(filter);
+        
+        // If ESPN collection has no players, fallback to regular collection
+        if (players.length === 0) {
+          players = await playersCollection
+            .find(filter)
+            .sort({ name: 1 })
+            .skip(parseInt(offset))
+            .limit(parseInt(limit))
+            .toArray();
+          
+          total = await playersCollection.countDocuments(filter);
+        }
+      }
 
       res.status(200).json({
         success: true,
         players,
         total,
         limit: parseInt(limit),
-        offset: parseInt(offset)
+        offset: parseInt(offset),
+        source: players.length > 0 && players[0]?.source ? 'espn' : 'regular'
       });
     } catch (error) {
       console.error('Error fetching players:', error);
