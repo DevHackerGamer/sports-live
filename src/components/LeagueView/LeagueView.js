@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import '../../styles/LeagueView.css';
 import { apiClient } from '../../lib/api';
+import { getLeagueName } from '../../lib/leagueNames';
 
 // Debug logger
 const dlog = (...args) => {
@@ -28,7 +29,7 @@ const competitions = [
   { code: "CL", name: "Champions League" }
 ];
 
-const tabs = ['Standings', 'Matches', 'Players'];
+const tabs = ['Standings', 'Matches'];
 
 const LeagueView = ({ initialLeague = "PL", onBack, onTeamSelect, onMatchSelect }) => {
   const getCompetitionCode = (league) => leagueKeyToCode[league] || league;
@@ -36,12 +37,9 @@ const LeagueView = ({ initialLeague = "PL", onBack, onTeamSelect, onMatchSelect 
   const [competitionCode, setCompetitionCode] = useState(getCompetitionCode(initialLeague));
   const [standings, setStandings] = useState([]);
   const [matches, setMatches] = useState([]);
-  const [players, setPlayers] = useState([]);
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [teamsMap, setTeamsMap] = useState({}); // Map teamId -> team data
-  const [leaguePlayers, setLeaguePlayers] = useState([]);
 
   const [activeTab, setActiveTab] = useState('Standings');
 
@@ -101,17 +99,22 @@ useEffect(() => {
     const toISODate = (d) =>
       `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
 
-    // Fetch all matches in this window
-    const res = await apiClient.getMatchesByDate(toISODate(start), toISODate(end), 1000);
+    // Fetch matches filtered by competition code on the server
+    const params = new URLSearchParams({
+      dateFrom: toISODate(start),
+      dateTo: toISODate(end),
+      competition: competitionCode,
+      limit: '100'
+    });
+    const res = await apiClient.request(`/api/matches?${params.toString()}`);
 
-    // Filter by league code
+    // Map to consistent format
     const leagueMatches = (res.data || [])
-      .filter(m => m.competition?.code === competitionCode || m.competitionCode === competitionCode)
       .map(m => ({
         ...m,
         homeTeam: m.homeTeam || { name: m.homeTeamName || m.home || 'Unknown', crest: m.homeTeam?.crest },
         awayTeam: m.awayTeam || { name: m.awayTeamName || m.away || 'Unknown', crest: m.awayTeam?.crest },
-        competition: m.competition?.name || competitionCode
+        competition: getLeagueName(m.competition?.code || m.competition?.name || m.competitionCode || competitionCode)
       }))
       .sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate));
 
@@ -139,60 +142,6 @@ useEffect(() => {
   const handleBackClick = () => {
     if (onBack) onBack();
   };
-
-  // Fetch all players from the Players API
-const fetchPlayers = async () => {
-  try {
-    const res = await apiClient.request('/api/players?limit=99999');
-    if (res.success) {
-      setPlayers(res.players);
-    }
-  } catch (err) {
-    console.error('Failed to fetch players', err);
-    setPlayers([]);
-  }
-};
-useEffect(() => {
-  fetchPlayers();
-}, []);
-
-useEffect(() => {
-  const fetchTeams = async () => {
-    try {
-      const res = await apiClient.getTeams();
-      const map = {};
-      res.data.forEach(team => {
-        map[team.id] = { name: team.name, crest: team.crest };
-      });
-      setTeamsMap(map);
-    } catch (err) {
-      console.error('Failed to fetch teams', err);
-    }
-  };
-
-  fetchTeams();
-}, []);
-useEffect(() => {
-  if (!standings.length || !players.length) {
-    setLeaguePlayers([]);
-    return;
-  }
-
-  const leagueTeamIds = standings.map(s => s.team.id);
-  const filteredPlayers = players.filter(p => leagueTeamIds.includes(p.teamId));
-  setLeaguePlayers(filteredPlayers);
-}, [standings, players]);
-
-
-
-
-
-
-
-const calculateAge = (dob) =>
-  Math.floor((new Date() - new Date(dob)) / (1000 * 60 * 60 * 24 * 365.25));
-
-
 
   // Helper to render standings with qualification/relegation
   const renderStandingsTable = () => (
@@ -243,7 +192,10 @@ const renderMatches = () => (
         <div
           key={m.id}
           className="league-view-match-card"
-          onClick={() => onMatchSelect && onMatchSelect(m)}
+          onClick={() => {
+            console.log('Match card clicked - navigating to match viewer');
+            onMatchSelect && onMatchSelect(m);
+          }}
         >
           {/* Match date & time */}
           <div className="league-view-match-header">
@@ -268,6 +220,7 @@ const renderMatches = () => (
               className="league-view-match-team league-view-clickable"
               onClick={(e) => {
                 e.stopPropagation();
+                console.log('Home team clicked - navigating to team info');
                 onTeamSelect && onTeamSelect(m.homeTeam);
               }}
             >
@@ -278,7 +231,7 @@ const renderMatches = () => (
                   className="league-view-match-crest"
                 />
               )}
-              <span>{m.homeTeam?.name}</span>
+              <span className="league-view-clickable">{m.homeTeam?.name}</span>
             </div>
 
             <span className="league-view-vs">vs</span>
@@ -287,6 +240,7 @@ const renderMatches = () => (
               className="league-view-match-team league-view-clickable"
               onClick={(e) => {
                 e.stopPropagation();
+                console.log('Away team clicked - navigating to team info');
                 onTeamSelect && onTeamSelect(m.awayTeam);
               }}
             >
@@ -297,7 +251,7 @@ const renderMatches = () => (
                   className="league-view-match-crest"
                 />
               )}
-              <span>{m.awayTeam?.name}</span>
+              <span className="league-view-clickable">{m.awayTeam?.name}</span>
             </div>
           </div>
 
@@ -312,33 +266,6 @@ const renderMatches = () => (
     )}
   </div>
 );
-
-const renderPlayers = () => (
-  <div className="league-view-players-list">
-    {leaguePlayers.length > 0 ? (
-      leaguePlayers.map((p) => {
-        const team = teamsMap[p.teamId];
-        return (
-          <div key={p._id || p.id} className="player-card">
-            <h3>{p.name}</h3>
-            <p>
-              <strong>Team:</strong>{' '}
-              {team?.crest && <img src={team.crest} alt={team.name} className="team-icon" />}
-              {team?.name || 'Unknown'}
-            </p>
-            <p><strong>Position:</strong> {p.position}</p>
-            <p><strong>Nationality:</strong> {p.nationality}</p>
-            <p><strong>Age:</strong> {calculateAge(p.dateOfBirth)}</p>
-          </div>
-        );
-      })
-    ) : (
-      <p>No players available for this league.</p>
-    )}
-  </div>
-);
-
-
 
   return (
     <div className="league-view-container">
@@ -376,7 +303,6 @@ const renderPlayers = () => (
       {error && (
         <div className="league-view-error-message">
           <p>{error}</p>
-          <button onClick={fetchData} className="league-view-retry-button">Retry</button>
         </div>
       )}
 
@@ -386,7 +312,6 @@ const renderPlayers = () => (
         <div className="league-view-tab-content">
           {activeTab === 'Standings' && renderStandingsTable()}
           {activeTab === 'Matches' && renderMatches()}
-          {activeTab === 'Players' && renderPlayers()}
         </div>
       )}
     </div>

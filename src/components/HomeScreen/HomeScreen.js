@@ -1,6 +1,6 @@
 import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFutbol, faPeopleGroup, faTrophy, faHeart, faNewspaper } from '@fortawesome/free-solid-svg-icons';
+import { faFutbol, faTrophy, faHeart, faNewspaper, faStar } from '@fortawesome/free-solid-svg-icons';
 
 const HomeScreen = ({ setActiveTab, setSelectedLeague, leagues, latestNews, newsLoading }) => {
   const features = [
@@ -11,10 +11,10 @@ const HomeScreen = ({ setActiveTab, setSelectedLeague, leagues, latestNews, news
       action: () => setActiveTab('matches')
     },
     { 
-      title: "Players", 
-      description: "Player stats and profiles", 
-      icon: <FontAwesomeIcon icon={faPeopleGroup} />,
-      action: () => setActiveTab('players')
+      title: "Highlights", 
+      description: "Watch match highlights", 
+      icon: <FontAwesomeIcon icon={faStar} />,
+      action: () => setActiveTab('highlights')
     },
     { 
       title: "Standings", 
@@ -91,12 +91,6 @@ const HomeScreen = ({ setActiveTab, setSelectedLeague, leagues, latestNews, news
             ) : (
               <div className="no-news">
                 <p>No recent news available</p>
-                <button 
-                  className="retry-btn"
-                  onClick={() => window.location.reload()}
-                >
-                  Refresh
-                </button>
               </div>
             )}
           </div>

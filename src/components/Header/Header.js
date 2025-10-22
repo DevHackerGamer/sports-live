@@ -17,15 +17,15 @@ const Header = ({
   const handleNavClick = (tab) => {
     setActiveTab(tab);
     setShowAboutUs(false);
-    setSelectedMatch(null);
-    setSelectedTeam(null);
+
+    
   };
 
   const handleAboutClick = () => {
     setShowAboutUs(true);
     setActiveTab('about');
-    setSelectedMatch(null);
-    setSelectedTeam(null);
+  
+    
   };
 
   return (

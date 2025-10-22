@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { apiClient } from '../../lib/api';
+import { getLeagueName } from '../../lib/leagueNames';
 import LiveInput from '../liveInput/LiveInput';
 import MatchStatistics from './MatchStatistics';
 import LineupsTab from './LineupsTab';
@@ -67,7 +68,8 @@ const MatchViewer = ({ match, matchId, initialSection = 'details', onBack }) => 
       try { window.removeEventListener('storage', onStorage); } catch {}
       try { if (bc) bc.close(); } catch {}
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [match, matchId]);  // Add dependencies so fetchMatchDetails has fresh closure
 
   
   
@@ -78,6 +80,13 @@ const MatchViewer = ({ match, matchId, initialSection = 'details', onBack }) => 
       setActiveSection(initialSection);
     }
   }, [initialSection]);
+  
+  // Lazy load teams/players when admin enters update section
+  useEffect(() => {
+    if (isAdmin && activeSection === 'update' && matchDetails && !homeTeamPlayers.length && !awayTeamPlayers.length) {
+      fetchTeamsAndPlayers(matchDetails);
+    }
+  }, [isAdmin, activeSection, matchDetails]);
 
   const fetchMatchDetails = async () => {
     if (!match && !matchId) return;
@@ -86,195 +95,151 @@ const MatchViewer = ({ match, matchId, initialSection = 'details', onBack }) => 
     setError('');
     
     try {
-      // Try to get detailed match data from API
-      try {
-        const idToFetch = (match && (match.id || match._id)) || matchId;
-        const matchResponse = await apiClient.getMatchById(idToFetch);
-        setMatchDetails(matchResponse.data);
-        setMeta({ referee: matchResponse.data?.referee || '', venue: matchResponse.data?.venue || '' });
-        
-        // Set team logos/crests if available
-        if (matchResponse.data.homeTeam?.crest || matchResponse.data.homeTeam?.logo) {
-          setTeamLogos(prev => ({ ...prev, home: matchResponse.data.homeTeam.crest || matchResponse.data.homeTeam.logo }));
-        }
-        if (matchResponse.data.awayTeam?.crest || matchResponse.data.awayTeam?.logo) {
-          setTeamLogos(prev => ({ ...prev, away: matchResponse.data.awayTeam.crest || matchResponse.data.awayTeam.logo }));
-        }
-        
-        // If the API doesn't return any events, fetch them separately
-  const normalizeEvents = (raw = []) => {
-          const homeTeamName = (matchResponse.data?.homeTeam?.name || matchResponse.data?.homeTeam || match?.homeTeam?.name || match?.homeTeam || '').toString();
-          const awayTeamName = (matchResponse.data?.awayTeam?.name || matchResponse.data?.awayTeam || match?.awayTeam?.name || match?.awayTeam || '').toString();
-          return raw.map(ev => {
-            // Safely clone
-            const out = { ...ev };
-            // Derive minute (robust coercion)
-            let minute = out.minute;
-            if (minute != null && minute !== '') {
-              if (typeof minute === 'string') {
-                const parsed = parseInt(minute, 10);
-                minute = Number.isNaN(parsed) ? undefined : parsed;
-              } else if (typeof minute !== 'number') {
-                minute = undefined;
-              }
-            }
-            if ((minute == null || minute === '') && out.time) {
-              const m = parseInt(String(out.time).split(':')[0], 10);
-              minute = Number.isNaN(m) ? undefined : m;
-            }
-            // Team side detection
-            const rawTeamStr = (out.team || out.teamName || out.teamSide || '').toString();
-            const lcRaw = rawTeamStr.toLowerCase();
-            let side = '';
-            if (lcRaw === homeTeamName.toLowerCase()) side = 'home';
-            else if (lcRaw === awayTeamName.toLowerCase()) side = 'away';
-            else if (/^home$/.test(lcRaw)) side = 'home';
-            else if (/^away$/.test(lcRaw)) side = 'away';
-            else if (/home/.test(lcRaw) && !/away/.test(lcRaw)) side = 'home';
-            else if (/away/.test(lcRaw) && !/home/.test(lcRaw)) side = 'away';
-            // Fill team name if missing but side known
-            if ((!out.team || typeof out.team !== 'string' || out.team.trim()==='') && side) {
-              out.team = side === 'home' ? homeTeamName : awayTeamName;
-            }
-            // Canonical / inferred type
-            let rawType = out.type || out.eventType || out.kind;
-            if (!rawType || rawType === 'other') {
-              const desc = (out.description || '').toLowerCase();
-              if (/penalty/.test(desc)) rawType = 'penalty';
-              else if (/own goal|owngoal/.test(desc)) rawType = 'own_goal';
-              else if (/yellow card/.test(desc) && /second/.test(desc)) rawType = 'second_yellow';
-              else if (/yellow card|booking|cautioned/.test(desc)) rawType = 'yellow_card';
-              else if (/red card|sent off|dismissed/.test(desc)) rawType = 'red_card';
-              else if (/substitut|replaces|comes on|→/.test(desc)) rawType = 'substitution';
-              else if (/corner/.test(desc)) rawType = 'corner_kick';
-              else if (/free kick|freekick/.test(desc)) rawType = 'free_kick';
-              else if (/foul/.test(desc)) rawType = 'foul';
-              else if (/offside/.test(desc)) rawType = 'offside';
-              else if (/save/.test(desc)) rawType = 'save';
-              else if (/injury/.test(desc)) rawType = 'injury';
-              else if (/kick off|kick-off|kickoff/.test(desc)) rawType = 'match_start';
-              else if (/half time|halftime/.test(desc)) rawType = 'half_time';
-              else if (/full time|match end|ended/.test(desc)) rawType = 'match_end';
-              else if (/goal|scores|scored|header|shot/.test(desc)) rawType = 'goal';
-            }
-            out.type = canonicalEventType(rawType);
-            out.minute = (minute != null) ? minute : undefined;
-            out._side = side;
-            // Build description if missing
-            const hasDesc = !!(out.description && out.description.trim());
-            const playerOut = out.playerOut || out.subOut;
-            const playerIn = out.playerIn || out.subIn;
-            if (!hasDesc) {
-              let base = '';
-              const label = eventLabel(out.type);
-              base += label;
-              if (out.team) base += ` - ${out.team}`;
-              if (out.player) base += ` - ${out.player}`;
-              else if (playerOut || playerIn) base += ` - ${(playerOut||'')} ${playerOut&&playerIn?'→':''} ${(playerIn||'')}`;
-              out.description = base;
-            }
-            return out;
-          });
-        };
-        let mergedEvents = [];
-        if (!matchResponse.data.events || matchResponse.data.events.length === 0) {
-          try {
-            const eventsResponse = await apiClient.getMatchEvents(idToFetch);
-            mergedEvents = normalizeEvents(eventsResponse.data || []);
-            // If still empty, pull from Event_Log using matchId
-            if (!mergedEvents.length) {
-              try {
-                const logRes = await apiClient.getEventLog({ matchId: idToFetch, limit: 200 });
-                const fromLog = (logRes.events || []).filter(e => e.type && e.data && (e.matchId === (match.id || match._id) || e.data.matchId === (match.id || match._id)) ).map(e => {
-                  const raw = { ...(e.data || {}), type: e.type, description: e.message };
-                  return raw;
-                });
-                if (fromLog.length) mergedEvents = normalizeEvents(fromLog);
-              } catch (_) {}
-            }
-          } catch {
-            mergedEvents = [];
-          }
-        } else {
-          mergedEvents = normalizeEvents(matchResponse.data.events || []);
-        }
-        setEvents(mergedEvents);
-      } catch (apiError) {
-        console.warn('Detailed match API failed:', apiError.message);
-        // Fallback: keep passed-in match and attempt to fetch events directly
-        setMatchDetails(prev => prev || match || null);
-        try {
-          const idToFetch = (match && (match.id || match._id)) || matchId;
-          const eventsResponse = await apiClient.getMatchEvents(idToFetch);
-          const normalizeEvents = (raw = []) => raw.map(ev => {
-            const norm = { ...ev };
-            if (norm.minute == null && norm.time) {
-              const m = parseInt(String(norm.time).split(':')[0],10); norm.minute = Number.isNaN(m) ? undefined : m; }
-            else if (typeof norm.minute === 'string') {
-              const parsed = parseInt(norm.minute, 10); norm.minute = Number.isNaN(parsed) ? undefined : parsed; }
-            if (!norm.team && norm.teamSide && /^(home|away)$/i.test(norm.teamSide)) {
-              norm.team = norm.teamSide.toLowerCase() === 'home' ? (match.homeTeam?.name || match.homeTeam) : (match.awayTeam?.name || match.awayTeam);
-            }
-            norm.type = canonicalEventType(norm.type || norm.eventType);
-            if (!norm.description) {
-              const label = eventLabel(norm.type);
-              norm.description = [label, norm.team, norm.player].filter(Boolean).join(' - ');
-            }
-            return norm;
-          });
-          setEvents(normalizeEvents(eventsResponse.data || []));
-        } catch (evErr) {
-          console.warn('Events fetch after match 404 failed:', evErr.message);
-          setEvents([]);
-        }
+      const idToFetch = (match && (match.id || match._id)) || matchId;
+      
+      // Single API call to get match with events embedded
+      const matchResponse = await apiClient.getMatchById(idToFetch);
+      const matchData = matchResponse.data;
+      
+      setMatchDetails(matchData);
+      setMeta({ referee: matchData?.referee || '', venue: matchData?.venue || '' });
+      
+      // Set team logos/crests if available
+      if (matchData.homeTeam?.crest || matchData.homeTeam?.logo) {
+        setTeamLogos(prev => ({ ...prev, home: matchData.homeTeam.crest || matchData.homeTeam.logo }));
       }
-
-      // Fetch teams list and players to support admin editing
-      try {
-        const teamsRes = await apiClient.getTeams();
-        const teams = teamsRes.data || [];
-        // Try to find team IDs by name
-        const homeTeamName = (match.homeTeam?.name || match.homeTeam || '').toString();
-        const awayTeamName = (match.awayTeam?.name || match.awayTeam || '').toString();
-        const homeTeam = teams.find(t => (t.name || '').toLowerCase() === homeTeamName.toLowerCase());
-        const awayTeam = teams.find(t => (t.name || '').toLowerCase() === awayTeamName.toLowerCase());
-        
-        // Set crests if available from teams data
-        if ((homeTeam?.crest || homeTeam?.logo) && !teamLogos.home) {
-          setTeamLogos(prev => ({ ...prev, home: homeTeam.crest || homeTeam.logo }));
-        }
-        if ((awayTeam?.crest || awayTeam?.logo) && !teamLogos.away) {
-          setTeamLogos(prev => ({ ...prev, away: awayTeam.crest || awayTeam.logo }));
-        }
-        
-        if (homeTeam?.id || homeTeam?._id) {
-          const teamId = homeTeam.id || homeTeam._id;
-          try {
-            const playersRes = await fetch(`/api/players?teamId=${encodeURIComponent(teamId)}`);
-            if (playersRes.ok) {
-              const pdata = await playersRes.json();
-              setHomeTeamPlayers(pdata.players || []);
+      if (matchData.awayTeam?.crest || matchData.awayTeam?.logo) {
+        setTeamLogos(prev => ({ ...prev, away: matchData.awayTeam.crest || matchData.awayTeam.logo }));
+      }
+      
+      // Normalize events from the match response
+      const normalizeEvents = (raw = []) => {
+        const homeTeamName = (matchData?.homeTeam?.name || matchData?.homeTeam || '').toString();
+        const awayTeamName = (matchData?.awayTeam?.name || matchData?.awayTeam || '').toString();
+        return raw.map(ev => {
+          const out = { ...ev };
+          let minute = out.minute;
+          if (minute != null && minute !== '') {
+            if (typeof minute === 'string') {
+              const parsed = parseInt(minute, 10);
+              minute = Number.isNaN(parsed) ? undefined : parsed;
+            } else if (typeof minute !== 'number') {
+              minute = undefined;
             }
-          } catch {}
-        }
-        if (awayTeam?.id || awayTeam?._id) {
-          const teamId = awayTeam.id || awayTeam._id;
-          try {
-            const playersRes = await fetch(`/api/players?teamId=${encodeURIComponent(teamId)}`);
-            if (playersRes.ok) {
-              const pdata = await playersRes.json();
-              setAwayTeamPlayers(pdata.players || []);
-            }
-          } catch {}
-        }
-      } catch (e) {
-        console.warn('Failed to load teams/players for admin editing:', e.message);
+          }
+          if ((minute == null || minute === '') && out.time) {
+            const m = parseInt(String(out.time).split(':')[0], 10);
+            minute = Number.isNaN(m) ? undefined : m;
+          }
+          const rawTeamStr = (out.team || out.teamName || out.teamSide || '').toString();
+          const lcRaw = rawTeamStr.toLowerCase();
+          let side = '';
+          if (lcRaw === homeTeamName.toLowerCase()) side = 'home';
+          else if (lcRaw === awayTeamName.toLowerCase()) side = 'away';
+          else if (/^home$/.test(lcRaw)) side = 'home';
+          else if (/^away$/.test(lcRaw)) side = 'away';
+          else if (/home/.test(lcRaw) && !/away/.test(lcRaw)) side = 'home';
+          else if (/away/.test(lcRaw) && !/home/.test(lcRaw)) side = 'away';
+          if ((!out.team || typeof out.team !== 'string' || out.team.trim()==='') && side) {
+            out.team = side === 'home' ? homeTeamName : awayTeamName;
+          }
+          let rawType = out.type || out.eventType || out.kind;
+          if (!rawType || rawType === 'other') {
+            const desc = (out.description || '').toLowerCase();
+            if (/penalty/.test(desc)) rawType = 'penalty';
+            else if (/own goal|owngoal/.test(desc)) rawType = 'own_goal';
+            else if (/yellow card/.test(desc) && /second/.test(desc)) rawType = 'second_yellow';
+            else if (/yellow card|booking|cautioned/.test(desc)) rawType = 'yellow_card';
+            else if (/red card|sent off|dismissed/.test(desc)) rawType = 'red_card';
+            else if (/substitut|replaces|comes on|→/.test(desc)) rawType = 'substitution';
+            else if (/corner/.test(desc)) rawType = 'corner_kick';
+            else if (/free kick|freekick/.test(desc)) rawType = 'free_kick';
+            else if (/foul/.test(desc)) rawType = 'foul';
+            else if (/offside/.test(desc)) rawType = 'offside';
+            else if (/save/.test(desc)) rawType = 'save';
+            else if (/injury/.test(desc)) rawType = 'injury';
+            else if (/kick off|kick-off|kickoff/.test(desc)) rawType = 'match_start';
+            else if (/half time|halftime/.test(desc)) rawType = 'half_time';
+            else if (/full time|match end|ended/.test(desc)) rawType = 'match_end';
+            else if (/goal|scores|scored|header|shot/.test(desc)) rawType = 'goal';
+          }
+          out.type = canonicalEventType(rawType);
+          out.minute = (minute != null) ? minute : undefined;
+          out._side = side;
+          const hasDesc = !!(out.description && out.description.trim());
+          const playerOut = out.playerOut || out.subOut;
+          const playerIn = out.playerIn || out.subIn;
+          if (!hasDesc) {
+            let base = '';
+            const label = eventLabel(out.type);
+            base += label;
+            if (out.team) base += ` - ${out.team}`;
+            if (out.player) base += ` - ${out.player}`;
+            else if (playerOut || playerIn) base += ` - ${(playerOut||'')} ${playerOut&&playerIn?'→':''} ${(playerIn||'')}`;
+            out.description = base;
+          }
+          return out;
+        });
+      };
+      
+      // Use events from match response or empty array (no additional API calls)
+      const mergedEvents = normalizeEvents(matchData.events || []);
+      setEvents(mergedEvents);
+      
+      // Only fetch teams/players if user is admin (lazy load for edit mode)
+      if (isAdmin && activeSection === 'update') {
+        fetchTeamsAndPlayers(matchData);
       }
     } catch (err) {
       console.error('Error fetching match details:', err);
       setError(err.message);
+      // Fallback to using the passed match prop
+      if (match) {
+        setMatchDetails(match);
+        setEvents(match.events || []);
+      }
     } finally {
       setIsLoading(false);
+    }
+  };
+  
+  // Separate function for lazy loading teams/players (only when needed)
+  const fetchTeamsAndPlayers = async (matchData) => {
+    try {
+      const teamsRes = await apiClient.getTeams();
+      const teams = teamsRes.data || [];
+      const homeTeamName = (matchData.homeTeam?.name || matchData.homeTeam || '').toString();
+      const awayTeamName = (matchData.awayTeam?.name || matchData.awayTeam || '').toString();
+      const homeTeam = teams.find(t => (t.name || '').toLowerCase() === homeTeamName.toLowerCase());
+      const awayTeam = teams.find(t => (t.name || '').toLowerCase() === awayTeamName.toLowerCase());
+      
+      if ((homeTeam?.crest || homeTeam?.logo) && !teamLogos.home) {
+        setTeamLogos(prev => ({ ...prev, home: homeTeam.crest || homeTeam.logo }));
+      }
+      if ((awayTeam?.crest || awayTeam?.logo) && !teamLogos.away) {
+        setTeamLogos(prev => ({ ...prev, away: awayTeam.crest || awayTeam.logo }));
+      }
+      
+      const fetchPlayers = async (team, setter) => {
+        if (team?.id || team?._id) {
+          const teamId = team.id || team._id;
+          try {
+            const playersRes = await fetch(`/api/players?teamId=${encodeURIComponent(teamId)}`);
+            if (playersRes.ok) {
+              const pdata = await playersRes.json();
+              setter(pdata.players || []);
+            }
+          } catch {}
+        }
+      };
+      
+      // Fetch both in parallel
+      await Promise.all([
+        fetchPlayers(homeTeam, setHomeTeamPlayers),
+        fetchPlayers(awayTeam, setAwayTeamPlayers)
+      ]);
+    } catch (e) {
+      console.warn('Failed to load teams/players for admin editing:', e.message);
     }
   };
 
@@ -404,7 +369,13 @@ const MatchViewer = ({ match, matchId, initialSection = 'details', onBack }) => 
       ...displayMatchRaw,
       homeTeam: displayMatchRaw?.homeTeam?.name || displayMatchRaw?.homeTeam || '',
       awayTeam: displayMatchRaw?.awayTeam?.name || displayMatchRaw?.awayTeam || '',
-      competition: displayMatchRaw?.competition?.name || displayMatchRaw?.competition || '',
+      competition: getLeagueName(
+        displayMatchRaw?.competitionCode || 
+        displayMatchRaw?.competition?.code || 
+        displayMatchRaw?.competition?.name || 
+        displayMatchRaw?.competition || 
+        ''
+      ),
     };
     const rawStatus = (dm.status || '').toString();
     // Canonicalize status for consistent UI

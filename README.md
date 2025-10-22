@@ -82,6 +82,38 @@ npm run dev
 
 ---
 
+## Data providers
+
+Two ingest pipelines are available. The original Football-Data.org implementation remains intact, and a new ESPN-based implementation can be enabled via environment variable.
+
+- football-data.org (default; requires `FOOTBALL_API_TOKEN`)
+- ESPN public site APIs (no token required)
+
+Configure via environment variables:
+
+- `DATA_PROVIDER=football-data` (default) or `DATA_PROVIDER=espn`
+- `ESPN_LEAGUES` (optional) comma-separated list like `ita.1,eng.1,uefa.champions`
+
+When `DATA_PROVIDER=espn`, the server will periodically fetch:
+
+- League scoreboard (fixtures and IDs)
+- Match summary (stats/boxscore)
+- Play-by-play (commentary timeline)
+
+All data is normalized into existing MongoDB collections so existing APIs continue to work:
+
+- `Match_Info` with normalized fields (homeTeam, awayTeam, competition, utcDate, status, score, events)
+- `Match_Statistics` populated from ESPN boxscore
+- `Match_Lineups` populated when available
+- `Match_Commentary` stores raw ESPN commentary for reference
+- `Event_Log` contains scoring events with rolling `scoreAfter`
+
+Dev-only manual refresh:
+
+- `GET /api/admin-refresh-matches`
+
+---
+
 ## 👥 Team
 - Fullstack Devs , Testing & QA
 - Joshua Williams

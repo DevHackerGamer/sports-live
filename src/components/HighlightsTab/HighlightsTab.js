@@ -49,7 +49,6 @@ const HighlightsTab = () => {
     return (
       <div className="highlights-error">
         <p>{error}</p>
-        <button onClick={() => window.location.reload()}>Retry</button>
       </div>
     );
 

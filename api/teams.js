@@ -1,5 +1,5 @@
 // api/teams.js
-const { getTeamsInfoCollection } = require("../lib/mongodb");
+const { getTeamsInfoCollection, getTeamsCollectionESPN } = require("../lib/mongodb");
 
 async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -13,23 +13,60 @@ async function handler(req, res) {
 
   try {
     const teamsCollection = await getTeamsInfoCollection();
+    const teamsCollectionESPN = await getTeamsCollectionESPN();
 
     if (req.method === "GET") {
-      const { id } = req.query;
+      const { id, source } = req.query;
 
       if (id) {
-        const team = await teamsCollection.findOne({ id: parseInt(id) });
+        // Try ESPN collection first for single team lookup
+        let team = await teamsCollectionESPN.findOne({ id: parseInt(id) });
+        if (!team) {
+          team = await teamsCollection.findOne({ id: parseInt(id) });
+        }
         if (!team) {
           return res.status(404).json({ success: false, error: "Team not found" });
         }
         return res.status(200).json({ success: true, data: team });
       }
 
-      const teams = await teamsCollection.find({}).toArray();
+      // ALWAYS return only ESPN-sourced teams for match creation
+      // This ensures only API-backed teams are available in dropdowns
+      const useAllTeams = source === 'all'; // admin override with ?source=all
+      
+      let teams;
+      if (useAllTeams) {
+        // Admin override: get all teams from both collections
+        const [espnTeams, regularTeams] = await Promise.all([
+          teamsCollectionESPN.find({}).toArray(),
+          teamsCollection.find({}).toArray()
+        ]);
+        
+        // Merge and deduplicate by team ID
+        const teamMap = new Map();
+        for (const team of [...espnTeams, ...regularTeams]) {
+          if (!teamMap.has(team.id)) {
+            teamMap.set(team.id, team);
+          }
+        }
+        teams = Array.from(teamMap.values());
+      } else {
+        // DEFAULT: Only return ESPN-backed teams (Teams_ESPN collection)
+        teams = await teamsCollectionESPN.find({}).toArray();
+        
+        // Sort by name for better UX
+        teams.sort((a, b) => {
+          const nameA = (a.name || '').toString().toLowerCase();
+          const nameB = (b.name || '').toString().toLowerCase();
+          return nameA.localeCompare(nameB);
+        });
+      }
+      
       return res.status(200).json({
         success: true,
         data: teams,
         count: teams.length,
+        source: useAllTeams ? 'all' : 'espn',
         lastUpdated: new Date().toISOString(),
       });
     }

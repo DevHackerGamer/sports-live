@@ -81,8 +81,8 @@ const MainContent = ({
         return <HomeScreen />;
       case 'players':
         return <PlayersPage />;
-      case 'matchSetup':
-        return <MatchSetup isAdmin={isAdmin} />;
+     case 'matchSetup':
+        return <MatchSetup isAdmin={isAdmin} onTeamSelect={setSelectedTeam} />;
       case 'liveInput':
         return (
           <LiveInputWithLoad
@@ -92,8 +92,20 @@ const MainContent = ({
             onBackToMatch={() => setActiveTab('matches')}
           />
         );
-      case 'leagueStandings':
-        return <LeagueView initialLeague={selectedLeague || "PL"} onBack={() => setActiveTab('home')} onTeamSelect={setSelectedTeam} />;
+     case 'leagueStandings':
+  return selectedMatch ? (
+    <MatchViewer
+      match={selectedMatch}
+      onBack={handleBackFromViewer}
+    />
+  ) : (
+    <LeagueView 
+      initialLeague={selectedLeague || "PL"} 
+      onBack={() => setActiveTab('home')} 
+      onTeamSelect={setSelectedTeam}
+      onMatchSelect={setSelectedMatch}
+    />
+  );
       case 'news':
         return <FootballNewsPage onBack={() => setActiveTab('home')} />;
       case 'reports':
@@ -102,8 +114,15 @@ const MainContent = ({
         return <FavoritesPanel onMatchSelect={setSelectedMatch} />;
       case 'highlights':
         return <HighlightsTab />;
-      case 'watchlist':
-        return <WatchlistPage onMatchSelect={setSelectedMatch} />;
+    case 'watchlist':
+  return selectedMatch ? (
+    <MatchViewer
+      match={selectedMatch}
+      onBack={handleBackFromViewer}
+    />
+  ) : (
+    <WatchlistPage onMatchSelect={setSelectedMatch} onTeamSelect={setSelectedTeam} />
+  );
       case 'matches':
       default:
         return (selectedMatch || selectedMatchId) ? (

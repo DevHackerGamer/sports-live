@@ -116,6 +116,26 @@ describe('App routing and access control', () => {
     expect(window.location.pathname).toBe('/sign-up/verify');
   });
 
+  test('renders SignInPage on Clerk subroute /sign-in/verify when signed out', async () => {
+    mockIsSignedIn = false;
+    window.history.pushState({}, '', '/sign-in/verify');
+    render(<App />);
+    await waitFor(() => {
+      expect(screen.getByText('SignInPage')).toBeInTheDocument();
+    });
+    expect(window.location.pathname).toBe('/sign-in/verify');
+  });
+
+  test('renders SignUpPage on Clerk subroute /sign-up/verify when signed out', async () => {
+    mockIsSignedIn = false;
+    window.history.pushState({}, '', '/sign-up/verify');
+    render(<App />);
+    await waitFor(() => {
+      expect(screen.getByText('SignUpPage')).toBeInTheDocument();
+    });
+    expect(window.location.pathname).toBe('/sign-up/verify');
+  });
+
   test('redirects unknown paths to /', async () => {
     mockIsSignedIn = false;
     window.history.pushState({}, '', '/unknown-route');
