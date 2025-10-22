@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faClock, faCalendarDays } from '@fortawesome/free-solid-svg-icons';
 import { apiClient } from '../../lib/api';
 import { useLiveSports } from '../../hooks/useLiveSports';
 import { getLeagueName } from '../../lib/leagueNames';
@@ -24,6 +26,9 @@ const LiveSports = ({ onMatchSelect }) => {
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [watchlistIds, setWatchlistIds] = useState(new Set());
   const [teamCrests, setTeamCrests] = useState({});
+  const [viewMode, setViewMode] = useState('upcoming'); // 'upcoming' or 'past'
+  const [pastMatches, setPastMatches] = useState([]);
+  const [loadingPast, setLoadingPast] = useState(false);
 
   
   useEffect(() => {
@@ -77,6 +82,86 @@ const LiveSports = ({ onMatchSelect }) => {
     error, 
     lastUpdated
   } = useLiveSports();
+
+  // Fetch past matches when viewing past tab
+  useEffect(() => {
+    if (viewMode !== 'past') return;
+    
+    let cancelled = false;
+    setLoadingPast(true);
+    
+    (async () => {
+      try {
+        // Fetch matches from past 7 days
+        const now = new Date();
+        const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1, 23, 59, 59, 999));
+        const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 7, 0, 0, 0, 0));
+        const toISODate = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+        
+        const response = await apiClient.getMatchesByDate(toISODate(start), toISODate(end), 1000);
+        
+        if (!cancelled) {
+          // Transform and sort past matches (most recent first)
+          const transformedMatches = (response.data || [])
+            .map(match => {
+              const normalizeTeam = (t) => {
+                if (!t) return { name: 'TBD', shortName: 'TBD' };
+                if (typeof t === 'string') return { name: t, shortName: t };
+                return {
+                  name: t.name || t.shortName || 'TBD',
+                  shortName: t.shortName || t.name || 'TBD'
+                };
+              };
+
+              let displayUtc = match.utcDate;
+              if (!displayUtc && match.date && match.time) {
+                displayUtc = new Date(`${match.date}T${match.time}`).toISOString();
+              }
+
+              const rawStatus = match.status || 'finished';
+              let canonicalStatus = rawStatus.toLowerCase();
+              if (rawStatus.toUpperCase() === 'FINISHED') {
+                canonicalStatus = 'final';
+              } else if (canonicalStatus === 'finished') {
+                canonicalStatus = 'final';
+              }
+
+              return {
+                id: match.id || match._id,
+                homeTeam: normalizeTeam(match.homeTeam),
+                awayTeam: normalizeTeam(match.awayTeam),
+                homeScore: match.score?.fullTime?.home ?? match.homeScore ?? 0,
+                awayScore: match.score?.fullTime?.away ?? match.awayScore ?? 0,
+                status: canonicalStatus,
+                competition: match.competition?.name || match.competition || 'Unknown',
+                competitionCode: match.competition?.code || match.competitionCode,
+                venue: match.venue || 'TBD',
+                utcDate: displayUtc || match.startTime,
+                createdByAdmin: !!match.createdByAdmin,
+                date: match.date,
+                time: match.time,
+                matchday: match.matchday,
+                __utcMs: Date.parse(displayUtc || match.startTime)
+              };
+            })
+            .sort((a, b) => (b.__utcMs || 0) - (a.__utcMs || 0)); // Most recent first
+          
+          setPastMatches(transformedMatches);
+        }
+      } catch (err) {
+        console.error('Failed to fetch past matches:', err);
+        if (!cancelled) {
+          setPastMatches([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingPast(false);
+        }
+      }
+    })();
+    
+    return () => { cancelled = true; };
+  }, [viewMode]);
 
   // Build rolling weekly groups efficiently (single pass over sorted games)
   const buildWeeklyChunks = React.useCallback((sortedGames, fromISO, toISO) => {
@@ -369,55 +454,125 @@ useEffect(() => {
         </div>
       )}
 
+      {/* View Mode Toggle */}
+      <div className="ls-view-mode-toggle">
+        <button 
+          className={`ls-toggle-btn ${viewMode === 'upcoming' ? 'ls-active' : ''}`}
+          onClick={() => setViewMode('upcoming')}
+        >
+          <FontAwesomeIcon icon={faClock} />
+          Upcoming
+        </button>
+        <button 
+          className={`ls-toggle-btn ${viewMode === 'past' ? 'ls-active' : ''}`}
+          onClick={() => setViewMode('past')}
+        >
+          <FontAwesomeIcon icon={faCalendarDays} />
+          Past Results
+        </button>
+      </div>
+
       {/* Render all matches grouped by week, date, and league */}
 <div className="ls-matches-groups" data-testid="matches-container">
-  {chunks.length > 0 ? (
-    chunks.map((chunk) => {
-      const groupedDays = groupByDateAndLeague(chunk.items);
-      return (
-        <div key={chunk.label} className="ls-week-group">
-          <div className="ls-chunk-title">{chunk.label}</div>
+  {viewMode === 'upcoming' ? (
+    // Upcoming matches view
+    chunks.length > 0 ? (
+      chunks.map((chunk) => {
+        const groupedDays = groupByDateAndLeague(chunk.items);
+        return (
+          <div key={chunk.label} className="ls-week-group">
+            <div className="ls-chunk-title">{chunk.label}</div>
 
-          {groupedDays.map((day) => (
-            <div key={day.date} className="ls-day-group">
-              <h3 className="ls-day-header">{day.date}</h3>
+            {groupedDays.map((day) => (
+              <div key={day.date} className="ls-day-group">
+                <h3 className="ls-day-header">{day.date}</h3>
 
-              {day.leagues.map((lg) => (
-                <div key={lg.league} className="ls-league-group">
-                  <h4 className="ls-league-header">{lg.league}</h4>
-                  <div className="ls-matches-grid">
-                    {lg.items.map((game, index) => (
-                      <MatchCard
-                        key={game.id || `match-${index}`}
-                        game={game}
-                        onSelect={onMatchSelect}
-                        onTeamSelect={setSelectedTeam}
-                        getStatusBadge={getStatusBadge}
-                        formatDate={formatDate}
-                        formatTime={formatTime}
-                        teamCrests={teamCrests} 
-                        inWatchlist={watchlistIds.has(String(game.id ?? game._id ?? game.matchId))}
-                        onWatchlistAdded={(mid) => {
-                          setWatchlistIds(prev => {
-                            const next = new Set(prev);
-                            next.add(String(mid));
-                            return next;
-                          });
-                        }}
-                      />
-                    ))}
+                {day.leagues.map((lg) => (
+                  <div key={lg.league} className="ls-league-group">
+                    <h4 className="ls-league-header">{lg.league}</h4>
+                    <div className="ls-matches-grid">
+                      {lg.items.map((game, index) => (
+                        <MatchCard
+                          key={game.id || `match-${index}`}
+                          game={game}
+                          onSelect={onMatchSelect}
+                          onTeamSelect={setSelectedTeam}
+                          getStatusBadge={getStatusBadge}
+                          formatDate={formatDate}
+                          formatTime={formatTime}
+                          teamCrests={teamCrests} 
+                          inWatchlist={watchlistIds.has(String(game.id ?? game._id ?? game.matchId))}
+                          onWatchlistAdded={(mid) => {
+                            setWatchlistIds(prev => {
+                              const next = new Set(prev);
+                              next.add(String(mid));
+                              return next;
+                            });
+                          }}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      );
-    })
+                ))}
+              </div>
+            ))}
+          </div>
+        );
+      })
+    ) : (
+      <div className="ls-empty-state">
+        <p>No upcoming matches in this date range</p>
+      </div>
+    )
   ) : (
-    <div className="ls-no-matches" data-testid="empty">
-      <p>No matches available</p>
-    </div>
+    // Past matches view
+    loadingPast ? (
+      <div className="ls-loading-state">
+        <div className="ls-loading-spinner"></div>
+        <p>Loading past matches...</p>
+      </div>
+    ) : pastMatches.length > 0 ? (
+      (() => {
+        const groupedDays = groupByDateAndLeague(pastMatches);
+        return groupedDays.map((day) => (
+          <div key={day.date} className="ls-day-group ls-past-day">
+            <h3 className="ls-day-header">{day.date}</h3>
+
+            {day.leagues.map((lg) => (
+              <div key={lg.league} className="ls-league-group">
+                <h4 className="ls-league-header">{lg.league}</h4>
+                <div className="ls-matches-grid">
+                  {lg.items.map((game, index) => (
+                    <MatchCard
+                      key={game.id || `past-match-${index}`}
+                      game={game}
+                      onSelect={onMatchSelect}
+                      onTeamSelect={setSelectedTeam}
+                      getStatusBadge={getStatusBadge}
+                      formatDate={formatDate}
+                      formatTime={formatTime}
+                      teamCrests={teamCrests} 
+                      inWatchlist={watchlistIds.has(String(game.id ?? game._id ?? game.matchId))}
+                      onWatchlistAdded={(mid) => {
+                        setWatchlistIds(prev => {
+                          const next = new Set(prev);
+                          next.add(String(mid));
+                          return next;
+                        });
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ));
+      })()
+    ) : (
+      <div className="ls-empty-state">
+        <p>No past matches found in the last 7 days</p>
+      </div>
+    )
   )}
 </div>
 

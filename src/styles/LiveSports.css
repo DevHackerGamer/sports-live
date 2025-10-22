@@ -94,6 +94,76 @@
   backdrop-filter: blur(10px);
 }
 
+/* View Mode Toggle */
+.ls-view-mode-toggle {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 25px;
+  padding: 5px;
+  background: var(--dark-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--dark-border);
+  box-shadow: var(--shadow-sm);
+  width: fit-content;
+}
+
+.ls-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--dark-text);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: "Poppins", sans-serif;
+}
+
+.ls-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--primary-light);
+}
+
+.ls-toggle-btn.ls-active {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  box-shadow: 0 4px 12px rgba(230, 57, 70, 0.3);
+}
+
+.ls-btn-icon {
+  font-size: 18px;
+}
+
+/* Past matches styling */
+.ls-past-day .ls-day-header {
+  border-left-color: #9c27b0;
+  color: #ce93d8;
+}
+
+.ls-past-day .ls-league-header {
+  color: #ce93d8;
+}
+
+/* Empty state */
+.ls-empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  background: var(--dark-card);
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--dark-border);
+  color: var(--dark-text);
+}
+
+.ls-empty-state p {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0;
+}
+
 /* Matches Groups */
 .ls-matches-groups {
   margin-bottom: 30px;
