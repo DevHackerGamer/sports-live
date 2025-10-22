@@ -225,88 +225,139 @@ const LineupsAdminModal = ({ match, onClose }) => {
     }
   };
 
-  if (loading) return <div>Loading lineups...</div>;
+  if (loading) return <div className="lineups-loading">Loading lineups...</div>;
+
+  const homeCrest = match.homeTeam?.crest || match.homeTeam?.logo;
+  const awayCrest = match.awayTeam?.crest || match.awayTeam?.logo;
 
   return (
-    <div className="lineups-modal">
-      <h3>{match.homeTeam?.name} Lineup</h3>
-      <p>
-        Click a player to toggle Starter/Substitute.{' '}
-        <strong>
-          {getRemainingStarters(homeTeamId)} starter slots remaining
-        </strong>
-      </p>
-      <div className="lineup-grid">
-        {homePlayers.map((player) => {
-          const isStarter = lineups[homeTeamId]?.starters?.find(
-            (p) => p.id === player.id
-          );
-          return (
-            <div
-              key={player.id}
-              className={`player-card ${isStarter ? 'starter' : 'substitute'}`}
-              onClick={() => handleToggleStarter(homeTeamId, player)}
-            >
-              {player.name} ({player.position})
-            </div>
-          );
-        })}
-      </div>
-
-      <h3>{match.awayTeam?.name} Lineup</h3>
-      <p>
-        Click a player to toggle Starter/Substitute.{' '}
-        <strong>
-          {getRemainingStarters(awayTeamId)} starter slots remaining
-        </strong>
-      </p>
-      <div className="lineup-grid">
-        {awayPlayers.map((player) => {
-          const isStarter = lineups[awayTeamId]?.starters?.find(
-            (p) => p.id === player.id
-          );
-          return (
-            <div
-              key={player.id}
-              className={`player-card ${isStarter ? 'starter' : 'substitute'}`}
-              onClick={() => handleToggleStarter(awayTeamId, player)}
-            >
-              {player.name} ({player.position})
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="lineup-summary">
-        <h4>Starters Summary</h4>
-        <div className="summary-section">
-          <strong>{match.homeTeam?.name}:</strong>
-          <ul>
-            {(lineups[homeTeamId]?.starters || []).map((p) => (
-              <li key={p.id}>{p.name}</li>
-            ))}
-          </ul>
+    <div className="lineups-modal-overlay">
+      <div className="lineups-modal-content">
+        <div className="lineups-modal-header">
+          <h3>Edit Match Lineups</h3>
+          <button className="lineups-modal-close" onClick={onClose}>×</button>
         </div>
-        <div className="summary-section">
-          <strong>{match.awayTeam?.name}:</strong>
-          <ul>
-            {(lineups[awayTeamId]?.starters || []).map((p) => (
-              <li key={p.id}>{p.name}</li>
-            ))}
-          </ul>
+
+        <div className="lineups-split-layout">
+          {/* Home Team */}
+          <div className="team-lineup-section home-team">
+            <div className="team-header">
+              {homeCrest && (
+                <img src={homeCrest} alt={`${match.homeTeam?.name} crest`} className="team-crest" />
+              )}
+              <h4>{match.homeTeam?.name}</h4>
+              <div className="starters-remaining">
+                {getRemainingStarters(homeTeamId)} starters remaining
+              </div>
+            </div>
+            
+            <div className="players-section">
+              <h5>Starters ({lineups[homeTeamId]?.starters?.length || 0}/11)</h5>
+              <div className="players-grid starters-grid">
+                {(lineups[homeTeamId]?.starters || []).map((player) => (
+                  <div
+                    key={player.id}
+                    className="player-card starter"
+                    onClick={() => handleToggleStarter(homeTeamId, player)}
+                  >
+                    <div className="player-name">{player.name}</div>
+                    <div className="player-position">{player.position}</div>
+                  </div>
+                ))}
+              </div>
+
+              <h5>Substitutes</h5>
+              <div className="players-grid substitutes-grid">
+                {homePlayers.map((player) => {
+                  const isStarter = lineups[homeTeamId]?.starters?.find(
+                    (p) => p.id === player.id
+                  );
+                  if (!isStarter) {
+                    return (
+                      <div
+                        key={player.id}
+                        className="player-card substitute"
+                        onClick={() => handleToggleStarter(homeTeamId, player)}
+                      >
+                        <div className="player-name">{player.name}</div>
+                        <div className="player-position">{player.position}</div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Center Divider */}
+          <div className="lineups-divider">
+            <div className="divider-line"></div>
+            <div className="divider-text">VS</div>
+            <div className="divider-line"></div>
+          </div>
+
+          {/* Away Team */}
+          <div className="team-lineup-section away-team">
+            <div className="team-header">
+              {awayCrest && (
+                <img src={awayCrest} alt={`${match.awayTeam?.name} crest`} className="team-crest" />
+              )}
+              <h4>{match.awayTeam?.name}</h4>
+              <div className="starters-remaining">
+                {getRemainingStarters(awayTeamId)} starters remaining
+              </div>
+            </div>
+            
+            <div className="players-section">
+              <h5>Starters ({lineups[awayTeamId]?.starters?.length || 0}/11)</h5>
+              <div className="players-grid starters-grid">
+                {(lineups[awayTeamId]?.starters || []).map((player) => (
+                  <div
+                    key={player.id}
+                    className="player-card starter"
+                    onClick={() => handleToggleStarter(awayTeamId, player)}
+                  >
+                    <div className="player-name">{player.name}</div>
+                    <div className="player-position">{player.position}</div>
+                  </div>
+                ))}
+              </div>
+
+              <h5>Substitutes</h5>
+              <div className="players-grid substitutes-grid">
+                {awayPlayers.map((player) => {
+                  const isStarter = lineups[awayTeamId]?.starters?.find(
+                    (p) => p.id === player.id
+                  );
+                  if (!isStarter) {
+                    return (
+                      <div
+                        key={player.id}
+                        className="player-card substitute"
+                        onClick={() => handleToggleStarter(awayTeamId, player)}
+                      >
+                        <div className="player-name">{player.name}</div>
+                        <div className="player-position">{player.position}</div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="lineups-modal-footer">
+          <button onClick={onClose} className="btn btn-secondary">
+            Cancel
+          </button>
+          <button onClick={handleSave} className="btn btn-primary">
+            Save Lineups
+          </button>
         </div>
       </div>
-
-      <button onClick={handleSave} className="btn btn-primary">
-        Save Lineups
-      </button>
-      <button
-        onClick={onClose}
-        className="btn btn-secondary"
-        style={{ marginLeft: 8 }}
-      >
-        Cancel
-      </button>
     </div>
   );
 };
