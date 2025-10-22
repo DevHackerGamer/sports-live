@@ -239,6 +239,25 @@ body, html, .site-wrap {
   align-items: start;
 }
 
+/* SECTION HEADER STYLES */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid #e63946;
+  padding-bottom: 0.5rem;
+}
+
+.section-header h2 {
+  font-size: 1.5rem;
+  color: #fff;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+}
+
 /* NEWS SIDEBAR */
 .news-sidebar {
   background: var(--dark-card);
@@ -264,6 +283,8 @@ body, html, .site-wrap {
   font-size: 1.5rem;
   color: #fff;
   margin: 0;
+  display: flex;
+  align-items: center;
 }
 
 .view-all-btn {
@@ -402,14 +423,6 @@ body, html, .site-wrap {
   min-height: 200px;
 }
 
-.quick-actions h2 {
-  font-size: 1.5rem;
-  margin-bottom: 1.5rem;
-  color: #fff;
-  border-bottom: 2px solid #e63946;
-  padding-bottom: 0.5rem;
-}
-
 .actions-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -460,14 +473,6 @@ body, html, .site-wrap {
   border: 1px solid #333;
   height: fit-content;
   min-height: 500px;
-}
-
-.featured-leagues h2 {
-  font-size: 1.5rem;
-  margin-bottom: 1.5rem;
-  color: #fff;
-  border-bottom: 2px solid #e63946;
-  padding-bottom: 0.5rem;
 }
 
 .featured-leagues-grid {
@@ -600,7 +605,7 @@ body, html, .site-wrap {
   transform: translateY(-5px);
 }
 
-/* HIGHLIGHTS SECTION - Full Width Below News & Featured Leagues */
+/* HIGHLIGHTS SECTION  */
 .highlights-section {
   background: var(--dark-card);
   border-radius: 12px;
@@ -609,28 +614,6 @@ body, html, .site-wrap {
   margin: 2rem auto 1.25rem;
   width: calc(100% - 4rem);
   max-width: 1200px;
-}
-
-.highlights-section .section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-  border-bottom: 2px solid #e63946;
-  padding-bottom: 0.5rem;
-}
-
-.highlights-section .section-header h2 {
-  font-family: "Bebas Neue", cursive;
-  font-weight: 400;
-  font-size: 2.2rem;
-  letter-spacing: 1.5px;
-  background: var(--gradient-primary);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin: 0;
-  text-transform: uppercase;
 }
 
 .highlights-grid {
@@ -782,44 +765,6 @@ body, html, .site-wrap {
   display: none;
 }
 
-/* RESPONSIVE DESIGN FOR HIGHLIGHTS */
-@media (max-width: 1024px) {
-  .highlights-grid {
-    grid-template-columns: repeat(2, 1fr);
-    min-height: 800px;
-  }
-}
-
-@media (max-width: 768px) {
-  .highlights-grid {
-    grid-template-columns: 1fr;
-    min-height: 1200px;
-    gap: 1rem;
-  }
-  
-  .highlight-thumbnail {
-    height: 200px;
-  }
-  
-  .highlights-section {
-    width: calc(100% - 2rem);
-    margin: 1.5rem auto;
-  }
-}
-
-@media (max-width: 480px) {
-  .highlights-section {
-    padding: 1rem;
-  }
-  
-  .highlights-grid {
-    min-height: 1000px;
-  }
-  
-  .highlight-thumbnail {
-    height: 160px;
-  }
-}
 /* BUTTON STYLES */
 .btn.btn-small {
   margin-top: auto;
