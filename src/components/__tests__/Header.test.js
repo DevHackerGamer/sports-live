@@ -77,7 +77,7 @@ describe('Header component', () => {
 
     fireEvent.click(screen.getByText('About'));
     expect(mockSetShowAboutUs).toHaveBeenCalledWith(true);
-    expect(mockSetActiveTab).toHaveBeenCalledWith('');
+  expect(mockSetActiveTab).toHaveBeenCalledWith('about');
     expect(mockSetSelectedMatch).toHaveBeenCalledWith(null);
     expect(mockSetSelectedTeam).toHaveBeenCalledWith(null);
   });
