@@ -1,0 +1,194 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Header Component matches snapshot 1`] = `
+<div>
+  <header
+    class="dashboard-header"
+  >
+    <div
+      class="header-left"
+    >
+      <button
+        aria-label="Toggle menu"
+        class="burger-menu-button"
+      >
+        <span
+          data-testid="font-awesome-icon"
+        />
+      </button>
+      <div
+        class="logo-trapezoid desktop-logo"
+      >
+        <span
+          class="logo-text"
+        >
+          SportsLive
+        </span>
+      </div>
+      <nav
+        class="dashboard-nav "
+      >
+        <div
+          class="mobile-menu-logo"
+        >
+          <div
+            class="logo-trapezoid"
+          >
+            <span
+              class="logo-text"
+            >
+              SportsLive
+            </span>
+          </div>
+        </div>
+        <ul>
+          <li>
+            <button>
+              Home
+            </button>
+          </li>
+          <li>
+            <button>
+              Favourites
+            </button>
+          </li>
+          <li>
+            <button>
+              Watchlist
+            </button>
+          </li>
+          <li>
+            <button>
+              About
+            </button>
+          </li>
+        </ul>
+      </nav>
+    </div>
+    <div
+      class="header-right"
+    >
+      <div
+        class="user-section"
+      >
+        <span
+          class="user-greeting"
+        >
+          Welcome, 
+          John
+        </span>
+        <div
+          data-testid="user-button"
+        >
+          User Button
+        </div>
+      </div>
+    </div>
+  </header>
+</div>
+`;
+
+exports[`Header Component matches snapshot with admin privileges 1`] = `
+<div>
+  <header
+    class="dashboard-header"
+  >
+    <div
+      class="header-left"
+    >
+      <button
+        aria-label="Toggle menu"
+        class="burger-menu-button"
+      >
+        <span
+          data-testid="font-awesome-icon"
+        />
+      </button>
+      <div
+        class="logo-trapezoid desktop-logo"
+      >
+        <span
+          class="logo-text"
+        >
+          SportsLive
+        </span>
+      </div>
+      <nav
+        class="dashboard-nav "
+      >
+        <div
+          class="mobile-menu-logo"
+        >
+          <div
+            class="logo-trapezoid"
+          >
+            <span
+              class="logo-text"
+            >
+              SportsLive
+            </span>
+          </div>
+        </div>
+        <ul>
+          <li>
+            <button>
+              Home
+            </button>
+          </li>
+          <li>
+            <button>
+              Favourites
+            </button>
+          </li>
+          <li>
+            <button>
+              Watchlist
+            </button>
+          </li>
+          <li>
+            <button>
+              Setup
+            </button>
+          </li>
+          <li>
+            <button
+              title="Enter live input for the selected match"
+            >
+              Live Input
+            </button>
+          </li>
+          <li>
+            <button>
+              Reports
+            </button>
+          </li>
+          <li>
+            <button>
+              About
+            </button>
+          </li>
+        </ul>
+      </nav>
+    </div>
+    <div
+      class="header-right"
+    >
+      <div
+        class="user-section"
+      >
+        <span
+          class="user-greeting"
+        >
+          Welcome, 
+          John
+        </span>
+        <div
+          data-testid="user-button"
+        >
+          User Button
+        </div>
+      </div>
+    </div>
+  </header>
+</div>
+`;
