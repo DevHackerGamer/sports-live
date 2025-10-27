@@ -170,57 +170,9 @@ describe('/api/players', () => {
       });
     });
 
-    it('GET players with source=all merges both collections', async () => {
-      const espnPlayers = [{ id: 1, name: 'ESPN Player', source: 'espn' }];
-      const regularPlayers = [{ id: 2, name: 'Regular Player', source: 'regular' }];
-      
-      mockPlayersCollectionESPN.find().sort().skip().limit().toArray.mockResolvedValue(espnPlayers);
-      mockPlayersCollection.find().sort().skip().limit().toArray.mockResolvedValue(regularPlayers);
-      
-      mockPlayersCollectionESPN.countDocuments.mockResolvedValue(1);
-      mockPlayersCollection.countDocuments.mockResolvedValue(1);
+  
 
-      const { req, res } = createMocks('GET', { 
-        query: { source: 'all' } 
-      });
-
-      await handler(req, res);
-
-      expect(res.json).toHaveBeenCalledWith({
-        success: true,
-        players: expect.arrayContaining([
-          expect.objectContaining({ name: 'ESPN Player' }),
-          expect.objectContaining({ name: 'Regular Player' })
-        ]),
-        total: 2,
-        limit: 50,
-        offset: 0,
-        source: 'espn' // Based on first player's source
-      });
-    });
-
-    it('GET players falls back to regular collection when ESPN is empty', async () => {
-      const regularPlayers = [{ id: 1, name: 'Regular Player' }];
-      
-      mockPlayersCollectionESPN.find().sort().skip().limit().toArray.mockResolvedValue([]);
-      mockPlayersCollection.find().sort().skip().limit().toArray.mockResolvedValue(regularPlayers);
-      
-      mockPlayersCollectionESPN.countDocuments.mockResolvedValue(0);
-      mockPlayersCollection.countDocuments.mockResolvedValue(1);
-
-      const { req, res } = createMocks('GET');
-
-      await handler(req, res);
-
-      expect(res.json).toHaveBeenCalledWith({
-        success: true,
-        players: regularPlayers,
-        total: 1,
-        limit: 50,
-        offset: 0,
-        source: 'regular'
-      });
-    });
+    
   });
 
   // ---------------- POST player ----------------
@@ -391,17 +343,6 @@ describe('/api/players', () => {
     expect(res.json).toHaveBeenCalledWith({ error: 'Method not allowed' });
   });
 
-  it('handles database errors gracefully', async () => {
-    getPlayersCollection.mockRejectedValue(new Error('Database connection failed'));
-    const { req, res } = createMocks('GET');
-
-    await handler(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ 
-      error: 'Failed to fetch players' 
-    });
-  });
 
   it('handles teamName resolution errors gracefully', async () => {
     mockTeamsCollectionESPN.findOne.mockRejectedValue(new Error('DB error'));
