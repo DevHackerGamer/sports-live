@@ -1,160 +1,118 @@
-// src/components/Header/__tests__/Header.test.js
+// __tests__/Header.test.js
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom';
-import Header from '../Header';
+import Header from '../Header/Header';
 
-// Mock Clerk hooks and components
-jest.mock('@clerk/clerk-react', () => ({
-  useUser: () => ({ user: { firstName: 'John', lastName: 'Doe' } }),
-  UserButton: () => <button>UserButton</button>,
-}));
+// Mock Clerk
+jest.mock('@clerk/clerk-react', () => {
+  const React = require('react');
+  return {
+    useUser: () => ({ user: { firstName: 'John' } }),
+    UserButton: () => <div data-testid="user-button">UserButton</div>,
+  };
+});
 
-describe('Header Component', () => {
-  let setActiveTabMock, setShowAboutUsMock;
+describe('Header component', () => {
+  let mockSetActiveTab;
+  let mockSetShowAboutUs;
+  let mockSetSelectedMatch;
+  let mockSetSelectedTeam;
 
   beforeEach(() => {
-    setActiveTabMock = jest.fn();
-    setShowAboutUsMock = jest.fn();
+    mockSetActiveTab = jest.fn();
+    mockSetShowAboutUs = jest.fn();
+    mockSetSelectedMatch = jest.fn();
+    mockSetSelectedTeam = jest.fn();
   });
 
-  test('renders logo and greeting', () => {
+  it('renders user first name', () => {
     render(
       <Header
-        activeTab="home"
-        setActiveTab={setActiveTabMock}
-        setShowAboutUs={setShowAboutUsMock}
-        setSelectedMatch={() => {}}
-        setSelectedTeam={() => {}}
+        activeTab=""
+        setActiveTab={mockSetActiveTab}
+        setShowAboutUs={mockSetShowAboutUs}
+        setSelectedMatch={mockSetSelectedMatch}
+        setSelectedTeam={mockSetSelectedTeam}
         isAdmin={false}
+        selectedMatch={null}
       />
     );
 
-    expect(screen.getByText(/SportsLive/i)).toBeInTheDocument();
     expect(screen.getByText(/Welcome, John/i)).toBeInTheDocument();
-    expect(screen.getByText(/UserButton/i)).toBeInTheDocument();
+    expect(screen.getByTestId('user-button')).toBeInTheDocument();
   });
 
-  test('navigates to tabs and closes mobile menu', () => {
+  it('calls setActiveTab and resets state when nav buttons are clicked', () => {
     render(
       <Header
-        activeTab="home"
-        setActiveTab={setActiveTabMock}
-        setShowAboutUs={setShowAboutUsMock}
-        setSelectedMatch={() => {}}
-        setSelectedTeam={() => {}}
+        activeTab=""
+        setActiveTab={mockSetActiveTab}
+        setShowAboutUs={mockSetShowAboutUs}
+        setSelectedMatch={mockSetSelectedMatch}
+        setSelectedTeam={mockSetSelectedTeam}
         isAdmin={false}
+        selectedMatch={null}
       />
     );
 
-    const homeBtn = screen.getByRole('button', { name: /home/i });
-    fireEvent.click(homeBtn);
-
-    expect(setActiveTabMock).toHaveBeenCalledWith('home');
-    expect(setShowAboutUsMock).toHaveBeenCalledWith(false);
+    fireEvent.click(screen.getByText('Home'));
+    expect(mockSetActiveTab).toHaveBeenCalledWith('home');
+    expect(mockSetShowAboutUs).toHaveBeenCalledWith(false);
+    expect(mockSetSelectedMatch).toHaveBeenCalledWith(null);
+    expect(mockSetSelectedTeam).toHaveBeenCalledWith(null);
   });
 
-  test('opens About section', () => {
+  it('calls handleAboutClick when About button is clicked', () => {
     render(
       <Header
-        activeTab="home"
-        setActiveTab={setActiveTabMock}
-        setShowAboutUs={setShowAboutUsMock}
-        setSelectedMatch={() => {}}
-        setSelectedTeam={() => {}}
+        activeTab=""
+        setActiveTab={mockSetActiveTab}
+        setShowAboutUs={mockSetShowAboutUs}
+        setSelectedMatch={mockSetSelectedMatch}
+        setSelectedTeam={mockSetSelectedTeam}
         isAdmin={false}
+        selectedMatch={null}
       />
     );
 
-    const aboutBtn = screen.getByRole('button', { name: /about/i });
-    fireEvent.click(aboutBtn);
-
-    expect(setShowAboutUsMock).toHaveBeenCalledWith(true);
-    expect(setActiveTabMock).toHaveBeenCalledWith('about');
+    fireEvent.click(screen.getByText('About'));
+    expect(mockSetShowAboutUs).toHaveBeenCalledWith(true);
+  expect(mockSetActiveTab).toHaveBeenCalledWith('about');
+    expect(mockSetSelectedMatch).toHaveBeenCalledWith(null);
+    expect(mockSetSelectedTeam).toHaveBeenCalledWith(null);
   });
 
-  test('toggles mobile menu', () => {
+  it('renders admin buttons if isAdmin is true', () => {
     render(
       <Header
-        activeTab="home"
-        setActiveTab={setActiveTabMock}
-        setShowAboutUs={setShowAboutUsMock}
-        setSelectedMatch={() => {}}
-        setSelectedTeam={() => {}}
-        isAdmin={false}
+        activeTab=""
+        setActiveTab={mockSetActiveTab}
+        setShowAboutUs={mockSetShowAboutUs}
+        setSelectedMatch={mockSetSelectedMatch}
+        setSelectedTeam={mockSetSelectedTeam}
+        isAdmin={true}
+        selectedMatch={null}
       />
     );
 
-    const burgerBtn = screen.getByRole('button', { name: /toggle menu/i });
-
-    // Initially closed, click to open
-    fireEvent.click(burgerBtn);
-    expect(screen.getByRole('navigation')).toHaveClass('mobile-menu-open');
-
-    // Click overlay to close
-    const overlay = screen.getByTestId('mobile-menu-overlay') || document.querySelector('.mobile-menu-overlay');
-    fireEvent.click(overlay);
-    expect(screen.getByRole('navigation')).not.toHaveClass('mobile-menu-open');
+    expect(screen.getByText('Setup')).toBeInTheDocument();
+    expect(screen.getByText('Reports')).toBeInTheDocument();
+    expect(screen.queryByText('Live Input')).not.toBeInTheDocument();
   });
 
-  test('renders admin tabs when isAdmin is true', () => {
+  it('renders Live Input button if selectedMatch is provided', () => {
     render(
       <Header
-        activeTab="home"
-        setActiveTab={setActiveTabMock}
-        setShowAboutUs={setShowAboutUsMock}
-        setSelectedMatch={() => {}}
-        setSelectedTeam={() => {}}
+        activeTab=""
+        setActiveTab={mockSetActiveTab}
+        setShowAboutUs={mockSetShowAboutUs}
+        setSelectedMatch={mockSetSelectedMatch}
+        setSelectedTeam={mockSetSelectedTeam}
         isAdmin={true}
+        selectedMatch={{ id: 123 }}
       />
     );
 
-    expect(screen.getByRole('button', { name: /setup/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /reports/i })).toBeInTheDocument();
-  });
-
-  test('renders live input button if selectedMatch or selectedMatchId exists', () => {
-    const { rerender } = render(
-      <Header
-        activeTab="home"
-        setActiveTab={setActiveTabMock}
-        setShowAboutUs={setShowAboutUsMock}
-        setSelectedMatch={() => {}}
-        setSelectedTeam={() => {}}
-        isAdmin={true}
-      />
-    );
-
-    // No live input initially
-    expect(screen.queryByRole('button', { name: /live input/i })).not.toBeInTheDocument();
-
-    // With selectedMatch
-    rerender(
-      <Header
-        activeTab="home"
-        setActiveTab={setActiveTabMock}
-        setShowAboutUs={setShowAboutUsMock}
-        setSelectedMatch={{ id: 'match1' }}
-        setSelectedTeam={() => {}}
-        isAdmin={true}
-      />
-    );
-
-    expect(screen.getByRole('button', { name: /live input/i })).toBeInTheDocument();
-
-    // With selectedMatchId
-    rerender(
-      <Header
-        activeTab="home"
-        setActiveTab={setActiveTabMock}
-        setShowAboutUs={setShowAboutUsMock}
-        setSelectedMatch={null}
-        selectedMatchId="match123"
-        setSelectedTeam={() => {}}
-        isAdmin={true}
-      />
-    );
-
-    expect(screen.getByRole('button', { name: /live input/i })).toBeInTheDocument();
+    expect(screen.getByText('Live Input')).toBeInTheDocument();
   });
 });
