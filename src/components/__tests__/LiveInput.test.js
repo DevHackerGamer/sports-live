@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import LiveInput from '../LiveInput';
+import LiveInput from '../liveInput/LiveInput';
 import * as ClerkReact from '@clerk/clerk-react';
 import * as roles from '../../lib/roles';
 import * as api from '../../lib/api';
@@ -24,14 +24,14 @@ jest.mock('../../lib/api', () => ({
 }));
 
 // Mock child components
-jest.mock('./LineupsAdminModal', () => ({ match, onClose }) => (
+jest.mock('../liveInput/LineupsAdminModal', () => ({ match, onClose }) => (
   <div data-testid="lineups-admin-modal">
     Lineups Admin Modal for {match?.id}
     <button onClick={onClose}>Close Lineups</button>
   </div>
 ));
 
-jest.mock('./CommentaryAdminModal', () => ({ matchId, isOpen, onClose }) => (
+jest.mock('../liveInput/CommentaryAdminModal', () => ({ matchId, isOpen, onClose }) => (
   <div data-testid="commentary-admin-modal">
     Commentary Admin Modal for match {matchId}
     <button onClick={onClose}>Close Commentary</button>
