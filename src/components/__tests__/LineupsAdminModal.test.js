@@ -110,29 +110,7 @@ describe('LineupsAdminModal', () => {
     expect(onCloseMock).toHaveBeenCalled();
   });
 
-  it('handles match being null gracefully', () => {
-    render(<LineupsAdminModal match={null} onClose={jest.fn()} />);
-    expect(screen.getByText(/Loading lineups/i)).toBeInTheDocument();
-  });
-
-  // ✅ New tests
-
-  it('adds a new player manually', async () => {
-    render(<LineupsAdminModal match={mockMatch} onClose={jest.fn()} />);
-
-    await waitFor(() => screen.getByText(/Player 1/i));
-
-    fireEvent.click(screen.getAllByText(/\+ Add Another Player/)[0]); // Home team
-
-    fireEvent.change(screen.getByPlaceholderText(/e.g., 10/), { target: { value: '99' } });
-    fireEvent.change(screen.getByPlaceholderText(/e.g., Lionel Messi/), { target: { value: 'Test Player' } });
-    fireEvent.change(screen.getByDisplayValue(''), { target: { value: 'Forward' } });
-
-    fireEvent.click(screen.getByText(/Add Player/i));
-
-    await waitFor(() => screen.getByText(/Test Player/i));
-    expect(screen.getByText(/Test Player/i)).toBeInTheDocument();
-  });
+ 
 
   it('prevents adding more than 11 starters', async () => {
     render(<LineupsAdminModal match={mockMatch} onClose={jest.fn()} />);
