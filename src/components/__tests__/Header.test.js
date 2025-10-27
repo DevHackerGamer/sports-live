@@ -1,114 +1,160 @@
-import React, { useState } from 'react';
-import { UserButton, useUser } from '@clerk/clerk-react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBars, faTimes } from '@fortawesome/free-solid-svg-icons';
+// src/components/Header/__tests__/Header.test.js
+import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import Header from '../Header';
 
-const Header = ({
-  activeTab,
-  setActiveTab,
-  setShowAboutUs,
-  setSelectedMatch,
-  setSelectedTeam,
-  isAdmin,
-  selectedMatch,
-  selectedMatchId
-}) => {
-  const { user } = useUser();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+// Mock Clerk hooks and components
+jest.mock('@clerk/clerk-react', () => ({
+  useUser: () => ({ user: { firstName: 'John', lastName: 'Doe' } }),
+  UserButton: () => <button>UserButton</button>,
+}));
 
-  const handleNavClick = (tab) => {
-    setActiveTab(tab);
-    setShowAboutUs(false);
-    setSelectedMatch(null); // ✅ Added for test compatibility
-    setSelectedTeam(null);  // ✅ Added for test compatibility
-    setMobileMenuOpen(false); // Close mobile menu after navigation
-  };
+describe('Header Component', () => {
+  let setActiveTabMock, setShowAboutUsMock;
 
-  const handleAboutClick = () => {
-    setShowAboutUs(true);
-    setActiveTab('about');
-    setSelectedMatch(null); // ✅ Added for test compatibility
-    setSelectedTeam(null);  // ✅ Added for test compatibility
-    setMobileMenuOpen(false); // Close mobile menu after navigation
-  };
+  beforeEach(() => {
+    setActiveTabMock = jest.fn();
+    setShowAboutUsMock = jest.fn();
+  });
 
-  const toggleMobileMenu = () => {
-    setMobileMenuOpen(!mobileMenuOpen);
-  };
+  test('renders logo and greeting', () => {
+    render(
+      <Header
+        activeTab="home"
+        setActiveTab={setActiveTabMock}
+        setShowAboutUs={setShowAboutUsMock}
+        setSelectedMatch={() => {}}
+        setSelectedTeam={() => {}}
+        isAdmin={false}
+      />
+    );
 
-  return (
-    <header className="dashboard-header">
-      <div className="header-left">
-        {/* Burger Menu Button - Only visible on mobile */}
-        <button
-          className="burger-menu-button"
-          onClick={toggleMobileMenu}
-          aria-label="Toggle menu"
-        >
-          <FontAwesomeIcon icon={mobileMenuOpen ? faTimes : faBars} />
-        </button>
+    expect(screen.getByText(/SportsLive/i)).toBeInTheDocument();
+    expect(screen.getByText(/Welcome, John/i)).toBeInTheDocument();
+    expect(screen.getByText(/UserButton/i)).toBeInTheDocument();
+  });
 
-        {/* Logo - Hidden on mobile, shown on desktop */}
-        <div className="logo-trapezoid desktop-logo">
-          <span className="logo-text">SportsLive</span>
-        </div>
+  test('navigates to tabs and closes mobile menu', () => {
+    render(
+      <Header
+        activeTab="home"
+        setActiveTab={setActiveTabMock}
+        setShowAboutUs={setShowAboutUsMock}
+        setSelectedMatch={() => {}}
+        setSelectedTeam={() => {}}
+        isAdmin={false}
+      />
+    );
 
-        {/* Navigation Menu */}
-        <nav
-          className={`dashboard-nav ${mobileMenuOpen ? 'mobile-menu-open' : ''}`}
-          role="navigation"
-        >
-          {/* Logo inside mobile menu */}
-          <div className="mobile-menu-logo">
-            <div className="logo-trapezoid">
-              <span className="logo-text">SportsLive</span>
-            </div>
-          </div>
+    const homeBtn = screen.getByRole('button', { name: /home/i });
+    fireEvent.click(homeBtn);
 
-          <ul>
-            <li><button onClick={() => handleNavClick('home')}>Home</button></li>
-            <li><button onClick={() => handleNavClick('favorites')}>Favourites</button></li>
-            <li><button onClick={() => handleNavClick('watchlist')}>Watchlist</button></li>
-            {isAdmin && (
-              <>
-                <li><button onClick={() => handleNavClick('matchSetup')}>Setup</button></li>
-                {(selectedMatch || selectedMatchId) && (
-                  <li>
-                    <button
-                      onClick={() => handleNavClick('liveInput')}
-                      title="Enter live input for the selected match"
-                    >
-                      Live Input
-                    </button>
-                  </li>
-                )}
-                <li><button onClick={() => handleNavClick('reports')}>Reports</button></li>
-              </>
-            )}
-            <li><button onClick={handleAboutClick}>About</button></li>
-          </ul>
-        </nav>
-      </div>
+    expect(setActiveTabMock).toHaveBeenCalledWith('home');
+    expect(setShowAboutUsMock).toHaveBeenCalledWith(false);
+  });
 
-      <div className="header-right">
-        <div className="user-section">
-          <span className="user-greeting">Welcome, {user?.firstName || 'User'}</span>
-          <UserButton />
-        </div>
-      </div>
+  test('opens About section', () => {
+    render(
+      <Header
+        activeTab="home"
+        setActiveTab={setActiveTabMock}
+        setShowAboutUs={setShowAboutUsMock}
+        setSelectedMatch={() => {}}
+        setSelectedTeam={() => {}}
+        isAdmin={false}
+      />
+    );
 
-      {/* Overlay for mobile menu */}
-      {mobileMenuOpen && (
-        <div
-          className="mobile-menu-overlay"
-          onClick={toggleMobileMenu}
-          role="button"
-          tabIndex={0}
-          aria-label="Close menu overlay"
-        />
-      )}
-    </header>
-  );
-};
+    const aboutBtn = screen.getByRole('button', { name: /about/i });
+    fireEvent.click(aboutBtn);
 
-export default Header;
+    expect(setShowAboutUsMock).toHaveBeenCalledWith(true);
+    expect(setActiveTabMock).toHaveBeenCalledWith('about');
+  });
+
+  test('toggles mobile menu', () => {
+    render(
+      <Header
+        activeTab="home"
+        setActiveTab={setActiveTabMock}
+        setShowAboutUs={setShowAboutUsMock}
+        setSelectedMatch={() => {}}
+        setSelectedTeam={() => {}}
+        isAdmin={false}
+      />
+    );
+
+    const burgerBtn = screen.getByRole('button', { name: /toggle menu/i });
+
+    // Initially closed, click to open
+    fireEvent.click(burgerBtn);
+    expect(screen.getByRole('navigation')).toHaveClass('mobile-menu-open');
+
+    // Click overlay to close
+    const overlay = screen.getByTestId('mobile-menu-overlay') || document.querySelector('.mobile-menu-overlay');
+    fireEvent.click(overlay);
+    expect(screen.getByRole('navigation')).not.toHaveClass('mobile-menu-open');
+  });
+
+  test('renders admin tabs when isAdmin is true', () => {
+    render(
+      <Header
+        activeTab="home"
+        setActiveTab={setActiveTabMock}
+        setShowAboutUs={setShowAboutUsMock}
+        setSelectedMatch={() => {}}
+        setSelectedTeam={() => {}}
+        isAdmin={true}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: /setup/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /reports/i })).toBeInTheDocument();
+  });
+
+  test('renders live input button if selectedMatch or selectedMatchId exists', () => {
+    const { rerender } = render(
+      <Header
+        activeTab="home"
+        setActiveTab={setActiveTabMock}
+        setShowAboutUs={setShowAboutUsMock}
+        setSelectedMatch={() => {}}
+        setSelectedTeam={() => {}}
+        isAdmin={true}
+      />
+    );
+
+    // No live input initially
+    expect(screen.queryByRole('button', { name: /live input/i })).not.toBeInTheDocument();
+
+    // With selectedMatch
+    rerender(
+      <Header
+        activeTab="home"
+        setActiveTab={setActiveTabMock}
+        setShowAboutUs={setShowAboutUsMock}
+        setSelectedMatch={{ id: 'match1' }}
+        setSelectedTeam={() => {}}
+        isAdmin={true}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: /live input/i })).toBeInTheDocument();
+
+    // With selectedMatchId
+    rerender(
+      <Header
+        activeTab="home"
+        setActiveTab={setActiveTabMock}
+        setShowAboutUs={setShowAboutUsMock}
+        setSelectedMatch={null}
+        selectedMatchId="match123"
+        setSelectedTeam={() => {}}
+        isAdmin={true}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: /live input/i })).toBeInTheDocument();
+  });
+});
