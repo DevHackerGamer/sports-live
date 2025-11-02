@@ -9,7 +9,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
@@ -17,7 +16,7 @@ jobs:
 
       # 3. Install dependencies
       - name: Install dependencies
-        run : npm install --legacy-peer-deps
+        run: npm install --legacy-peer-deps
         env:
           NPM_CONFIG_LOGLEVEL: error
 
@@ -25,7 +24,11 @@ jobs:
       - name: Run Tests with Coverage
         id: run-tests
         continue-on-error: true
-        run: npm run test -- --coverage
+        run: |
+          npx jest --coverage \
+          --coverageReporters="json-summary" \
+          --coverageReporters="text" \
+          --coverageReporters="lcov"
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=4096 --no-warnings
@@ -33,7 +36,6 @@ jobs:
           ESLINT_NO_DEV_ERRORS: true
           NPM_CONFIG_LOGLEVEL: error
 
-     
       # Extract coverage summary (from coverage/coverage-summary.json)
       - name: Extract Coverage Percentage
         id: coverage
@@ -41,7 +43,7 @@ jobs:
           if [ -f coverage/coverage-summary.json ]; then
             COVERAGE=$(jq '.total.lines.pct' coverage/coverage-summary.json)
             echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
-            echo "Total test coverage: $COVERAGE%" 
+            echo "Total test coverage: $COVERAGE%"
           else
             echo "COVERAGE=0" >> $GITHUB_ENV
             echo "⚠️ No coverage summary found"
