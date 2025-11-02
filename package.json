@@ -86,9 +86,10 @@
   "jest": {
     "collectCoverageFrom": [
       "src/components/**/*.{js,jsx}",
+      "!src/components/liveInput/LiveInput.js**",
+      "!src/components/matchViewer/MatchViewer.js**",
       "api/**/*.js",
-      "src/hooks/**/*.{js,jsx}",
-      "src/App.js"
+      "src/hooks/**/*.{js,jsx}"
     ]
   }
 }

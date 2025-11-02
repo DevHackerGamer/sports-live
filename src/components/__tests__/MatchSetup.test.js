@@ -4,171 +4,388 @@ import MatchSetup from '../matchsetup/MatchSetup';
 import * as ClerkReact from '@clerk/clerk-react';
 import * as roles from '../../lib/roles';
 
-// Mock useUser properly
+// Mock Clerk
 jest.mock('@clerk/clerk-react', () => ({
-  ...jest.requireActual('@clerk/clerk-react'),
   useUser: jest.fn(),
 }));
 
-// Mock MatchViewer to avoid full rendering
-jest.mock('../matchViewer/MatchViewer', () => ({ match, onBack }) => (
+// Mock child components
+jest.mock('../matchViewer/MatchViewer', () => ({ match, onBack, isAdmin }) => (
   <div data-testid="match-viewer">
-    <span>MatchViewer: {match.homeTeam?.name} vs {match.awayTeam?.name}</span>
-    <button onClick={onBack}>Back</button>
+    MatchViewer: {match.homeTeam?.name} vs {match.awayTeam?.name}
+    <button onClick={onBack}>Back to Setup</button>
   </div>
 ));
 
-jest.spyOn(global, 'fetch');
+// Mock utilities
+jest.mock('../../lib/roles', () => ({
+  isAdminFromUser: jest.fn(),
+}));
+
+jest.mock('../../lib/leagueNames', () => ({
+  getLeagueName: jest.fn((name) => name || 'Unknown League'),
+}));
 
 describe('MatchSetup Component', () => {
-  const mockUser = { id: 'user1' };
+  const mockOnTeamSelect = jest.fn();
+  const mockOnMatchSelect = jest.fn();
+  const mockUser = { id: 'user123', firstName: 'John' };
+
+  const mockTeamsData = {
+    data: [
+      { _id: 'team1', name: 'Arsenal', crest: '/arsenal.png' },
+      { _id: 'team2', name: 'Chelsea', crest: '/chelsea.png' },
+      { _id: 'team3', name: 'Liverpool', crest: '/liverpool.png' },
+    ],
+  };
+
+  const mockMatchesData = {
+    success: true,
+    provider: 'admin',
+    data: [
+      {
+        id: 'match1',
+        homeTeam: { name: 'Arsenal', id: 'team1' },
+        awayTeam: { name: 'Chelsea', id: 'team2' },
+        competition: { name: 'Premier League [eng.1]' },
+        utcDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        time: '15:00',
+        status: 'TIMED',
+        matchday: 1,
+        createdByAdmin: true,
+      },
+    ],
+  };
+
+  const mockCompetitionsData = {
+    success: true,
+    data: ['Premier League [eng.1]', 'La Liga [esp.1]', 'Champions League [uefa.champions]'],
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
-  });
-
-  it('renders access denied if not admin', () => {
-    jest.spyOn(roles, 'isAdminFromUser').mockReturnValue(false);
+    
+    // Default mocks
     ClerkReact.useUser.mockReturnValue({ user: mockUser });
-
-    render(<MatchSetup />);
-    expect(screen.getByText(/Access denied/i)).toBeInTheDocument();
-  });
-
-  it('renders admin screen and fetches data', async () => {
     jest.spyOn(roles, 'isAdminFromUser').mockReturnValue(true);
-    ClerkReact.useUser.mockReturnValue({ user: mockUser });
-
+    
+    // Mock fetch responses
+    global.fetch = jest.fn();
     fetch.mockImplementation((url) => {
-      if (url.includes('matches')) return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, data: [] }) });
-      if (url.includes('teams')) return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [{ _id: 't1', name: 'TeamA' }, { _id: 't2', name: 'TeamB' }] }) });
-      if (url.includes('competitions')) return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, data: ['Comp1'] }) });
-      return Promise.resolve({ ok: true, json: () => ({}) });
-    });
-
-    await act(async () => render(<MatchSetup />));
-
-    expect(screen.getByText(/Match Setup/i)).toBeInTheDocument();
-    expect(screen.getByText(/Create Match/i)).toBeInTheDocument();
-    expect(fetch).toHaveBeenCalledTimes(3);
-  });
-
-  it('opens and closes create match form', async () => {
-    jest.spyOn(roles, 'isAdminFromUser').mockReturnValue(true);
-    ClerkReact.useUser.mockReturnValue({ user: mockUser });
-
-    fetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ success: true, data: [] }) });
-
-    render(<MatchSetup />);
-
-    const createBtn = screen.getByText(/Create Match/i);
-    fireEvent.click(createBtn);
-    expect(screen.getByText(/Create New Match/i)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText(/Close Form/i));
-    expect(screen.queryByText(/Create New Match/i)).not.toBeInTheDocument();
-  });
-
-  it('validates form before adding match', async () => {
-    jest.spyOn(roles, 'isAdminFromUser').mockReturnValue(true);
-    ClerkReact.useUser.mockReturnValue({ user: mockUser });
-    fetch.mockResolvedValue({ ok: true, json: () => ({ success: true }) });
-
-    render(<MatchSetup />);
-    fireEvent.click(screen.getByText(/Create Match/i));
-
-    const createBtn = screen.getByText(/Create Match$/i);
-    window.alert = jest.fn();
-    fireEvent.click(createBtn);
-    expect(window.alert).toHaveBeenCalled();
-  });
-
-  it('handles JSON file import', async () => {
-    jest.spyOn(roles, 'isAdminFromUser').mockReturnValue(true);
-    ClerkReact.useUser.mockReturnValue({ user: mockUser });
-
-    fetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ success: true, data: [] }) });
-
-    const { container } = render(<MatchSetup />);
-    fireEvent.click(screen.getByText(/Create Match/i));
-    fireEvent.click(screen.getByText(/Import Matches from JSON File/i));
-
-    // Use container.querySelector to find the file input
-    const fileInput = container.querySelector('input[type="file"]');
-
-    const file = new File(
-      [JSON.stringify([{ teamA: 'TeamA', teamB: 'TeamB', date: '2025-10-19', time: '12:00', competition: 'Comp1', matchday: 1 }])],
-      'matches.json',
-      { type: 'application/json' }
-    );
-
-    Object.defineProperty(fileInput, 'files', { value: [file] });
-    fireEvent.change(fileInput);
-
-    window.alert = jest.fn();
-    await waitFor(() =>
-      expect(window.alert).toHaveBeenCalledWith(expect.stringContaining('matches imported'))
-    );
-  });
-
-  it('updates IN_PLAY match minute', async () => {
-    jest.useFakeTimers();
-    jest.spyOn(roles, 'isAdminFromUser').mockReturnValue(true);
-    ClerkReact.useUser.mockReturnValue({ user: mockUser });
-
-    const match = {
-      id: 'm1',
-      homeTeam: { name: 'TeamA' },
-      awayTeam: { name: 'TeamB' },
-      competition: { name: 'Comp1' },
-      utcDate: new Date(Date.now() - 2 * 60000).toISOString(),
-      status: 'IN_PLAY',
-      createdByAdmin: true,
-    };
-
-    fetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ success: true, data: [match] }) });
-
-    render(<MatchSetup />);
-
-    act(() => jest.advanceTimersByTime(60000));
-    jest.useRealTimers();
-  });
-
-    it('adds and removes match (basic flow)', async () => {
-        jest.spyOn(roles, 'isAdminFromUser').mockReturnValue(true);
-        ClerkReact.useUser.mockReturnValue({ user: mockUser });
-
-        const mockResponse = {
+      if (url.includes('/api/teams')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockTeamsData),
+        });
+      }
+      if (url.includes('/api/matches?provider=admin')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockMatchesData),
+        });
+      }
+      if (url.includes('/api/competitions')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockCompetitionsData),
+        });
+      }
+      if (url.includes('/api/matches')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
             success: true,
             data: {
-            id: 'm1',
-            homeTeam: { name: 'TeamA' },
-            awayTeam: { name: 'TeamB' },
-            competition: { name: 'Comp1' },
-            date: '2025-10-19',
-            time: '12:00',
-            status: 'TIMED',
-            createdByAdmin: true
-            }
-        };
-        fetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(mockResponse) });
+              id: 'new-match',
+              homeTeam: { name: 'Arsenal', id: 'team1' },
+              awayTeam: { name: 'Chelsea', id: 'team2' },
+              competition: { name: 'Premier League' },
+              utcDate: new Date().toISOString(),
+              date: new Date().toISOString().split('T')[0],
+              time: '15:00',
+              status: 'TIMED',
+              matchday: 1,
+              createdByAdmin: true,
+            },
+          }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({}),
+      });
+    });
+  });
 
-        const { container } = render(<MatchSetup />);
-        fireEvent.click(screen.getByText(/Create Match/i));
+  it('renders access denied for non-admin users', () => {
+    jest.spyOn(roles, 'isAdminFromUser').mockReturnValue(false);
 
-        // Fill minimal inputs by name
-        const dateInput = container.querySelector('input[name="date"]');
-        const timeInput = container.querySelector('input[name="time"]');
-        const matchdayInput = container.querySelector('input[name="matchday"]');
+    render(<MatchSetup onTeamSelect={mockOnTeamSelect} onMatchSelect={mockOnMatchSelect} />);
 
-        fireEvent.change(dateInput, { target: { value: '2025-10-19' } });
-        fireEvent.change(timeInput, { target: { value: '12:00' } });
-        fireEvent.change(matchdayInput, { target: { value: 1 } });
+    expect(screen.getByText('Access denied: Admin role required.')).toBeInTheDocument();
+  });
 
-        window.alert = jest.fn();
-        fireEvent.click(screen.getByText(/Create Match$/i));
-
-        expect(window.alert).toHaveBeenCalled();
+  it('renders main interface for admin users', async () => {
+    await act(async () => {
+      render(<MatchSetup onTeamSelect={mockOnTeamSelect} onMatchSelect={mockOnMatchSelect} />);
     });
 
+    expect(screen.getByText('Match Setup')).toBeInTheDocument();
+    expect(screen.getByText('Create Match')).toBeInTheDocument();
+    expect(screen.getByText('Scheduled Matches')).toBeInTheDocument();
+  });
+
+  it('fetches teams, matches, and competitions on mount', async () => {
+    await act(async () => {
+      render(<MatchSetup onTeamSelect={mockOnTeamSelect} onMatchSelect={mockOnMatchSelect} />);
+    });
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith('/api/teams');
+      expect(fetch).toHaveBeenCalledWith('/api/matches?provider=admin&limit=50&range=30&includePast=1');
+      expect(fetch).toHaveBeenCalledWith('/api/competitions');
+    });
+  });
+
+  it('shows and hides the create match form', async () => {
+    await act(async () => {
+      render(<MatchSetup onTeamSelect={mockOnTeamSelect} onMatchSelect={mockOnMatchSelect} />);
+    });
+
+    // Form should be hidden initially
+    expect(screen.queryByText('Create New Match')).not.toBeInTheDocument();
+
+    // Show form
+    const createButton = screen.getByText('Create Match');
+    fireEvent.click(createButton);
+
+    expect(screen.getByText('Create New Match')).toBeInTheDocument();
+    expect(screen.getByText('Close Form')).toBeInTheDocument();
+
+    // Hide form
+    fireEvent.click(screen.getByText('Close Form'));
+
+    expect(screen.queryByText('Create New Match')).not.toBeInTheDocument();
+  });
+
+  it('validates form before submitting', async () => {
+    await act(async () => {
+      render(<MatchSetup onTeamSelect={mockOnTeamSelect} onMatchSelect={mockOnMatchSelect} />);
+    });
+
+    // Show form
+    fireEvent.click(screen.getByText('Create Match'));
+
+    // Try to submit empty form
+    const submitButton = screen.getByText('Create Match');
+    fireEvent.click(submitButton);
+
+    // Should show validation errors
+    await waitFor(() => {
+      expect(screen.getByText('Home team is required')).toBeInTheDocument();
+      expect(screen.getByText('Away team is required')).toBeInTheDocument();
+      expect(screen.getByText('Date is required')).toBeInTheDocument();
+      expect(screen.getByText('Time is required')).toBeInTheDocument();
+      expect(screen.getByText('Competition is required')).toBeInTheDocument();
+    });
+  });
+
+  
+  it('handles team selection from match cards', async () => {
+    await act(async () => {
+      render(<MatchSetup onTeamSelect={mockOnTeamSelect} onMatchSelect={mockOnMatchSelect} />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Arsenal')).toBeInTheDocument();
+    });
+
+    const teamCrests = screen.getAllByAltText(/crest/);
+    fireEvent.click(teamCrests[0]);
+
+    expect(mockOnTeamSelect).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'Arsenal',
+      crest: expect.any(String),
+    }));
+  });
+
+  it('handles match selection', async () => {
+    await act(async () => {
+      render(<MatchSetup onTeamSelect={mockOnTeamSelect} onMatchSelect={mockOnMatchSelect} />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Arsenal')).toBeInTheDocument();
+    });
+
+    const matchCard = screen.getByText('Arsenal').closest('.ms-match-card');
+    fireEvent.click(matchCard);
+
+    expect(mockOnMatchSelect).toHaveBeenCalledWith(mockMatchesData.data[0]);
+  });
+
+  it('shows match viewer when match is selected', async () => {
+    await act(async () => {
+      render(<MatchSetup onTeamSelect={mockOnTeamSelect} onMatchSelect={mockOnMatchSelect} />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Arsenal')).toBeInTheDocument();
+    });
+
+    const matchCard = screen.getByText('Arsenal').closest('.ms-match-card');
+    fireEvent.click(matchCard);
+
+    expect(screen.getByTestId('match-viewer')).toBeInTheDocument();
+    expect(screen.getByText('Back to Setup')).toBeInTheDocument();
+  });
+
+
+  it('cancels remove confirmation', async () => {
+    await act(async () => {
+      render(<MatchSetup onTeamSelect={mockOnTeamSelect} onMatchSelect={mockOnMatchSelect} />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Arsenal')).toBeInTheDocument();
+    });
+
+    const removeButtons = screen.getAllByText('Remove');
+    fireEvent.click(removeButtons[0]);
+
+    const cancelButton = screen.getByText('Cancel');
+    fireEvent.click(cancelButton);
+
+    expect(screen.queryByText('Remove Match')).not.toBeInTheDocument();
+  });
+
+  
+
+  it('shows loading state while fetching matches', async () => {
+    // Delay the matches response
+    fetch.mockImplementation((url) => {
+      if (url.includes('/api/matches?provider=admin')) {
+        return new Promise(resolve => {
+          setTimeout(() => resolve({
+            ok: true,
+            json: () => Promise.resolve(mockMatchesData),
+          }), 100);
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({}),
+      });
+    });
+
+    render(<MatchSetup onTeamSelect={mockOnTeamSelect} onMatchSelect={mockOnMatchSelect} />);
+
+    expect(screen.getByText('Loading matches...')).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.queryByText('Loading matches...')).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows empty state when no matches exist', async () => {
+    fetch.mockImplementation((url) => {
+      if (url.includes('/api/matches?provider=admin')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true, data: [] }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({}),
+      });
+    });
+
+    await act(async () => {
+      render(<MatchSetup onTeamSelect={mockOnTeamSelect} onMatchSelect={mockOnMatchSelect} />);
+    });
+
+    expect(screen.getByText('No matches scheduled yet.')).toBeInTheDocument();
+  });
+
+  it('handles API errors gracefully', async () => {
+    fetch.mockImplementation((url) => {
+      if (url.includes('/api/teams')) {
+        return Promise.reject(new Error('Failed to fetch teams'));
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({}),
+      });
+    });
+
+    await act(async () => {
+      render(<MatchSetup onTeamSelect={mockOnTeamSelect} onMatchSelect={mockOnMatchSelect} />);
+    });
+
+    // Should still render without crashing
+    expect(screen.getByText('Match Setup')).toBeInTheDocument();
+  });
+
+  it('validates matchday input', async () => {
+    await act(async () => {
+      render(<MatchSetup onTeamSelect={mockOnTeamSelect} onMatchSelect={mockOnMatchSelect} />);
+    });
+
+    fireEvent.click(screen.getByText('Create Match'));
+
+    const matchdayInput = screen.getByPlaceholderText('Matchday (optional)');
+    fireEvent.change(matchdayInput, { target: { value: '0' } });
+
+    const submitButton = screen.getByText('Create Match');
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Matchday must be a number greater than 0')).toBeInTheDocument();
+    });
+  });
+
+  it('validates team uniqueness', async () => {
+    await act(async () => {
+      render(<MatchSetup onTeamSelect={mockOnTeamSelect} onMatchSelect={mockOnMatchSelect} />);
+    });
+
+    fireEvent.click(screen.getByText('Create Match'));
+
+    const homeTeamSelect = screen.getByDisplayValue('Select Home Team');
+    const awayTeamSelect = screen.getByDisplayValue('Select Away Team');
+
+    // Select same team for both home and away
+    fireEvent.change(homeTeamSelect, { target: { value: 'team1' } });
+    fireEvent.change(awayTeamSelect, { target: { value: 'team1' } });
+
+    const submitButton = screen.getByText('Create Match');
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Home and Away teams must be different')).toBeInTheDocument();
+    });
+  });
+
+
+
+  it('matches snapshot with admin access', async () => {
+    await act(async () => {
+      const { container } = render(<MatchSetup onTeamSelect={mockOnTeamSelect} onMatchSelect={mockOnMatchSelect} />);
+      expect(container).toMatchSnapshot();
+    });
+  });
+
+  it('matches snapshot with non-admin access', () => {
+    jest.spyOn(roles, 'isAdminFromUser').mockReturnValue(false);
+
+    const { container } = render(<MatchSetup onTeamSelect={mockOnTeamSelect} onMatchSelect={mockOnMatchSelect} />);
+    expect(container).toMatchSnapshot();
+  });
+
+
+
+  
+  
 });

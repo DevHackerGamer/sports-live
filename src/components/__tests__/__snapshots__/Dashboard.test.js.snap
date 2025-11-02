@@ -1,0 +1,87 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Dashboard Component matches snapshot with admin user 1`] = `
+<div>
+  <div
+    class="site-wrap dashboard"
+  >
+    <div
+      data-testid="header"
+    >
+      Header - Active: 
+      home
+       - Admin: 
+      Yes
+      <button>
+        Go to Matches
+      </button>
+      <button>
+        Show About
+      </button>
+    </div>
+    <div
+      data-testid="main-content"
+    >
+      MainContent - Tab: 
+      home
+       - ShowAbout: 
+      No
+      <button>
+        Go to Favorites
+      </button>
+    </div>
+    <div
+      data-testid="footer"
+    >
+      Footer - Leagues: 
+      6
+      <button>
+        Go Home
+      </button>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Dashboard Component matches snapshot with default state 1`] = `
+<div>
+  <div
+    class="site-wrap dashboard"
+  >
+    <div
+      data-testid="header"
+    >
+      Header - Active: 
+      home
+       - Admin: 
+      No
+      <button>
+        Go to Matches
+      </button>
+      <button>
+        Show About
+      </button>
+    </div>
+    <div
+      data-testid="main-content"
+    >
+      MainContent - Tab: 
+      home
+       - ShowAbout: 
+      No
+      <button>
+        Go to Favorites
+      </button>
+    </div>
+    <div
+      data-testid="footer"
+    >
+      Footer - Leagues: 
+      6
+      <button>
+        Go Home
+      </button>
+    </div>
+  </div>
+</div>
+`;

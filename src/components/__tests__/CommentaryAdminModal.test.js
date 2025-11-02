@@ -35,9 +35,7 @@ describe('CommentaryAdminModal', () => {
   });
 
   it('fetches and displays comments when opened', async () => {
-    render(
-      <CommentaryAdminModal matchId={matchId} isOpen={true} onClose={onCloseMock} />
-    );
+    render(<CommentaryAdminModal matchId={matchId} isOpen={true} onClose={onCloseMock} />);
 
     expect(screen.getByText(/Loading/i)).toBeInTheDocument();
 
@@ -47,20 +45,12 @@ describe('CommentaryAdminModal', () => {
     });
   });
 
-  it('adds a new comment', async () => {
-    render(
-      <CommentaryAdminModal matchId={matchId} isOpen={true} onClose={onCloseMock} />
-    );
-
+  it('adds a new comment with provided time', async () => {
+    render(<CommentaryAdminModal matchId={matchId} isOpen={true} onClose={onCloseMock} />);
     await waitFor(() => screen.getByText(/Goal by Player 1/i));
 
-    fireEvent.change(screen.getByPlaceholderText(/Enter commentary/i), {
-      target: { value: 'Corner kick' },
-    });
-    fireEvent.change(screen.getByPlaceholderText(/Time/i), {
-      target: { value: "45'" },
-    });
-
+    fireEvent.change(screen.getByPlaceholderText(/Enter commentary/i), { target: { value: 'Corner kick' } });
+    fireEvent.change(screen.getByPlaceholderText(/Time/i), { target: { value: "45'" } });
     fireEvent.click(screen.getByText(/Add/i));
 
     await waitFor(() => {
@@ -69,15 +59,38 @@ describe('CommentaryAdminModal', () => {
         time: "45'",
         text: 'Corner kick',
       });
-      expect(apiClient.getCommentary).toHaveBeenCalledTimes(2); // fetch after add
+      expect(apiClient.getCommentary).toHaveBeenCalledTimes(2);
     });
   });
 
-  it('deletes a comment', async () => {
-    render(
-      <CommentaryAdminModal matchId={matchId} isOpen={true} onClose={onCloseMock} />
-    );
+  it('adds a new comment with default time if time input is empty', async () => {
+    render(<CommentaryAdminModal matchId={matchId} isOpen={true} onClose={onCloseMock} />);
+    await waitFor(() => screen.getByText(/Goal by Player 1/i));
 
+    fireEvent.change(screen.getByPlaceholderText(/Enter commentary/i), { target: { value: 'Free kick' } });
+    fireEvent.click(screen.getByText(/Add/i));
+
+    await waitFor(() => {
+      expect(apiClient.addCommentary).toHaveBeenCalledWith(matchId, expect.objectContaining({
+        id: expect.any(Number),
+        time: "3'", // comments.length + 1 = 3
+        text: 'Free kick',
+      }));
+    });
+  });
+
+  it('does not add a comment if input is empty', async () => {
+    render(<CommentaryAdminModal matchId={matchId} isOpen={true} onClose={onCloseMock} />);
+    await waitFor(() => screen.getByText(/Goal by Player 1/i));
+
+    fireEvent.change(screen.getByPlaceholderText(/Enter commentary/i), { target: { value: '   ' } });
+    fireEvent.click(screen.getByText(/Add/i));
+
+    expect(apiClient.addCommentary).not.toHaveBeenCalled();
+  });
+
+  it('deletes a comment', async () => {
+    render(<CommentaryAdminModal matchId={matchId} isOpen={true} onClose={onCloseMock} />);
     await waitFor(() => screen.getByText(/Goal by Player 1/i));
 
     const deleteBtns = screen.getAllByText('🗑');
@@ -87,18 +100,49 @@ describe('CommentaryAdminModal', () => {
       expect(apiClient.overwriteCommentary).toHaveBeenCalledWith(matchId, [
         { id: 2, time: "34'", text: 'Yellow card for Player 2' },
       ]);
-      expect(apiClient.getCommentary).toHaveBeenCalledTimes(2); // fetch after delete
+      expect(apiClient.getCommentary).toHaveBeenCalledTimes(2);
     });
   });
 
   it('calls onClose when Close button is clicked', async () => {
-    render(
-      <CommentaryAdminModal matchId={matchId} isOpen={true} onClose={onCloseMock} />
-    );
-
+    render(<CommentaryAdminModal matchId={matchId} isOpen={true} onClose={onCloseMock} />);
     await waitFor(() => screen.getByText(/Goal by Player 1/i));
-
     fireEvent.click(screen.getByText(/Close/i));
     expect(onCloseMock).toHaveBeenCalled();
   });
+
+  it('handles API errors gracefully when fetching comments', async () => {
+    apiClient.getCommentary.mockRejectedValueOnce(new Error('Fetch failed'));
+    render(<CommentaryAdminModal matchId={matchId} isOpen={true} onClose={onCloseMock} />);
+    await waitFor(() => {
+      expect(screen.queryByText(/Goal by Player 1/i)).not.toBeInTheDocument();
+    });
+  });
+
+  it('handles API errors gracefully when adding a comment', async () => {
+    apiClient.addCommentary.mockRejectedValueOnce(new Error('Add failed'));
+    render(<CommentaryAdminModal matchId={matchId} isOpen={true} onClose={onCloseMock} />);
+    await waitFor(() => screen.getByText(/Goal by Player 1/i));
+
+    fireEvent.change(screen.getByPlaceholderText(/Enter commentary/i), { target: { value: 'Test' } });
+    fireEvent.click(screen.getByText(/Add/i));
+
+    await waitFor(() => {
+      expect(apiClient.addCommentary).toHaveBeenCalled();
+    });
+  });
+
+  it('handles API errors gracefully when deleting a comment', async () => {
+    apiClient.overwriteCommentary.mockRejectedValueOnce(new Error('Delete failed'));
+    render(<CommentaryAdminModal matchId={matchId} isOpen={true} onClose={onCloseMock} />);
+    await waitFor(() => screen.getByText(/Goal by Player 1/i));
+
+    const deleteBtns = screen.getAllByText('🗑');
+    fireEvent.click(deleteBtns[0]);
+
+    await waitFor(() => {
+      expect(apiClient.overwriteCommentary).toHaveBeenCalled();
+    });
+  });
+  
 });

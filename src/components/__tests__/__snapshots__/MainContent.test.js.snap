@@ -1,0 +1,53 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`MainContent Component matches snapshot with home tab 1`] = `
+<div>
+  <main
+    class="site-main"
+  >
+    <div
+      data-testid="home-screen"
+    >
+      Home Screen
+    </div>
+  </main>
+</div>
+`;
+
+exports[`MainContent Component matches snapshot with selected match 1`] = `
+<div>
+  <main
+    class="site-main"
+  >
+    <div
+      data-testid="match-viewer"
+    >
+      <span>
+        MatchViewer: 
+        Team C
+      </span>
+      <button>
+        Back
+      </button>
+    </div>
+  </main>
+</div>
+`;
+
+exports[`MainContent Component matches snapshot with selected team 1`] = `
+<div>
+  <main
+    class="site-main"
+  >
+    <div
+      data-testid="team-info"
+    >
+      Team Info: 
+      Chelsea
+      <button>
+        Back
+      </button>
+    </div>
+  </main>
+</div>
+`;

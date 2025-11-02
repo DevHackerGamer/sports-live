@@ -1,0 +1,20 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`MatchSetup Component matches snapshot with admin access 1`] = `<div />`;
+
+exports[`MatchSetup Component matches snapshot with non-admin access 1`] = `
+<div>
+  <div
+    class="ms-container"
+  >
+    <h2>
+      Match Setup
+    </h2>
+    <p
+      style="color: rgb(187, 0, 0);"
+    >
+      Access denied: Admin role required.
+    </p>
+  </div>
+</div>
+`;

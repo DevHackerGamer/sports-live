@@ -1,0 +1,1242 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`HomeScreen Component matches snapshot with default props 1`] = `
+<div>
+  <div
+    class="home-screen"
+  >
+    <section
+      class="hero"
+    >
+      <div
+        class="hero-content"
+      >
+        <h1>
+          Experience Football 
+          <span>
+            Like Never Before
+          </span>
+        </h1>
+        <p>
+          Real-time scores, in-depth statistics, and coverage of all major leagues.
+        </p>
+      </div>
+    </section>
+    <div
+      class="dashboard-grid"
+    >
+      <section
+        class="news-sidebar"
+      >
+        <div
+          class="news-header"
+        >
+          <h2>
+            <span
+              data-testid="font-awesome-icon"
+              style="margin-right: 0.5rem;"
+            />
+            Latest News
+          </h2>
+          <button
+            class="view-all-btn"
+          >
+            View All
+          </button>
+        </div>
+        <div
+          class="news-feed"
+        >
+          <div
+            class="news-item"
+          >
+            <div
+              class="news-image"
+            >
+              <img
+                alt="Breaking News: Team Wins Championship"
+                src="/news1.jpg"
+              />
+            </div>
+            <div
+              class="news-content"
+            >
+              <h4>
+                Breaking News: Team Wins Championship
+              </h4>
+              <p
+                class="news-excerpt"
+              >
+                In an incredible match, the team secured their victory in the final minutes.
+                ...
+              </p>
+              <div
+                class="news-meta"
+              >
+                <span
+                  class="news-time"
+                >
+                  1/15/2024
+                </span>
+              </div>
+            </div>
+          </div>
+          <div
+            class="news-item"
+          >
+            <div
+              class="news-content"
+            >
+              <h4>
+                Transfer Window Update
+              </h4>
+              <p
+                class="news-excerpt"
+              >
+                Major transfers happening across European leagues as deadline approaches.
+                ...
+              </p>
+              <div
+                class="news-meta"
+              >
+                <span
+                  class="news-time"
+                >
+                  1/14/2024
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <div
+        class="dashboard-right-column"
+      >
+        <section
+          class="quick-actions"
+        >
+          <h2>
+            Quick Actions
+          </h2>
+          <div
+            class="actions-grid"
+          >
+            <div
+              class="action-card"
+            >
+              <div
+                class="action-icon"
+              >
+                <span
+                  data-testid="font-awesome-icon"
+                />
+              </div>
+              <h3>
+                Live Matches
+              </h3>
+              <p>
+                Follow games in real-time
+              </p>
+            </div>
+            <div
+              class="action-card"
+            >
+              <div
+                class="action-icon"
+              >
+                <span
+                  data-testid="font-awesome-icon"
+                />
+              </div>
+              <h3>
+                Highlights
+              </h3>
+              <p>
+                Watch match highlights
+              </p>
+            </div>
+            <div
+              class="action-card"
+            >
+              <div
+                class="action-icon"
+              >
+                <span
+                  data-testid="font-awesome-icon"
+                />
+              </div>
+              <h3>
+                Standings
+              </h3>
+              <p>
+                League tables and rankings
+              </p>
+            </div>
+            <div
+              class="action-card"
+            >
+              <div
+                class="action-icon"
+              >
+                <span
+                  data-testid="font-awesome-icon"
+                />
+              </div>
+              <h3>
+                Favorites
+              </h3>
+              <p>
+                Your followed content
+              </p>
+            </div>
+          </div>
+        </section>
+        <section
+          class="featured-leagues"
+        >
+          <h2>
+            Featured Leagues
+          </h2>
+          <div
+            class="featured-leagues-grid"
+          >
+            <div
+              class="featured-league-card"
+            >
+              <div
+                class="featured-league-inner"
+              >
+                <div
+                  class="featured-league-front"
+                >
+                  <div
+                    class="featured-league-logo"
+                  >
+                    <img
+                      alt="Premier League"
+                      src="/pl-logo.png"
+                    />
+                  </div>
+                </div>
+                <div
+                  class="featured-league-back"
+                  style="background-color: rgb(61, 25, 91);"
+                >
+                  <div
+                    class="featured-league-back-content"
+                  >
+                    <h3>
+                      Premier League
+                    </h3>
+                    <p>
+                      English top division
+                    </p>
+                    <button
+                      class="btn btn-small"
+                    >
+                      View League
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="featured-league-card"
+            >
+              <div
+                class="featured-league-inner"
+              >
+                <div
+                  class="featured-league-front"
+                >
+                  <div
+                    class="featured-league-logo"
+                  >
+                    <img
+                      alt="La Liga"
+                      src="/laliga-logo.png"
+                    />
+                  </div>
+                </div>
+                <div
+                  class="featured-league-back"
+                  style="background-color: rgb(255, 0, 0);"
+                >
+                  <div
+                    class="featured-league-back-content"
+                  >
+                    <h3>
+                      La Liga
+                    </h3>
+                    <p>
+                      Spanish top division
+                    </p>
+                    <button
+                      class="btn btn-small"
+                    >
+                      View League
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="featured-league-card"
+            >
+              <div
+                class="featured-league-inner"
+              >
+                <div
+                  class="featured-league-front"
+                >
+                  <div
+                    class="featured-league-logo"
+                  >
+                    <img
+                      alt="Serie A"
+                      src="/seriea-logo.png"
+                    />
+                  </div>
+                </div>
+                <div
+                  class="featured-league-back"
+                  style="background-color: rgb(0, 140, 69);"
+                >
+                  <div
+                    class="featured-league-back-content"
+                  >
+                    <h3>
+                      Serie A
+                    </h3>
+                    <p>
+                      Italian top division
+                    </p>
+                    <button
+                      class="btn btn-small"
+                    >
+                      View League
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="featured-league-card"
+            >
+              <div
+                class="featured-league-inner"
+              >
+                <div
+                  class="featured-league-front"
+                >
+                  <div
+                    class="featured-league-logo"
+                  >
+                    <img
+                      alt="Bundesliga"
+                      src="/bundesliga-logo.png"
+                    />
+                  </div>
+                </div>
+                <div
+                  class="featured-league-back"
+                  style="background-color: rgb(210, 0, 38);"
+                >
+                  <div
+                    class="featured-league-back-content"
+                  >
+                    <h3>
+                      Bundesliga
+                    </h3>
+                    <p>
+                      German top division
+                    </p>
+                    <button
+                      class="btn btn-small"
+                    >
+                      View League
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="featured-league-card"
+            >
+              <div
+                class="featured-league-inner"
+              >
+                <div
+                  class="featured-league-front"
+                >
+                  <div
+                    class="featured-league-logo"
+                  >
+                    <img
+                      alt="Ligue 1"
+                      src="/ligue1-logo.png"
+                    />
+                  </div>
+                </div>
+                <div
+                  class="featured-league-back"
+                  style="background-color: rgb(9, 28, 62);"
+                >
+                  <div
+                    class="featured-league-back-content"
+                  >
+                    <h3>
+                      Ligue 1
+                    </h3>
+                    <p>
+                      French top division
+                    </p>
+                    <button
+                      class="btn btn-small"
+                    >
+                      View League
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="featured-league-card"
+            >
+              <div
+                class="featured-league-inner"
+              >
+                <div
+                  class="featured-league-front"
+                >
+                  <div
+                    class="featured-league-logo"
+                  >
+                    <img
+                      alt="Champions League"
+                      src="/ucl-logo.png"
+                    />
+                  </div>
+                </div>
+                <div
+                  class="featured-league-back"
+                  style="background-color: rgb(15, 76, 129);"
+                >
+                  <div
+                    class="featured-league-back-content"
+                  >
+                    <h3>
+                      Champions League
+                    </h3>
+                    <p>
+                      European competition
+                    </p>
+                    <button
+                      class="btn btn-small"
+                    >
+                      View League
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`HomeScreen Component matches snapshot with empty news 1`] = `
+<div>
+  <div
+    class="home-screen"
+  >
+    <section
+      class="hero"
+    >
+      <div
+        class="hero-content"
+      >
+        <h1>
+          Experience Football 
+          <span>
+            Like Never Before
+          </span>
+        </h1>
+        <p>
+          Real-time scores, in-depth statistics, and coverage of all major leagues.
+        </p>
+      </div>
+    </section>
+    <div
+      class="dashboard-grid"
+    >
+      <section
+        class="news-sidebar"
+      >
+        <div
+          class="news-header"
+        >
+          <h2>
+            <span
+              data-testid="font-awesome-icon"
+              style="margin-right: 0.5rem;"
+            />
+            Latest News
+          </h2>
+          <button
+            class="view-all-btn"
+          >
+            View All
+          </button>
+        </div>
+        <div
+          class="news-feed"
+        >
+          <div
+            class="no-news"
+          >
+            <p>
+              No recent news available
+            </p>
+          </div>
+        </div>
+      </section>
+      <div
+        class="dashboard-right-column"
+      >
+        <section
+          class="quick-actions"
+        >
+          <h2>
+            Quick Actions
+          </h2>
+          <div
+            class="actions-grid"
+          >
+            <div
+              class="action-card"
+            >
+              <div
+                class="action-icon"
+              >
+                <span
+                  data-testid="font-awesome-icon"
+                />
+              </div>
+              <h3>
+                Live Matches
+              </h3>
+              <p>
+                Follow games in real-time
+              </p>
+            </div>
+            <div
+              class="action-card"
+            >
+              <div
+                class="action-icon"
+              >
+                <span
+                  data-testid="font-awesome-icon"
+                />
+              </div>
+              <h3>
+                Highlights
+              </h3>
+              <p>
+                Watch match highlights
+              </p>
+            </div>
+            <div
+              class="action-card"
+            >
+              <div
+                class="action-icon"
+              >
+                <span
+                  data-testid="font-awesome-icon"
+                />
+              </div>
+              <h3>
+                Standings
+              </h3>
+              <p>
+                League tables and rankings
+              </p>
+            </div>
+            <div
+              class="action-card"
+            >
+              <div
+                class="action-icon"
+              >
+                <span
+                  data-testid="font-awesome-icon"
+                />
+              </div>
+              <h3>
+                Favorites
+              </h3>
+              <p>
+                Your followed content
+              </p>
+            </div>
+          </div>
+        </section>
+        <section
+          class="featured-leagues"
+        >
+          <h2>
+            Featured Leagues
+          </h2>
+          <div
+            class="featured-leagues-grid"
+          >
+            <div
+              class="featured-league-card"
+            >
+              <div
+                class="featured-league-inner"
+              >
+                <div
+                  class="featured-league-front"
+                >
+                  <div
+                    class="featured-league-logo"
+                  >
+                    <img
+                      alt="Premier League"
+                      src="/pl-logo.png"
+                    />
+                  </div>
+                </div>
+                <div
+                  class="featured-league-back"
+                  style="background-color: rgb(61, 25, 91);"
+                >
+                  <div
+                    class="featured-league-back-content"
+                  >
+                    <h3>
+                      Premier League
+                    </h3>
+                    <p>
+                      English top division
+                    </p>
+                    <button
+                      class="btn btn-small"
+                    >
+                      View League
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="featured-league-card"
+            >
+              <div
+                class="featured-league-inner"
+              >
+                <div
+                  class="featured-league-front"
+                >
+                  <div
+                    class="featured-league-logo"
+                  >
+                    <img
+                      alt="La Liga"
+                      src="/laliga-logo.png"
+                    />
+                  </div>
+                </div>
+                <div
+                  class="featured-league-back"
+                  style="background-color: rgb(255, 0, 0);"
+                >
+                  <div
+                    class="featured-league-back-content"
+                  >
+                    <h3>
+                      La Liga
+                    </h3>
+                    <p>
+                      Spanish top division
+                    </p>
+                    <button
+                      class="btn btn-small"
+                    >
+                      View League
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="featured-league-card"
+            >
+              <div
+                class="featured-league-inner"
+              >
+                <div
+                  class="featured-league-front"
+                >
+                  <div
+                    class="featured-league-logo"
+                  >
+                    <img
+                      alt="Serie A"
+                      src="/seriea-logo.png"
+                    />
+                  </div>
+                </div>
+                <div
+                  class="featured-league-back"
+                  style="background-color: rgb(0, 140, 69);"
+                >
+                  <div
+                    class="featured-league-back-content"
+                  >
+                    <h3>
+                      Serie A
+                    </h3>
+                    <p>
+                      Italian top division
+                    </p>
+                    <button
+                      class="btn btn-small"
+                    >
+                      View League
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="featured-league-card"
+            >
+              <div
+                class="featured-league-inner"
+              >
+                <div
+                  class="featured-league-front"
+                >
+                  <div
+                    class="featured-league-logo"
+                  >
+                    <img
+                      alt="Bundesliga"
+                      src="/bundesliga-logo.png"
+                    />
+                  </div>
+                </div>
+                <div
+                  class="featured-league-back"
+                  style="background-color: rgb(210, 0, 38);"
+                >
+                  <div
+                    class="featured-league-back-content"
+                  >
+                    <h3>
+                      Bundesliga
+                    </h3>
+                    <p>
+                      German top division
+                    </p>
+                    <button
+                      class="btn btn-small"
+                    >
+                      View League
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="featured-league-card"
+            >
+              <div
+                class="featured-league-inner"
+              >
+                <div
+                  class="featured-league-front"
+                >
+                  <div
+                    class="featured-league-logo"
+                  >
+                    <img
+                      alt="Ligue 1"
+                      src="/ligue1-logo.png"
+                    />
+                  </div>
+                </div>
+                <div
+                  class="featured-league-back"
+                  style="background-color: rgb(9, 28, 62);"
+                >
+                  <div
+                    class="featured-league-back-content"
+                  >
+                    <h3>
+                      Ligue 1
+                    </h3>
+                    <p>
+                      French top division
+                    </p>
+                    <button
+                      class="btn btn-small"
+                    >
+                      View League
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="featured-league-card"
+            >
+              <div
+                class="featured-league-inner"
+              >
+                <div
+                  class="featured-league-front"
+                >
+                  <div
+                    class="featured-league-logo"
+                  >
+                    <img
+                      alt="Champions League"
+                      src="/ucl-logo.png"
+                    />
+                  </div>
+                </div>
+                <div
+                  class="featured-league-back"
+                  style="background-color: rgb(15, 76, 129);"
+                >
+                  <div
+                    class="featured-league-back-content"
+                  >
+                    <h3>
+                      Champions League
+                    </h3>
+                    <p>
+                      European competition
+                    </p>
+                    <button
+                      class="btn btn-small"
+                    >
+                      View League
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`HomeScreen Component matches snapshot with loading state 1`] = `
+<div>
+  <div
+    class="home-screen"
+  >
+    <section
+      class="hero"
+    >
+      <div
+        class="hero-content"
+      >
+        <h1>
+          Experience Football 
+          <span>
+            Like Never Before
+          </span>
+        </h1>
+        <p>
+          Real-time scores, in-depth statistics, and coverage of all major leagues.
+        </p>
+      </div>
+    </section>
+    <div
+      class="dashboard-grid"
+    >
+      <section
+        class="news-sidebar"
+      >
+        <div
+          class="news-header"
+        >
+          <h2>
+            <span
+              data-testid="font-awesome-icon"
+              style="margin-right: 0.5rem;"
+            />
+            Latest News
+          </h2>
+          <button
+            class="view-all-btn"
+          >
+            View All
+          </button>
+        </div>
+        <div
+          class="news-feed"
+        >
+          <div
+            class="news-loading"
+          >
+            <div
+              class="loading-spinner"
+            />
+            <p>
+              Loading news...
+            </p>
+          </div>
+        </div>
+      </section>
+      <div
+        class="dashboard-right-column"
+      >
+        <section
+          class="quick-actions"
+        >
+          <h2>
+            Quick Actions
+          </h2>
+          <div
+            class="actions-grid"
+          >
+            <div
+              class="action-card"
+            >
+              <div
+                class="action-icon"
+              >
+                <span
+                  data-testid="font-awesome-icon"
+                />
+              </div>
+              <h3>
+                Live Matches
+              </h3>
+              <p>
+                Follow games in real-time
+              </p>
+            </div>
+            <div
+              class="action-card"
+            >
+              <div
+                class="action-icon"
+              >
+                <span
+                  data-testid="font-awesome-icon"
+                />
+              </div>
+              <h3>
+                Highlights
+              </h3>
+              <p>
+                Watch match highlights
+              </p>
+            </div>
+            <div
+              class="action-card"
+            >
+              <div
+                class="action-icon"
+              >
+                <span
+                  data-testid="font-awesome-icon"
+                />
+              </div>
+              <h3>
+                Standings
+              </h3>
+              <p>
+                League tables and rankings
+              </p>
+            </div>
+            <div
+              class="action-card"
+            >
+              <div
+                class="action-icon"
+              >
+                <span
+                  data-testid="font-awesome-icon"
+                />
+              </div>
+              <h3>
+                Favorites
+              </h3>
+              <p>
+                Your followed content
+              </p>
+            </div>
+          </div>
+        </section>
+        <section
+          class="featured-leagues"
+        >
+          <h2>
+            Featured Leagues
+          </h2>
+          <div
+            class="featured-leagues-grid"
+          >
+            <div
+              class="featured-league-card"
+            >
+              <div
+                class="featured-league-inner"
+              >
+                <div
+                  class="featured-league-front"
+                >
+                  <div
+                    class="featured-league-logo"
+                  >
+                    <img
+                      alt="Premier League"
+                      src="/pl-logo.png"
+                    />
+                  </div>
+                </div>
+                <div
+                  class="featured-league-back"
+                  style="background-color: rgb(61, 25, 91);"
+                >
+                  <div
+                    class="featured-league-back-content"
+                  >
+                    <h3>
+                      Premier League
+                    </h3>
+                    <p>
+                      English top division
+                    </p>
+                    <button
+                      class="btn btn-small"
+                    >
+                      View League
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="featured-league-card"
+            >
+              <div
+                class="featured-league-inner"
+              >
+                <div
+                  class="featured-league-front"
+                >
+                  <div
+                    class="featured-league-logo"
+                  >
+                    <img
+                      alt="La Liga"
+                      src="/laliga-logo.png"
+                    />
+                  </div>
+                </div>
+                <div
+                  class="featured-league-back"
+                  style="background-color: rgb(255, 0, 0);"
+                >
+                  <div
+                    class="featured-league-back-content"
+                  >
+                    <h3>
+                      La Liga
+                    </h3>
+                    <p>
+                      Spanish top division
+                    </p>
+                    <button
+                      class="btn btn-small"
+                    >
+                      View League
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="featured-league-card"
+            >
+              <div
+                class="featured-league-inner"
+              >
+                <div
+                  class="featured-league-front"
+                >
+                  <div
+                    class="featured-league-logo"
+                  >
+                    <img
+                      alt="Serie A"
+                      src="/seriea-logo.png"
+                    />
+                  </div>
+                </div>
+                <div
+                  class="featured-league-back"
+                  style="background-color: rgb(0, 140, 69);"
+                >
+                  <div
+                    class="featured-league-back-content"
+                  >
+                    <h3>
+                      Serie A
+                    </h3>
+                    <p>
+                      Italian top division
+                    </p>
+                    <button
+                      class="btn btn-small"
+                    >
+                      View League
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="featured-league-card"
+            >
+              <div
+                class="featured-league-inner"
+              >
+                <div
+                  class="featured-league-front"
+                >
+                  <div
+                    class="featured-league-logo"
+                  >
+                    <img
+                      alt="Bundesliga"
+                      src="/bundesliga-logo.png"
+                    />
+                  </div>
+                </div>
+                <div
+                  class="featured-league-back"
+                  style="background-color: rgb(210, 0, 38);"
+                >
+                  <div
+                    class="featured-league-back-content"
+                  >
+                    <h3>
+                      Bundesliga
+                    </h3>
+                    <p>
+                      German top division
+                    </p>
+                    <button
+                      class="btn btn-small"
+                    >
+                      View League
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="featured-league-card"
+            >
+              <div
+                class="featured-league-inner"
+              >
+                <div
+                  class="featured-league-front"
+                >
+                  <div
+                    class="featured-league-logo"
+                  >
+                    <img
+                      alt="Ligue 1"
+                      src="/ligue1-logo.png"
+                    />
+                  </div>
+                </div>
+                <div
+                  class="featured-league-back"
+                  style="background-color: rgb(9, 28, 62);"
+                >
+                  <div
+                    class="featured-league-back-content"
+                  >
+                    <h3>
+                      Ligue 1
+                    </h3>
+                    <p>
+                      French top division
+                    </p>
+                    <button
+                      class="btn btn-small"
+                    >
+                      View League
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="featured-league-card"
+            >
+              <div
+                class="featured-league-inner"
+              >
+                <div
+                  class="featured-league-front"
+                >
+                  <div
+                    class="featured-league-logo"
+                  >
+                    <img
+                      alt="Champions League"
+                      src="/ucl-logo.png"
+                    />
+                  </div>
+                </div>
+                <div
+                  class="featured-league-back"
+                  style="background-color: rgb(15, 76, 129);"
+                >
+                  <div
+                    class="featured-league-back-content"
+                  >
+                    <h3>
+                      Champions League
+                    </h3>
+                    <p>
+                      European competition
+                    </p>
+                    <button
+                      class="btn btn-small"
+                    >
+                      View League
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+`;

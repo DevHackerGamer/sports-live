@@ -1,0 +1,48 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`LiveSports Component matches snapshot in error state 1`] = `
+<div>
+  <div
+    class="ls-live-sports ls-error-state"
+    data-testid="error"
+  >
+    <div
+      class="ls-error-content"
+    >
+      <h3>
+        Connection Error
+      </h3>
+      <p>
+        Unable to fetch live sports data
+      </p>
+      <div
+        style="display: none;"
+      >
+        Failed to load matches
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`LiveSports Component matches snapshot in loading state 1`] = `
+<div>
+  <div
+    class="ls-live-sports ls-loading-state"
+    data-testid="loading"
+  >
+    <div
+      class="ls-loading-content"
+    >
+      <div
+        class="ls-loading-spinner"
+      />
+      <h3>
+        Loading live matches...
+      </h3>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`LiveSports Component matches snapshot with loaded data 1`] = `<div />`;

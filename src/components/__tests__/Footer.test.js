@@ -1,7 +1,6 @@
-// __tests__/Footer.test.js
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import Footer from '../Footer/Footer' ;
+import Footer from '../Footer/Footer';
 
 describe('Footer component', () => {
   let mockSetActiveTab;
@@ -24,7 +23,7 @@ describe('Footer component', () => {
     ];
   });
 
-  it('renders all sections and league buttons', () => {
+  it('renders all main sections and league buttons', () => {
     render(
       <Footer
         setActiveTab={mockSetActiveTab}
@@ -36,21 +35,21 @@ describe('Footer component', () => {
       />
     );
 
-    // Check quick link buttons
-    ['Home', 'Matches', 'Favorites', 'Players', 'News', 'Highlights'].forEach(text => {
+    // Quick link buttons
+    ['Home', 'Matches', 'Favorites', 'News', 'Highlights'].forEach(text => {
       expect(screen.getByText(text)).toBeInTheDocument();
     });
 
-    // Check league buttons
+    // League buttons
     leagues.forEach(l => {
       expect(screen.getByText(l.name)).toBeInTheDocument();
     });
 
-    // Check brand section
+    // Brand check
     expect(screen.getByText('SportsLive')).toBeInTheDocument();
   });
 
-  it('calls appropriate functions when quick link buttons are clicked', () => {
+  it('handles quick link clicks properly', () => {
     render(
       <Footer
         setActiveTab={mockSetActiveTab}
@@ -70,7 +69,7 @@ describe('Footer component', () => {
     expect(mockSetSelectedTeam).toHaveBeenCalledWith(null);
   });
 
-  it('calls appropriate functions when a league button is clicked', () => {
+  it('handles league button clicks correctly', () => {
     render(
       <Footer
         setActiveTab={mockSetActiveTab}
@@ -91,7 +90,7 @@ describe('Footer component', () => {
     expect(mockSetSelectedTeam).toHaveBeenCalledWith(null);
   });
 
-  it('renders social media icons', () => {
+  it('renders all social media icons', () => {
     render(
       <Footer
         setActiveTab={mockSetActiveTab}

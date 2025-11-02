@@ -1,39 +1,51 @@
-// src/components/__tests__/teams.test.js
 global.TextEncoder = require("util").TextEncoder;
 global.TextDecoder = require("util").TextDecoder;
 
 const handler = require("../../../api/teams");
-const { getTeamsInfoCollection } = require("../../../lib/mongodb");
+const {
+  getTeamsInfoCollection,
+  getTeamsCollectionESPN,
+} = require("../../../lib/mongodb");
 
 jest.mock("../../../lib/mongodb.js", () => ({
   getTeamsInfoCollection: jest.fn(),
+  getTeamsCollectionESPN: jest.fn(),
 }));
 
-// mock req/res like in players.test.js
 function mockReqRes({ method = "GET", query = {}, body = {} } = {}) {
   const json = jest.fn();
   const end = jest.fn();
-  const status = jest.fn(() => ({ json, end }));
   const setHeader = jest.fn();
-  const res = { status, setHeader, end, json };
+  const status = jest.fn(() => ({ json, end }));
+  const res = { setHeader, status, json, end };
   const req = { method, url: "/api/teams", query, body, headers: {} };
-  return { req, res, json, status, setHeader, end };
+  return { req, res, json, end, status, setHeader };
 }
 
 describe("Teams API", () => {
-  let mockTeams;
+  let mockTeamsInfo;
+  let mockTeamsESPN;
 
   beforeEach(() => {
-    mockTeams = {
+    mockTeamsInfo = {
       find: jest.fn().mockReturnThis(),
       toArray: jest.fn().mockResolvedValue([]),
       findOne: jest.fn(),
       insertMany: jest.fn(),
     };
-    getTeamsInfoCollection.mockResolvedValue(mockTeams);
+    mockTeamsESPN = {
+      find: jest.fn().mockReturnThis(),
+      toArray: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn(),
+      updateOne: jest.fn(),
+    };
+
+    getTeamsInfoCollection.mockResolvedValue(mockTeamsInfo);
+    getTeamsCollectionESPN.mockResolvedValue(mockTeamsESPN);
     jest.clearAllMocks();
   });
 
+  // ---------------- OPTIONS ----------------
   test("OPTIONS request returns 200", async () => {
     const { req, res, end } = mockReqRes({ method: "OPTIONS" });
     await handler(req, res);
@@ -41,46 +53,98 @@ describe("Teams API", () => {
     expect(end).toHaveBeenCalled();
   });
 
-  test("GET all teams success", async () => {
-    const fakeTeams = [
-      { id: 1, name: "Team A" },
-      { id: 2, name: "Team B" },
+  // ---------------- GET all teams (ESPN default) ----------------
+  test("GET all teams returns ESPN teams by default", async () => {
+    const espnTeams = [
+      { id: 1, name: "Barcelona" },
+      { id: 2, name: "Arsenal" },
     ];
-    mockTeams.toArray.mockResolvedValue(fakeTeams);
+    mockTeamsESPN.toArray.mockResolvedValue(espnTeams);
 
     const { req, res, json } = mockReqRes({ method: "GET" });
     await handler(req, res);
 
-    expect(mockTeams.find).toHaveBeenCalledWith({});
+    expect(mockTeamsESPN.find).toHaveBeenCalledWith({});
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: true,
-        data: fakeTeams,
-        count: fakeTeams.length,
+        data: espnTeams.sort((a, b) =>
+          a.name.localeCompare(b.name)
+        ),
+        source: "espn",
       })
     );
   });
 
-  test("GET by id returns team", async () => {
-    const fakeTeam = { id: 123, name: "Special Team" };
-    mockTeams.findOne.mockResolvedValue(fakeTeam);
+  // ---------------- GET all teams with ?source=all ----------------
+  test("GET with source=all merges ESPN and regular teams", async () => {
+    const espnTeams = [
+      { id: 1, name: "Real Madrid" },
+      { id: 2, name: "Chelsea" },
+    ];
+    const regularTeams = [
+      { id: 2, name: "Chelsea Legacy" },
+      { id: 3, name: "Napoli" },
+    ];
+
+    mockTeamsESPN.toArray.mockResolvedValue(espnTeams);
+    mockTeamsInfo.toArray.mockResolvedValue(regularTeams);
 
     const { req, res, json } = mockReqRes({
       method: "GET",
-      query: { id: "123" },
+      query: { source: "all" },
     });
     await handler(req, res);
 
-    expect(mockTeams.findOne).toHaveBeenCalledWith({ id: 123 });
-    expect(json).toHaveBeenCalledWith({ success: true, data: fakeTeam });
+    expect(mockTeamsESPN.find).toHaveBeenCalledWith({});
+    expect(mockTeamsInfo.find).toHaveBeenCalledWith({});
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        count: 3, // merged unique IDs
+        source: "all",
+      })
+    );
   });
 
-  test("GET by id not found", async () => {
-    mockTeams.findOne.mockResolvedValue(null);
+  // ---------------- GET by ID ----------------
+  test("GET by id returns team (found in ESPN)", async () => {
+    const fakeTeam = { id: 7, name: "Man City" };
+    mockTeamsESPN.findOne.mockResolvedValue(fakeTeam);
 
     const { req, res, json } = mockReqRes({
       method: "GET",
-      query: { id: "999" },
+      query: { id: "7" },
+    });
+    await handler(req, res);
+
+    expect(mockTeamsESPN.findOne).toHaveBeenCalledWith({ id: 7 });
+    expect(json).toHaveBeenCalledWith({ success: true, data: fakeTeam });
+  });
+
+  test("GET by id falls back to regular teams if not in ESPN", async () => {
+    const fallbackTeam = { id: 9, name: "Juventus" };
+    mockTeamsESPN.findOne.mockResolvedValue(null);
+    mockTeamsInfo.findOne.mockResolvedValue(fallbackTeam);
+
+    const { req, res, json } = mockReqRes({
+      method: "GET",
+      query: { id: "9" },
+    });
+    await handler(req, res);
+
+    expect(mockTeamsESPN.findOne).toHaveBeenCalledWith({ id: 9 });
+    expect(mockTeamsInfo.findOne).toHaveBeenCalledWith({ id: 9 });
+    expect(json).toHaveBeenCalledWith({ success: true, data: fallbackTeam });
+  });
+
+  test("GET by id not found returns 404", async () => {
+    mockTeamsESPN.findOne.mockResolvedValue(null);
+    mockTeamsInfo.findOne.mockResolvedValue(null);
+
+    const { req, res, json } = mockReqRes({
+      method: "GET",
+      query: { id: "404" },
     });
     await handler(req, res);
 
@@ -91,11 +155,12 @@ describe("Teams API", () => {
     });
   });
 
+  // ---------------- POST ----------------
   test("POST inserts valid teams", async () => {
-    mockTeams.insertMany.mockResolvedValue({ insertedCount: 2 });
+    mockTeamsInfo.insertMany.mockResolvedValue({ insertedCount: 2 });
     const newTeams = [
-      { id: 1, name: "T1" },
-      { id: 2, name: "T2" },
+      { id: 10, name: "PSG" },
+      { id: 11, name: "Monaco" },
     ];
 
     const { req, res, json } = mockReqRes({
@@ -104,7 +169,7 @@ describe("Teams API", () => {
     });
     await handler(req, res);
 
-    expect(mockTeams.insertMany).toHaveBeenCalledWith(newTeams);
+    expect(mockTeamsInfo.insertMany).toHaveBeenCalledWith(newTeams);
     expect(res.status).toHaveBeenCalledWith(201);
     expect(json).toHaveBeenCalledWith({
       success: true,
@@ -112,8 +177,11 @@ describe("Teams API", () => {
     });
   });
 
-  test("POST with invalid body", async () => {
-    const { req, res, json } = mockReqRes({ method: "POST", body: {} });
+  test("POST with invalid body returns 400", async () => {
+    const { req, res, json } = mockReqRes({
+      method: "POST",
+      body: {},
+    });
     await handler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
@@ -123,19 +191,8 @@ describe("Teams API", () => {
     });
   });
 
-  test("internal error returns 500", async () => {
-    getTeamsInfoCollection.mockRejectedValue(new Error("DB fail"));
-
-    const { req, res, json } = mockReqRes({ method: "GET" });
-    await handler(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(json).toHaveBeenCalledWith(
-      expect.objectContaining({ error: "Failed to handle teams request" })
-    );
-  });
-
-  test("method not allowed returns 405", async () => {
+  // ---------------- Method not allowed ----------------
+  test("DELETE returns 405", async () => {
     const { req, res, json } = mockReqRes({ method: "DELETE" });
     await handler(req, res);
 
@@ -144,5 +201,19 @@ describe("Teams API", () => {
       success: false,
       error: "Method not allowed",
     });
+  });
+
+  // ---------------- Internal error ----------------
+  test("handles internal server error", async () => {
+    getTeamsInfoCollection.mockRejectedValue(new Error("DB fail"));
+    const { req, res, json } = mockReqRes({ method: "GET" });
+    await handler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: "Failed to handle teams request",
+      })
+    );
   });
 });

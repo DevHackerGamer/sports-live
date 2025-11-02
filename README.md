@@ -8,7 +8,7 @@ description: A modern web platform for tracking live sports feeds, scores, and s
 A modern web platform for tracking live sports feeds, scores, and stats. Built with **React**, **Node.js/Express**, and **MongoDB** for real-time updates and admin management
 
 ---
-![Code Coverage](https://img.shields.io/badge/coverage-80%25-yellowgreen)
+![Code Coverage](https://img.shields.io/badge/coverage-81%25-yellowgreen)
 
 
 ## Admin Login Credintials

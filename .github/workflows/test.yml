@@ -9,7 +9,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
@@ -17,7 +16,7 @@ jobs:
 
       # 3. Install dependencies
       - name: Install dependencies
-        run : npm install --legacy-peer-deps
+        run: npm install --legacy-peer-deps
         env:
           NPM_CONFIG_LOGLEVEL: error
 
@@ -25,7 +24,7 @@ jobs:
       - name: Run Tests with Coverage
         id: run-tests
         continue-on-error: true
-        run: npm run test -- --coverage
+        run: npm run test -- --coverage --coverageReporters="json-summary" --coverageReporters="text" --coverageReporters="lcov"
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=4096 --no-warnings
@@ -33,12 +32,23 @@ jobs:
           ESLINT_NO_DEV_ERRORS: true
           NPM_CONFIG_LOGLEVEL: error
 
-     
+      # ✅ Extract coverage percentage
+      - name: Extract Coverage Percentage
+        id: coverage
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            COVERAGE=$(jq '.total.lines.pct' coverage/coverage-summary.json)
+            echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
+          else
+            echo "COVERAGE=0" >> $GITHUB_ENV
+          fi
+
       # 6. Job Summary
       - name: Test Results Summary
         if: always()
         run: |
           echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "**Coverage:** $COVERAGE%" >> $GITHUB_STEP_SUMMARY
           if [ "${{ steps.run-tests.outcome }}" = "failure" ]; then
             echo "⚠️ Tests failed but coverage was uploaded" >> $GITHUB_STEP_SUMMARY
             exit 1

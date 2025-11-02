@@ -1,0 +1,24 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`MatchViewer Component matches snapshot in loading state 1`] = `
+<div>
+  <div
+    class="match-viewer"
+  >
+    <div
+      class="loading-overlay"
+    >
+      <div
+        class="loading-spinner"
+      />
+      <p>
+        Loading match details...
+      </p>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`MatchViewer Component matches snapshot with admin access 1`] = `<div />`;
+
+exports[`MatchViewer Component matches snapshot with match data 1`] = `<div />`;

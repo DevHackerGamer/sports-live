@@ -62,4 +62,5 @@ describe('LiveCommentaryFeed', () => {
     render(<LiveCommentaryFeed matchId={matchId} />);
     await waitFor(() => expect(apiClient.getCommentary).toHaveBeenCalledWith(matchId));
   });
+  
 });

@@ -1,15 +1,12 @@
-// src/_tests_/LeagueView.test.js
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import LeagueView from '../LeagueView/LeagueView';
 import { apiClient } from '../../lib/api';
 
-// Mock apiClient functions
+// Mock apiClient
 jest.mock('../../lib/api', () => ({
   apiClient: {
     request: jest.fn(),
-    getMatchesByDate: jest.fn(),
-    getTeams: jest.fn(),
   },
 }));
 
@@ -17,25 +14,32 @@ jest.mock('../../lib/api', () => ({
 global.fetch = jest.fn();
 
 describe('LeagueView Component', () => {
-  const mockTeams = [
-    { id: '1', name: 'Team A', crest: '/crestA.png' },
-    { id: '2', name: 'Team B', crest: '/crestB.png' },
-  ];
-
-  const mockPlayers = [
-    { _id: 'p1', name: 'Player 1', teamId: '1', position: 'Forward', nationality: 'SA', dateOfBirth: '2000-01-01' },
-    { _id: 'p2', name: 'Player 2', teamId: '2', position: 'Midfielder', nationality: 'BR', dateOfBirth: '1998-06-15' },
-  ];
-
   const mockStandings = [
-    { position: 1, team: { id: '1', name: 'Team A', crest: '/crestA.png' }, playedGames: 10, won: 7, draw: 2, lost: 1, goalDifference: 15, points: 23 },
-    { position: 2, team: { id: '2', name: 'Team B', crest: '/crestB.png' }, playedGames: 10, won: 6, draw: 3, lost: 1, goalDifference: 10, points: 21 },
+    {
+      position: 1,
+      team: { id: '1', name: 'Team A', crest: '/crestA.png' },
+      playedGames: 10, won: 7, draw: 2, lost: 1, goalDifference: 15, points: 23,
+    },
+    {
+      position: 2,
+      team: { id: '2', name: 'Team B', crest: '/crestB.png' },
+      playedGames: 10, won: 6, draw: 3, lost: 1, goalDifference: 10, points: 21,
+    },
+  ];
+
+  const mockMatches = [
+    {
+      id: 'm1',
+      utcDate: '2025-10-28T14:00:00Z',
+      homeTeam: { name: 'Team A', crest: '/crestA.png' },
+      awayTeam: { name: 'Team B', crest: '/crestB.png' },
+      competition: 'Premier League',
+    },
   ];
 
   afterEach(() => {
     jest.clearAllMocks();
   });
-
 
   test('renders loading standings initially', async () => {
     fetch.mockImplementation(() => new Promise(() => {}));
@@ -45,42 +49,47 @@ describe('LeagueView Component', () => {
 
   test('renders standings table after API returns data', async () => {
     fetch.mockResolvedValueOnce({
-      json: async () => ({ data: [{ _id: 'PL-2025', standings: [{ type: 'TOTAL', table: mockStandings }] }] }),
+      json: async () => ({
+        data: [{ _id: 'PL-2025', standings: [{ type: 'TOTAL', table: mockStandings }] }],
+      }),
     });
-    apiClient.getTeams.mockResolvedValueOnce({ data: mockTeams });
-    apiClient.request.mockResolvedValueOnce({ success: true, players: mockPlayers });
 
     render(<LeagueView />);
     await waitFor(() => expect(screen.getByText('Team A')).toBeInTheDocument());
     expect(screen.getByText('Team B')).toBeInTheDocument();
-    expect(screen.getAllByRole('row')).toHaveLength(mockStandings.length + 1); // including header
+    expect(screen.getAllByRole('row')).toHaveLength(mockStandings.length + 1);
   });
 
-  test('handles standings API error', async () => {
+  test('handles standings API error gracefully', async () => {
     fetch.mockRejectedValueOnce(new Error('API Error'));
     render(<LeagueView />);
     await waitFor(() => expect(screen.getByText(/failed to load data/i)).toBeInTheDocument());
   });
 
-  
-
-  test('renders players tab content', async () => {
-    apiClient.request.mockResolvedValueOnce({ success: true, players: mockPlayers });
-    apiClient.getTeams.mockResolvedValueOnce({ data: mockTeams });
-    fetch.mockResolvedValueOnce({ json: async () => ({ data: [{ _id: 'PL-2025', standings: [{ type: 'TOTAL', table: mockStandings }] }] }) });
+  test('switches to Matches tab and loads matches', async () => {
+    fetch.mockResolvedValueOnce({
+      json: async () => ({
+        data: [{ _id: 'PL-2025', standings: [{ type: 'TOTAL', table: mockStandings }] }],
+      }),
+    });
+    apiClient.request.mockResolvedValueOnce({ data: mockMatches });
 
     render(<LeagueView />);
-    const playersTab = screen.getByText('Players');
-    fireEvent.click(playersTab);
 
-    await waitFor(() => expect(screen.getByText('Player 1')).toBeInTheDocument());
-    expect(screen.getByText('Player 2')).toBeInTheDocument();
+    const matchesTab = screen.getByText('Matches');
+    fireEvent.click(matchesTab);
+
+    await waitFor(() => expect(screen.getByText(/loading upcoming matches/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Team A')).toBeInTheDocument());
+    expect(screen.getByText(/Premier League/i)).toBeInTheDocument();
   });
 
   test('calls onBack and onTeamSelect callbacks', async () => {
-    apiClient.request.mockResolvedValueOnce({ success: true, players: mockPlayers });
-    apiClient.getTeams.mockResolvedValueOnce({ data: mockTeams });
-    fetch.mockResolvedValueOnce({ json: async () => ({ data: [{ _id: 'PL-2025', standings: [{ type: 'TOTAL', table: mockStandings }] }] }) });
+    fetch.mockResolvedValueOnce({
+      json: async () => ({
+        data: [{ _id: 'PL-2025', standings: [{ type: 'TOTAL', table: mockStandings }] }],
+      }),
+    });
 
     const onBackMock = jest.fn();
     const onTeamSelectMock = jest.fn();
@@ -91,10 +100,9 @@ describe('LeagueView Component', () => {
     fireEvent.click(screen.getByText(/home/i));
     expect(onBackMock).toHaveBeenCalled();
 
-    // Team click
-    await waitFor(() => {
-      fireEvent.click(screen.getByText('Team A'));
-      expect(onTeamSelectMock).toHaveBeenCalled();
-    });
+    // Wait for data to render
+    await waitFor(() => screen.getByText('Team A'));
+    fireEvent.click(screen.getByText('Team A'));
+    expect(onTeamSelectMock).toHaveBeenCalledWith(expect.objectContaining({ id: '1', name: 'Team A' }));
   });
 });

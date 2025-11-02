@@ -1,0 +1,55 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`LiveInput Component matches snapshot with admin and match 1`] = `<div />`;
+
+exports[`LiveInput Component matches snapshot with non-admin user 1`] = `
+<div>
+  <div
+    class="live-input"
+  >
+    <div
+      style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;"
+    >
+      <h2>
+        Live Match Input
+      </h2>
+      <button
+        class="timer-btn"
+        style="margin-left: auto;"
+      >
+        ↩ Back
+      </button>
+    </div>
+    <p
+      style="color: rgb(187, 0, 0);"
+    >
+      Access denied: Admin role required.
+    </p>
+  </div>
+</div>
+`;
+
+exports[`LiveInput Component matches snapshot without match 1`] = `
+<div>
+  <div
+    class="live-input"
+  >
+    <div
+      style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;"
+    >
+      <h2>
+        Live Match Input
+      </h2>
+      <button
+        class="timer-btn"
+        style="margin-left: auto;"
+      >
+        ↩ Back
+      </button>
+    </div>
+    <p>
+      No match selected. Select a match first from Live Sports.
+    </p>
+  </div>
+</div>
+`;
