@@ -24,7 +24,7 @@ jobs:
       - name: Run Tests with Coverage
         id: run-tests
         continue-on-error: true
-        run: npm run test -- --coverage
+        run: npm run test -- --coverage --coverageReporters="json-summary" --coverageReporters="text" --coverageReporters="lcov"
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=4096 --no-warnings
