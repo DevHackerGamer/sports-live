@@ -34,14 +34,31 @@ jobs:
           NPM_CONFIG_LOGLEVEL: error
 
      
-      # 6. Job Summary
+      # Extract coverage summary (from coverage/coverage-summary.json)
+      - name: Extract Coverage Percentage
+        id: coverage
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            COVERAGE=$(jq '.total.lines.pct' coverage/coverage-summary.json)
+            echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
+            echo "Total test coverage: $COVERAGE%" 
+          else
+            echo "COVERAGE=0" >> $GITHUB_ENV
+            echo "⚠️ No coverage summary found"
+          fi
+
+      # Add job summary
       - name: Test Results Summary
         if: always()
         run: |
-          echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 🧪 Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Coverage:** $COVERAGE%" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
           if [ "${{ steps.run-tests.outcome }}" = "failure" ]; then
-            echo "⚠️ Tests failed but coverage was uploaded" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **Tests failed but coverage was collected**" >> $GITHUB_STEP_SUMMARY
             exit 1
           else
-            echo "✅ All tests passed successfully" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **All tests passed successfully**" >> $GITHUB_STEP_SUMMARY
           fi
