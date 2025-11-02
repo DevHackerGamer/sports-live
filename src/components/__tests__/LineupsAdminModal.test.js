@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import LineupsAdminModal from '../LineupsAdminModal';
+import LineupsAdminModal from '../liveInput/LineupsAdminModal';
 import * as api from '../../lib/api';
 
 // Mock API client
