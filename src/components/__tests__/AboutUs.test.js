@@ -117,4 +117,5 @@ describe('AboutUs Component', () => {
 
     expect(container).toMatchSnapshot();
   });
+  
 });
