@@ -87,8 +87,8 @@
     "collectCoverageFrom": [
       "src/components/**/*.{js,jsx}",
       "api/**/*.js",
-      "src/hooks/**/*.{js,jsx}",
-       "!src/components/matchsetup/**"
+      "src/hooks/**/*.{js,jsx}"
+     
     ]
   }
 }
