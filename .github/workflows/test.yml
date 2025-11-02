@@ -24,11 +24,7 @@ jobs:
       - name: Run Tests with Coverage
         id: run-tests
         continue-on-error: true
-        run: |
-          npx jest --coverage \
-          --coverageReporters="json-summary" \
-          --coverageReporters="text" \
-          --coverageReporters="lcov"
+        run: npm run test -- --coverage
         env:
           CI: true
           NODE_OPTIONS: --max-old-space-size=4096 --no-warnings
@@ -36,31 +32,26 @@ jobs:
           ESLINT_NO_DEV_ERRORS: true
           NPM_CONFIG_LOGLEVEL: error
 
-      # Extract coverage summary (from coverage/coverage-summary.json)
+      # ✅ Extract coverage percentage
       - name: Extract Coverage Percentage
         id: coverage
         run: |
           if [ -f coverage/coverage-summary.json ]; then
             COVERAGE=$(jq '.total.lines.pct' coverage/coverage-summary.json)
             echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
-            echo "Total test coverage: $COVERAGE%"
           else
             echo "COVERAGE=0" >> $GITHUB_ENV
-            echo "⚠️ No coverage summary found"
           fi
 
-      # Add job summary
+      # 6. Job Summary
       - name: Test Results Summary
         if: always()
         run: |
-          echo "## 🧪 Test Results Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
           echo "**Coverage:** $COVERAGE%" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
           if [ "${{ steps.run-tests.outcome }}" = "failure" ]; then
-            echo "⚠️ **Tests failed but coverage was collected**" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Tests failed but coverage was uploaded" >> $GITHUB_STEP_SUMMARY
             exit 1
           else
-            echo "✅ **All tests passed successfully**" >> $GITHUB_STEP_SUMMARY
+            echo "✅ All tests passed successfully" >> $GITHUB_STEP_SUMMARY
           fi
