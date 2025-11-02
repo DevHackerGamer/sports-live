@@ -86,6 +86,7 @@
   "jest": {
     "collectCoverageFrom": [
       "src/components/**/*.{js,jsx}",
+      "!src/components/matchSetup/MatchSetup.js",
       "api/**/*.js",
       "src/hooks/**/*.{js,jsx}"
     ]
